@@ -51,11 +51,12 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .card{position:relative;display:flex;flex-direction:column;min-height:320px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:26px;cursor:pointer;overflow:hidden;margin-bottom:12px;transition:box-shadow .3s}
 .card.burst{animation:burst .5s}
 @keyframes burst{0%{box-shadow:0 0 0 0 rgba(59,109,17,.4)}100%{box-shadow:0 0 0 18px rgba(59,109,17,0)}}
-.signal-zone{flex:1;display:flex;flex-direction:column;justify-content:center;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .35s ease}
-.card.show .signal-zone{transform:translateY(-22px) scale(.985);opacity:.96}
-.answer-zone{display:grid;grid-template-rows:0fr;opacity:0;transform:translateY(18px);transition:grid-template-rows .55s cubic-bezier(.4,0,.2,1),opacity .35s ease .12s,transform .5s cubic-bezier(.4,0,.2,1) .06s;border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0}
+.signal-zone{flex:1 1 0;min-height:0;display:flex;flex-direction:column;justify-content:center;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .35s ease,flex-basis .4s cubic-bezier(.4,0,.2,1)}
+.card.show .signal-zone{transform:translateY(-22px) scale(.985);opacity:.96;flex-basis:33.333%}
+.answer-zone{flex:0 0 0;min-height:0;overflow:hidden;opacity:0;transform:translateY(18px);transition:flex .55s cubic-bezier(.4,0,.2,1),opacity .35s ease .12s,transform .5s cubic-bezier(.4,0,.2,1) .06s;border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0;display:flex;flex-direction:column;justify-content:center}
 .answer-inner{overflow:hidden;padding:0 14px}
-.card.show .answer-zone{grid-template-rows:1fr;opacity:1;transform:none}
+.card.show .answer-zone{flex:2 2 0;opacity:1;transform:none}
+.card.show .answer-inner{padding:12px 14px}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
 .lastRes{font-size:11px;font-weight:500;margin-bottom:6px;align-self:flex-start}
@@ -77,6 +78,20 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .srcPopover{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.12);z-index:120;max-height:280px;overflow:auto;min-width:260px}
 .srcPopover label{display:flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;margin:4px 0;cursor:pointer}
 .srcPopover input{width:14px;height:14px}
+.browseTable{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+.browseTable th{background:#f9fafb;text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-weight:500;position:sticky;top:0;z-index:1}
+.browseTable td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.browseTable tr:hover td{background:#FAFCFE}
+.browseTable .ts{color:#185FA5;font-weight:500;font-size:12px}
+.browseTable .ts small{display:block;color:#9ca3af;font-weight:normal;font-size:11px}
+.browseTable .sig{font-weight:500;color:#042C53;line-height:1.5}
+.browseTable .sig small{display:block;color:#6b7280;font-weight:normal;font-size:11px;margin-top:2px;max-height:40px;overflow:hidden}
+.browseTable .modeTag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.browseTable .mTrain{background:#DBEAFE;color:#185FA5}
+.browseTable .mBrowse{background:#FAEEDA;color:#854F0B}
+.browseTable .mTopic{background:#F3E8FF;color:#6B21A8}
+.browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5}
+.browseTable .actBtn:hover{background:#E6F1FB;border-color:#185FA5}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
 .sig{font-size:18px;line-height:1.9;color:#042C53;font-weight:500}
 .concl{font-size:16px;line-height:2.0;color:#1f2329}
@@ -216,7 +231,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <p class="sub">当前执行人：<b id="dashPerson" style="color:#185FA5">-</b> · 今天该学哪科，一眼看清 · 点卡片进入训练</p>
     </div>
     <div class="dashStats">
-      <div class="dashStat"><span class="k">今日已学</span><span class="v" id="dToday">0 题</span></div>
+      <div class="dashStat" id="dTodayCard" style="cursor:pointer" title="点击查看今日浏览历史"><span class="k">今日已学</span><span class="v" id="dToday">0 题</span></div>
       <div class="dashStat"><span class="k">连续打卡</span><span class="v" id="dStreak">0 天</span></div>
       <div class="dashStat"><span class="k">总掌握率</span><span class="v" id="dRate">0%</span></div>
       <div class="dashStat"><span class="k">待重练</span><span class="v" id="dWeak" style="color:#A32D2D">0</span></div>
@@ -374,6 +389,39 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="mExpCsvBtn">导出 CSV</button>
     </div>
     <div class="manageTable" id="manageTable"></div>
+  </div>
+</div>
+
+<!-- 浏览历史弹窗（按截图3风格，今日已学点击） -->
+<div class="modalMask" id="browseHistoryModal">
+  <div class="modalBox taskBox">
+    <h2><span>📋 今日已学 / 浏览历史</span><span class="x" id="browseHistoryClose">×</span></h2>
+    <div class="tqRow">
+      <label>搜索题干信号 / 结论 / 出处 / 章节</label>
+      <input id="bhSearch" placeholder="如：氢原子、物一轮011、诱导公式">
+    </div>
+    <div class="tqRow tqFilters">
+      <div style="flex:1">
+        <label>学科</label>
+        <select id="bhSubj"><option value="">全部学科</option></select>
+      </div>
+      <div style="flex:1">
+        <label>模式</label>
+        <select id="bhMode">
+          <option value="">全部模式</option>
+          <option value="训练">训练</option>
+          <option value="速览">速览</option>
+          <option value="专题练">专题练</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#6b7280;margin:6px 0 8px">显示 <b id="bhCount">0</b> / 共 <b id="bhTotal">0</b> 条（按日期倒序）</div>
+    <div class="taskTableWrap">
+      <table class="browseTable">
+        <thead><tr><th style="width:160px">浏览时间</th><th style="width:80px">模式</th><th>题干信号</th><th style="width:80px">学科</th><th>出处</th><th style="width:100px">章节</th><th style="width:60px">操作</th></tr></thead>
+        <tbody id="browseTbody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -597,9 +645,9 @@ const PERSON_KEY = 'wulun_person_v2';
 const ACTIVE_KEY = 'wulun_active_person';
 const PERSON_STORE = loadJ(PERSON_KEY, {});
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
-let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks;   /* 当前执行人的数据（bindPerson 绑定） */
+let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[]};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[]};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -607,13 +655,13 @@ function bindPerson(key){
   personKey = pkey;
   const d = PERSON_STORE[pkey] || (PERSON_STORE[pkey] = emptyPerson());
   state = d.state; todayD = d.today; goal = d.goal; best = d.best; streakD = d.streak;
-  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView; lastRes = d.lastRes; tasks = d.tasks;
+  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView; lastRes = d.lastRes; tasks = d.tasks; browseHistory = d.browseHistory;
   saveJ(ACTIVE_KEY, pkey);
 }
 function savePerson(){
   const d = PERSON_STORE[personKey] || (PERSON_STORE[personKey] = emptyPerson());
   d.state = state; d.today = todayD; d.goal = goal; d.best = best; d.streak = streakD;
-  d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks;
+  d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks; d.browseHistory = browseHistory;
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -689,6 +737,8 @@ function migratePersonData(){
   d.pos = loadJ('wulun_pos_v2', {});
   d.lastView = loadJ('wulun_lastview_v2', {view:'dash'});
   d.lastRes = {};
+  d.tasks = [];
+  d.browseHistory = [];
   /* 回填历史 lastRes：v7.0 之前答过的题没时间戳，用 30 天前作为虚拟时间，便于日期筛选和卡片显示 */
   const backfillTs = Date.now() - 30 * 86400000;
   Object.keys(d.state).forEach(subj => {
@@ -724,6 +774,8 @@ let queue = [], pos = 0, shown = false, combo = 0, markBusy = false;
 let retryOrder = [];   /* 本次会话，存 id */
 let browseMode = false;
 let isTopicTrain = false;   /* 专题练模式（自定义 queue），与速览模式互斥 */
+let lastBrowseId = null;   /* 记录浏览历史用，避免重复记录同一卡片 */
+let savePersonTimer = null;   /* 节流 savePerson */
 
 /* ---------- 稳定 id 生成 ---------- */
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -921,6 +973,14 @@ function show(){
   if(!d){ pos++; show(); return; }
   $('fBadge').textContent = d.t || '未分类';
   $('bBadge').textContent = d.t || '未分类';
+  /* 记录浏览历史（防重复，同卡连续翻牌只记一次） */
+  if(d.id !== lastBrowseId){
+    lastBrowseId = d.id;
+    browseHistory.unshift({ts: Date.now(), id: d.id, mode: isTopicTrain ? '专题练' : (browseMode ? '速览' : '训练'), subject: cur, src: d.src || '', t: d.t || ''});
+    if(browseHistory.length > 500) browseHistory.length = 500;
+    if(savePersonTimer) clearTimeout(savePersonTimer);
+    savePersonTimer = setTimeout(savePerson, 5000);
+  }
   /* 左上角：上次训练结果 + 距上次天数 */
   const lr = lastRes[cur] && lastRes[cur][d.id];
   if(lr){
@@ -1860,6 +1920,84 @@ function refreshTqTopic(){
   });
 }
 function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
+/* ---------- 浏览历史（今日已学点击） ---------- */
+function relTime(ts){
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if(m < 1) return '刚刚';
+  if(m < 60) return m + ' 分钟前';
+  const h = Math.floor(m / 60);
+  if(h < 24) return h + ' 小时前';
+  const d = Math.floor(h / 24);
+  if(d < 30) return d + ' 天前';
+  return new Date(ts).toLocaleDateString('zh-CN');
+}
+function modeClass(m){ return m === '速览' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : 'mTrain'); }
+function renderBrowseHistory(){
+  const tbody = $('browseTbody');
+  tbody.innerHTML = '';
+  const kw = $('bhSearch').value.trim().toLowerCase();
+  const subjF = $('bhSubj').value;
+  const modeF = $('bhMode').value;
+  const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean) : [];
+  const filtered = browseHistory.filter(e => {
+    if(subjF && e.subject !== subjF) return false;
+    if(modeF && e.mode !== modeF) return false;
+    if(!kws.length) return true;
+    const it = itemById(e.id);
+    if(!it) return false;
+    const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
+    return kws.some(k => hay.includes(k));
+  });
+  $('bhCount').textContent = filtered.length;
+  $('bhTotal').textContent = browseHistory.length;
+  if(!filtered.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="7" style="text-align:center;color:#9ca3af;padding:24px">还没有浏览记录</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+  filtered.forEach(e => {
+    const it = itemById(e.id);
+    const sig = it ? (it.s || '').slice(0, 36) : '(卡片已删除)';
+    const conc = it ? (it.c || '').slice(0, 48) : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="ts">' + relTime(e.ts) + '<small>' + new Date(e.ts).toLocaleString('zh-CN', {hour12:false}) + '</small></td>'
+      + '<td><span class="modeTag ' + modeClass(e.mode) + '">' + escHtml(e.mode) + '</span></td>'
+      + '<td class="sig">' + escHtml(sig) + (conc ? '<small>' + escHtml(conc) + '…</small>' : '') + '</td>'
+      + '<td>' + escHtml(e.subject || '-') + '</td>'
+      + '<td>' + escHtml(it ? (it.src || '') : (e.src || '')) + '</td>'
+      + '<td>' + escHtml(it ? (it.t || '') : (e.t || '')) + '</td>'
+      + '<td><button class="actBtn" data-bid="' + escHtml(e.id) + '">跳转</button></td>';
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('button[data-bid]').forEach(b => {
+    b.addEventListener('click', () => jumpToCard(b.getAttribute('data-bid')));
+  });
+}
+function jumpToCard(id){
+  const entry = browseHistory.find(e => e.id === id);
+  if(!entry) return toast('记录不存在');
+  if(!ALL_SUBJECTS[entry.subject]) return toast('科目已删除，无法跳转');
+  const subj = subjDef(entry.subject);
+  if(!subj || !subj.items.some(it => it.id === id)) return toast('该卡片已不存在');
+  switchSubject(entry.subject);
+  setTimeout(() => {
+    const idx = queue.indexOf(id);
+    if(idx >= 0){ pos = idx; shown = false; show(); }
+  }, 50);
+  $('browseHistoryModal').classList.remove('show');
+  toast('已跳转到「' + entry.subject + '」' + (entry.t ? '·' + entry.t : ''));
+}
+function openBrowseHistory(){
+  const sel = $('bhSubj');
+  sel.innerHTML = '<option value="">全部学科</option>';
+  Object.keys(ALL_SUBJECTS).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
+  $('bhSearch').value = '';
+  $('bhMode').value = '';
+  renderBrowseHistory();
+  $('browseHistoryModal').classList.add('show');
+}
 function openTopicTrain(){
   const sel = $('tqSubj');
   sel.innerHTML = '';
@@ -1994,6 +2132,13 @@ $('tqKeyword').addEventListener('input', refreshTqCount);
 $('tqSrcList').addEventListener('change', refreshTqCount);
 $('tqStart').addEventListener('click', startTopicTrain);
 $('tqPreview').addEventListener('click', previewTopicList);
+$('browseHistoryClose').addEventListener('click', () => $('browseHistoryModal').classList.remove('show'));
+['bhSearch','bhSubj','bhMode'].forEach(id => {
+  const el = $(id);
+  const evt = id === 'bhSearch' ? 'input' : 'change';
+  el.addEventListener(evt, renderBrowseHistory);
+});
+$('dTodayCard').addEventListener('click', openBrowseHistory);
 /* 工具栏 📄 出处 多选（影响 buildQueue） */
 function openSrcPopover(){
   const pop = $('srcPopover');
@@ -2065,7 +2210,7 @@ document.addEventListener('keydown', e => {
   else if(e.key === '3') mark(3);
   else if(browseMode && e.code === 'ArrowLeft'){ e.preventDefault(); browseStep(-1); }
   else if(browseMode && e.code === 'ArrowRight'){ e.preventDefault(); browseStep(1); }
-  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('srcPopover').style.display === 'block') $('srcPopover').style.display = 'none'; else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
+  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('srcPopover').style.display === 'block') $('srcPopover').style.display = 'none'; else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('browseHistoryModal').classList.contains('show')) $('browseHistoryModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
 });
 
 /* ---------- 初始化 ---------- */
