@@ -2215,20 +2215,29 @@ document.addEventListener('keydown', e => {
 
 /* ---------- 初始化 ---------- */
 (function init(){
-  rebuildSubjects();
-  migrateStateToId();
-  const c = ALL_SUBJECTS[cur].color;
-  document.documentElement.style.setProperty('--accent', c);
-  document.documentElement.style.setProperty('--badge-bg', c + '26');
-  document.documentElement.style.setProperty('--badge-fg', c);
-  $('soundBtn').textContent = SOUND ? '🔊 音效' : '🔇 静音';
-  buildQueue(); refreshToday(); updateStats(); show();
-  if(lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
-    switchSubject(lastView.subject);
-  } else {
-    showView('dash');
+  try{
+    rebuildSubjects();
+    migrateStateToId();
+    if(!ALL_SUBJECTS[cur]){ toast('当前执行人暂无科目数据，请在设置页切换或导入'); }
+    else {
+      const c = ALL_SUBJECTS[cur].color;
+      document.documentElement.style.setProperty('--accent', c);
+      document.documentElement.style.setProperty('--badge-bg', c + '26');
+      document.documentElement.style.setProperty('--badge-fg', c);
+      $('soundBtn').textContent = SOUND ? '🔊 音效' : '🔇 静音';
+      buildQueue(); refreshToday(); updateStats(); show();
+      if(lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
+        switchSubject(lastView.subject);
+      } else {
+        showView('dash');
+      }
+    }
+    initCloud();
+  }catch(e){
+    console.error('init failed:', e);
+    toast('初始化异常：' + e.message);
+    try{ showView('dash'); }catch(_){}
   }
-  initCloud();
 })();
 </script>
 </body>
