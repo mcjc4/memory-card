@@ -655,7 +655,10 @@ function bindPerson(key){
   personKey = pkey;
   const d = PERSON_STORE[pkey] || (PERSON_STORE[pkey] = emptyPerson());
   state = d.state; todayD = d.today; goal = d.goal; best = d.best; streakD = d.streak;
-  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView; lastRes = d.lastRes; tasks = d.tasks; browseHistory = d.browseHistory;
+  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView;
+  lastRes = d.lastRes = d.lastRes || {};
+  tasks = d.tasks = d.tasks || [];
+  browseHistory = d.browseHistory = d.browseHistory || [];
   saveJ(ACTIVE_KEY, pkey);
 }
 function savePerson(){
