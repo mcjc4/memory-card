@@ -674,11 +674,34 @@ function migratePersonData(){
   d.pos = loadJ('wulun_pos_v2', {});
   d.lastView = loadJ('wulun_lastview_v2', {view:'dash'});
   d.lastRes = {};
+  /* 回填历史 lastRes：v7.0 之前答过的题没时间戳，用 30 天前作为虚拟时间，便于日期筛选和卡片显示 */
+  const backfillTs = Date.now() - 30 * 86400000;
+  Object.keys(d.state).forEach(subj => {
+    const st = d.state[subj] || {};
+    const lr = d.lastRes[subj] = d.lastRes[subj] || {};
+    Object.keys(st).forEach(id => { if(!lr[id] && st[id]) lr[id] = {v: st[id], ts: backfillTs}; });
+  });
   saveJ(PERSON_KEY, PERSON_STORE);
   ['wulun_state_v2','wulun_today_v2','wulun_goal_v2','wulun_best_v2','wulun_streak_v2',
    'wulun_imported_v2','wulun_custom_v2','wulun_pos_v2','wulun_lastview_v2'].forEach(k => localStorage.removeItem(k));
 }
+/* 已迁移用户回填 lastRes（每个执行人，state 中有 v 但 lastRes 无记录的项） */
+function backfillLastRes(){
+  let dirty = false;
+  const backfillTs = Date.now() - 30 * 86400000;
+  PERSONS.forEach(p => {
+    const d = PERSON_STORE[p.key];
+    if(!d) return;
+    Object.keys(d.state || {}).forEach(subj => {
+      const st = d.state[subj] || {};
+      const lr = d.lastRes[subj] = d.lastRes[subj] || {};
+      Object.keys(st).forEach(id => { if(!lr[id] && st[id]){ lr[id] = {v: st[id], ts: backfillTs}; dirty = true; } });
+    });
+  });
+  if(dirty) saveJ(PERSON_KEY, PERSON_STORE);
+}
 migratePersonData();
+backfillLastRes();
 bindPerson(loadJ(ACTIVE_KEY, PERSONS[0].key));
 
 let topic = "", mode = "order", onlyWeak = false;
