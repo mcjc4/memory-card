@@ -629,7 +629,22 @@ const CONFETTI_COLORS = ['#185FA5','#3B6D11','#D85A30','#D4537E','#BA7517','#534
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function renderMath(text){
   if (!(window.katex && typeof window.katex.renderToString === 'function')) return escHtml(text);
-  try { return WuluTex.mixedToHtml(text, window.katex); } catch(e){ return escHtml(text); }
+  try {
+    /* 优先：用 $...$ 显式公式段直接 KaTeX 渲染（throwOnError:false 失败回退原文） */
+    let out = '', last = 0;
+    const re = /\$([^$]+?)\$/g;
+    let m;
+    while ((m = re.exec(text)) !== null){
+      out += escHtml(text.slice(last, m.index));
+      try { out += katex.renderToString(m[1], {throwOnError: false, displayMode: false}); }
+      catch(e){ out += escHtml(m[0]); }
+      last = m.index + m[0].length;
+    }
+    out += escHtml(text.slice(last));
+    if(out.indexOf('katex') >= 0) return out;
+    /* 没匹配到 $...$：走 WuluTex 启发式（含连续数学特征） */
+    return WuluTex.mixedToHtml(text, window.katex);
+  } catch(e){ return escHtml(text); }
 }
 
 /* 本地日期（修复 toISOString UTC 偏移 bug） */
