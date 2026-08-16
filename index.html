@@ -366,19 +366,29 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="cloudResetCfg" class="del">恢复默认配置</button>
     </div>
 
-    <div style="font-size:14px;font-weight:500;margin:16px 0 8px">消息推送（PushPlus 微信）</div>
-    <div style="font-size:12px;color:#6b7280;line-height:1.8;margin-bottom:6px">
-      开始训练时自动推送微信消息，提醒自己保持节奏。<br>
-      Token 获取：打开 pushplus.plus → 微信扫码登录 → 首页「一对一推送」处复制 token。
-    </div>
-    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:10px 0 0;cursor:pointer">
-      <input type="checkbox" id="pushEnabled" style="width:16px;height:16px"> 启用开始训练推送
+    <div style="font-size:14px;font-weight:500;margin:16px 0 8px">消息推送（开始训练时推送）</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="pushEnabled" style="width:16px;height:16px"> 启用消息推送
+    </label>
+    <div style="font-size:14px;font-weight:500;margin:12px 0 6px;color:#185FA5">📱 微信（PushPlus）</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="pushWechatOn" style="width:16px;height:16px"> 启用微信推送
     </label>
     <label>PushPlus Token</label>
-    <input id="pushToken" placeholder="粘贴 pushplus 的 token" style="font-family:monospace">
-    <label>代理地址（可选，仅直连失败时填写）</label>
-    <input id="pushProxy" placeholder="如 https://xxx.workers.dev（跨域代理）">
-    <div class="modalHint">提示：同一科目 10 分钟内只推一次，避免反复进入刷屏</div>
+    <input id="pushToken" placeholder="pushplus 的 token" style="font-family:monospace">
+    <label>群组编码（topic，可选）</label>
+    <input id="pushTopic" placeholder="如 chen-study">
+    <div style="font-size:14px;font-weight:500;margin:12px 0 6px;color:#BA7517">💬 钉钉群机器人</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="pushDingOn" style="width:16px;height:16px"> 启用钉钉推送
+    </label>
+    <label>钉钉 Webhook</label>
+    <input id="pushWebhook" placeholder="oapi.dingtalk.com/robot/send?...">
+    <label>安全关键字</label>
+    <input id="pushKeyword" placeholder="如：打卡">
+    <label>Cloudflare 代理地址（钉钉跨域转发）</label>
+    <input id="pushProxy" placeholder="https://xxx.workers.dev/">
+    <div class="modalHint">钉钉消息需包含安全关键字「打卡」；同一执行人+科目 10 分钟内只推一次</div>
     <div class="row2">
       <button id="pushTestBtn">发送测试</button>
       <button id="pushSaveBtn" class="ok">保存设置</button>
@@ -1475,25 +1485,61 @@ async function initCloud(){
   renderCloudBadge();
 }
 
-/* ===================== 消息推送（PushPlus 微信） ===================== */
+/* ===================== 消息推送（钉钉 + PushPlus 微信） ===================== */
 const PUSH_CFG_KEY = 'wulun_push_cfg';
 const PUSH_LAST_KEY = 'wulun_push_last';
-let pushCfg = loadJ(PUSH_CFG_KEY, {enabled:false, token:'', proxy:''});
-async function sendPush(title, content){
-  if(!pushCfg.enabled || !pushCfg.token) return false;
+/* 默认配置（已内置，开箱即用；钉钉安全关键字「打卡」） */
+const DEFAULT_PUSH = {
+  enabled: true, wechatOn: true, dingOn: true,
+  token: '445f103035b642bf9063688feea05c2b',
+  topic: 'chen-study',
+  webhook: 'https://oapi.dingtalk.com/robot/send?access_token=f18b56e9a884bdd2c9a933e1994ad7856ba0e1fce2404d366589a218c1683f1e',
+  keyword: '打卡',
+  proxy: 'https://young-hat-353c.mcjc4.workers.dev/'
+};
+function loadPushCfg(){
+  try{ const c = JSON.parse(localStorage.getItem(PUSH_CFG_KEY) || 'null'); if(c && typeof c === 'object') return Object.assign({}, DEFAULT_PUSH, c); }catch(e){}
+  return Object.assign({}, DEFAULT_PUSH);
+}
+let pushCfg = loadPushCfg();
+/* 微信（PushPlus）：直连 send 接口，支持 topic 群组 */
+async function sendWechat(title, content){
+  if(!pushCfg.enabled || !pushCfg.wechatOn || !pushCfg.token) return false;
   try{
-    const url = (pushCfg.proxy && pushCfg.proxy.trim()) ? pushCfg.proxy.trim() : 'https://www.pushplus.plus/send';
     const payload = {token: pushCfg.token, title: title, content: content, template: 'txt'};
-    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if(pushCfg.topic) payload.topic = pushCfg.topic;
+    const res = await fetchTimeout('https://www.pushplus.plus/send', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)}, 8000);
     if(!res.ok) throw new Error('http ' + res.status);
     const j = await res.json().catch(() => null);
     if(j && j.code !== undefined && j.code !== 200){ console.warn('pushplus:', j); return false; }
     return true;
-  }catch(e){ console.warn('push failed:', e); return false; }
+  }catch(e){ console.warn('wechat push failed:', e); return false; }
 }
-/* 开始训练推送：同一科目 10 分钟内只推一次 */
+/* 钉钉：经 Cloudflare 代理转发 {url, payload}（参考学习工作台）；无代理则直连 */
+async function sendDingtalk(content){
+  if(!pushCfg.enabled || !pushCfg.dingOn || !pushCfg.webhook) return false;
+  try{
+    const payload = {msgtype:'text', text:{content: content}};
+    const viaProxy = pushCfg.proxy && pushCfg.proxy.trim();
+    const url = viaProxy ? pushCfg.proxy.trim() : pushCfg.webhook;
+    const body = viaProxy ? JSON.stringify({url: pushCfg.webhook, payload: payload}) : JSON.stringify(payload);
+    const res = await fetchTimeout(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: body}, 8000);
+    if(!res.ok) throw new Error('http ' + res.status);
+    const j = await res.json().catch(() => null);
+    if(j && j.errcode !== undefined && j.errcode !== 0){ console.warn('dingtalk:', j); return false; }
+    return true;
+  }catch(e){ console.warn('ding push failed:', e); return false; }
+}
+/* 双通道发送 */
+async function sendPush(title, content){
+  const w = sendWechat(title, content);
+  const d = sendDingtalk(content);
+  const [wok, dok] = await Promise.all([w, d]);
+  return wok || dok;
+}
+/* 开始训练推送：同一执行人+科目 10 分钟内只推一次 */
 function pushStartTraining(){
-  if(!pushCfg.enabled || !pushCfg.token) return;
+  if(!pushCfg.enabled) return;
   const last = loadJ(PUSH_LAST_KEY, {});
   const now = Date.now();
   const key = personKey + ':' + cur;
@@ -1506,12 +1552,14 @@ function pushStartTraining(){
   const cnt = td.date === today() ? td.count : 0;
   const g = goal[cur] || 20;
   const lines = [
-    '科目：' + ALL_SUBJECTS[cur].display + ' · ' + N() + ' 条',
+    personName() + ' 开始打卡学习 ' + ALL_SUBJECTS[cur].display + ' · ' + N() + ' 条',
     '今日进度：' + cnt + '/' + g + ' 题 · 连续打卡 ' + calcStreak() + ' 天',
     '已掌握 ' + pass + ' · 待重练 ' + fail + ' · 模糊 ' + half,
-    '开始训练，坚持就是胜利！'
+    '打卡开始，保持节奏！'
   ];
-  sendPush('📚 开始学习 ' + ALL_SUBJECTS[cur].display, lines.join('\n'));
+  const content = lines.join('\n');
+  sendWechat('📚 ' + personName() + ' 开始打卡学习 ' + ALL_SUBJECTS[cur].display, content);
+  sendDingtalk(content);
 }
 /* ---------- 执行人切换 ---------- */
 function renderPersonList(){
@@ -1567,7 +1615,12 @@ function switchPerson(pkey){
 }
 function openSettings(){
   $('pushEnabled').checked = !!pushCfg.enabled;
+  $('pushWechatOn').checked = !!pushCfg.wechatOn;
+  $('pushDingOn').checked = !!pushCfg.dingOn;
   $('pushToken').value = pushCfg.token || '';
+  $('pushTopic').value = pushCfg.topic || '';
+  $('pushWebhook').value = pushCfg.webhook || '';
+  $('pushKeyword').value = pushCfg.keyword || '';
   $('pushProxy').value = pushCfg.proxy || '';
   renderPersonList();
   renderCloudBadge();
@@ -1575,17 +1628,28 @@ function openSettings(){
 }
 function savePushCfg(){
   pushCfg.enabled = $('pushEnabled').checked;
+  pushCfg.wechatOn = $('pushWechatOn').checked;
+  pushCfg.dingOn = $('pushDingOn').checked;
   pushCfg.token = $('pushToken').value.trim();
+  pushCfg.topic = $('pushTopic').value.trim();
+  pushCfg.webhook = $('pushWebhook').value.trim();
+  pushCfg.keyword = $('pushKeyword').value.trim() || '打卡';
   pushCfg.proxy = $('pushProxy').value.trim();
   saveJ(PUSH_CFG_KEY, pushCfg);
   toast('设置已保存');
 }
 async function testPush(){
   savePushCfg();
-  if(!pushCfg.token){ toast('请先填写 PushPlus Token'); return; }
+  if(!pushCfg.enabled){ toast('请先启用消息推送'); return; }
   toast('正在发送测试…');
-  const ok = await sendPush('📚 记忆卡 · 测试消息', '这是一条测试消息，若你收到说明推送配置成功。');
-  toast(ok ? '测试已发送，请查看微信' : '发送失败：检查 Token 或使用代理地址');
+  const content = '记忆卡测试消息：推送配置成功，收到请忽略。' + (pushCfg.keyword || '打卡');
+  const w = sendWechat('📚 记忆卡 · 测试消息', content);
+  const d = sendDingtalk(content);
+  const [wok, dok] = await Promise.all([w, d]);
+  const parts = [];
+  if(wok) parts.push('微信✓');
+  if(dok) parts.push('钉钉✓');
+  toast(parts.length ? '已发送（' + parts.join(' ') + '），请查收' : '发送失败：检查配置或网络');
 }
 
 /* ---------- 事件绑定 ---------- */
