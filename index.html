@@ -58,6 +58,15 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .card.show .answer-zone{grid-template-rows:1fr;opacity:1;transform:none}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
+.lastRes{font-size:11px;font-weight:500;margin-bottom:6px;align-self:flex-start}
+.tqRow{margin:8px 0}
+.tqRow label{display:block;font-size:13px;color:#374151;margin:8px 0 4px}
+.tqRow select,.tqRow input{width:100%;font-size:14px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;font-family:inherit}
+.tqChips{display:flex;flex-wrap:wrap;gap:10px;font-size:14px;color:#1f2329}
+.tqChips label{display:flex;align-items:center;gap:5px;margin:0;cursor:pointer}
+.tqChips input{width:16px;height:16px}
+.tqResult{font-size:13px;color:#6b7280;background:#f9fafb;border-radius:8px;padding:8px 12px;margin:10px 0}
+.tqResult b{color:#185FA5;font-size:16px}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
 .sig{font-size:18px;line-height:1.9;color:#042C53;font-weight:500}
 .concl{font-size:16px;line-height:2.0;color:#1f2329}
@@ -189,7 +198,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
   <div id="viewDash">
     <div style="text-align:center;margin-bottom:14px">
       <h1>六科记忆总览</h1>
-      <p class="sub">今天该学哪科，一眼看清 · 点卡片进入训练</p>
+      <p class="sub">当前执行人：<b id="dashPerson" style="color:#185FA5">-</b> · 今天该学哪科，一眼看清 · 点卡片进入训练</p>
     </div>
     <div class="dashStats">
       <div class="dashStat"><span class="k">今日已学</span><span class="v" id="dToday">0 题</span></div>
@@ -238,6 +247,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button id="soundBtn">🔊 音效</button>
     <button id="browseBtn" class="browse">👁 速览</button>
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
+    <button id="topicTrainBtn" class="manage">🎯 专题练</button>
     <button id="manageBtn" class="manage">🗂 管理</button>
     <button id="importBtn" class="add">＋ 导入科目</button>
     <button id="cloudBtn" class="browse">☁ 同步</button>
@@ -255,6 +265,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="cardDelBtn">🗑 删除</button>
     </div>
     <div class="signal-zone">
+      <div class="lastRes" id="fLast" style="display:none"></div>
       <div class="src-front" id="fSrc" style="display:none"></div>
       <span class="badge" id="fBadge"></span>
       <div class="sig" id="fSig"></div>
@@ -343,6 +354,39 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="mExpCsvBtn">导出 CSV</button>
     </div>
     <div class="manageTable" id="manageTable"></div>
+  </div>
+</div>
+
+<!-- 专题练弹窗 -->
+<div class="modalMask" id="topicModal">
+  <div class="modalBox">
+    <h2><span>🎯 专题练 · 综合查询</span><span class="x" id="topicModalClose">×</span></h2>
+    <div class="tqRow">
+      <label>科目</label>
+      <select id="tqSubj"></select>
+    </div>
+    <div class="tqRow">
+      <label>专题（留空 = 全部专题）</label>
+      <select id="tqTopic"><option value="">全部专题</option></select>
+    </div>
+    <div class="tqRow">
+      <label>上次训练状态（不勾 = 全部状态）</label>
+      <div class="tqChips">
+        <label><input type="checkbox" id="tqUnt"> 未测</label>
+        <label><input type="checkbox" id="tqFail"> 没记住</label>
+        <label><input type="checkbox" id="tqHalf"> 模糊</label>
+        <label><input type="checkbox" id="tqPass"> 记住了</label>
+      </div>
+    </div>
+    <div class="tqRow">
+      <label>关键词（题干 / 结论 / 出处包含，可留空）</label>
+      <input id="tqKeyword" placeholder="如：氢原子 / 动量 / 光电效应">
+    </div>
+    <div class="tqRow tqResult">匹配 <b id="tqCount">0</b> 张卡片，将按此清单形成专题训练</div>
+    <div class="row2">
+      <button id="tqPreview">预览清单</button>
+      <button id="tqStart" class="ok">开始训练</button>
+    </div>
   </div>
 </div>
 
@@ -515,9 +559,9 @@ const PERSON_KEY = 'wulun_person_v2';
 const ACTIVE_KEY = 'wulun_active_person';
 const PERSON_STORE = loadJ(PERSON_KEY, {});
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
-let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView;   /* 当前执行人的数据（bindPerson 绑定） */
+let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -525,13 +569,13 @@ function bindPerson(key){
   personKey = pkey;
   const d = PERSON_STORE[pkey] || (PERSON_STORE[pkey] = emptyPerson());
   state = d.state; todayD = d.today; goal = d.goal; best = d.best; streakD = d.streak;
-  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView;
+  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView; lastRes = d.lastRes;
   saveJ(ACTIVE_KEY, pkey);
 }
 function savePerson(){
   const d = PERSON_STORE[personKey] || (PERSON_STORE[personKey] = emptyPerson());
   d.state = state; d.today = todayD; d.goal = goal; d.best = best; d.streak = streakD;
-  d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView;
+  d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes;
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -591,6 +635,7 @@ function migratePersonData(){
   d.custom = loadJ('wulun_custom_v2', {});
   d.pos = loadJ('wulun_pos_v2', {});
   d.lastView = loadJ('wulun_lastview_v2', {view:'dash'});
+  d.lastRes = {};
   saveJ(PERSON_KEY, PERSON_STORE);
   ['wulun_state_v2','wulun_today_v2','wulun_goal_v2','wulun_best_v2','wulun_streak_v2',
    'wulun_imported_v2','wulun_custom_v2','wulun_pos_v2','wulun_lastview_v2'].forEach(k => localStorage.removeItem(k));
@@ -796,6 +841,17 @@ function show(){
   if(!d){ pos++; show(); return; }
   $('fBadge').textContent = d.t || '未分类';
   $('bBadge').textContent = d.t || '未分类';
+  /* 左上角：上次训练结果 + 距上次天数 */
+  const lr = lastRes[cur] && lastRes[cur][d.id];
+  if(lr){
+    const vTxt = lr.v === 1 ? '记住了' : lr.v === 2 ? '没记住' : lr.v === 3 ? '模糊' : '';
+    const days = Math.floor((Date.now() - lr.ts) / 86400000);
+    const dTxt = days <= 0 ? '今天' : days + ' 天前';
+    const color = lr.v === 1 ? '#3B6D11' : lr.v === 2 ? '#A32D2D' : '#854F0B';
+    $('fLast').textContent = '上次：' + vTxt + ' · ' + dTxt;
+    $('fLast').style.display = '';
+    $('fLast').style.color = color;
+  } else { $('fLast').textContent = ''; $('fLast').style.display = 'none'; }
   if(d.src){ $('fSrc').textContent = '📄 ' + d.src; $('fSrc').style.display = ''; }
   else { $('fSrc').textContent = ''; $('fSrc').style.display = 'none'; }
   $('fSig').innerHTML = renderMath(d.s);
@@ -878,6 +934,8 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
   const id = queue[pos];
   const st = state[cur] || (state[cur] = {});
   st[id] = level === 1 ? 2 : level === 2 ? 3 : 1;   /* 存储：2=答错 3=模糊 1=记住（兼容旧数据） */
+  lastRes[cur] = lastRes[cur] || {};
+  lastRes[cur][id] = {v: st[id], ts: Date.now()};
   savePerson();
   markBusy = true;
   if(level === 3){
@@ -924,6 +982,7 @@ function dashStats(){
   $('dWeak').textContent = weak;
 }
 function renderDash(){
+  $('dashPerson').textContent = personName();
   dashStats();
   const grid = $('dashGrid');
   grid.innerHTML = '';
@@ -1613,6 +1672,71 @@ function switchPerson(pkey){
   /* 云端文档 id 随执行人变化 → 重新连接拉取该执行人自己的数据 */
   initCloud();
 }
+/* ---------- 专题练（综合查询 → 形成训练队列） ---------- */
+function topicQuery(){
+  const subjName = $('tqSubj').value;
+  const t = $('tqTopic').value;
+  const kw = $('tqKeyword').value.trim().toLowerCase();
+  const flags = {unt:$('tqUnt').checked, fail:$('tqFail').checked, half:$('tqHalf').checked, pass:$('tqPass').checked};
+  const anyState = !(flags.unt || flags.fail || flags.half || flags.pass);
+  const subj = subjDef(subjName);
+  if(!subj) return [];
+  const st = state[subjName] || {};
+  const res = [];
+  subj.items.forEach(it => {
+    if(t && it.t !== t) return;
+    if(kw){
+      const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
+      if(!hay.includes(kw)) return;
+    }
+    const v = st[it.id];
+    const isUnt = v === undefined || v === null;
+    if(anyState){ res.push(it.id); return; }
+    if(flags.unt && isUnt) res.push(it.id);
+    if(flags.fail && v === 2) res.push(it.id);
+    if(flags.half && v === 3) res.push(it.id);
+    if(flags.pass && v === 1) res.push(it.id);
+  });
+  return res;
+}
+function refreshTqTopic(){
+  const sel = $('tqTopic');
+  sel.innerHTML = '<option value="">全部专题</option>';
+  const subj = subjDef($('tqSubj').value);
+  if(!subj) return;
+  const seen = new Set();
+  subj.items.forEach(it => {
+    if(it.t && !seen.has(it.t)){ seen.add(it.t); const o = document.createElement('option'); o.value = it.t; o.textContent = it.t; sel.appendChild(o); }
+  });
+}
+function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
+function openTopicTrain(){
+  const sel = $('tqSubj');
+  sel.innerHTML = '';
+  SUBJ_NAMES.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
+  sel.value = cur;
+  refreshTqTopic();
+  refreshTqCount();
+  $('topicModal').classList.add('show');
+}
+function startTopicTrain(){
+  const ids = topicQuery();
+  if(!ids.length){ toast('没有匹配的卡片'); return; }
+  queue = ids.slice();
+  pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
+  $('topicModal').classList.remove('show');
+  showView('train');
+  show();
+  toast('专题练开始：' + ids.length + ' 张卡片');
+}
+function previewTopicList(){
+  const ids = topicQuery();
+  if(!ids.length){ toast('没有匹配的卡片'); return; }
+  const st = state[$('tqSubj').value] || {};
+  const names = {1:'记住了', 2:'没记住', 3:'模糊'};
+  const lines = ids.slice(0, 12).map(id => { const it = itemById(id); return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）'; });
+  alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
+}
 function openSettings(){
   $('pushEnabled').checked = !!pushCfg.enabled;
   $('pushWechatOn').checked = !!pushCfg.wechatOn;
@@ -1704,6 +1828,15 @@ $('settingsBtn').addEventListener('click', openSettings);
 $('settingsModalClose').addEventListener('click', () => $('settingsModal').classList.remove('show'));
 $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('pushTestBtn').addEventListener('click', testPush);
+/* 专题练 */
+$('topicTrainBtn').addEventListener('click', openTopicTrain);
+$('topicModalClose').addEventListener('click', () => $('topicModal').classList.remove('show'));
+$('tqSubj').addEventListener('change', () => { refreshTqTopic(); refreshTqCount(); });
+$('tqTopic').addEventListener('change', refreshTqCount);
+['tqUnt','tqFail','tqHalf','tqPass'].forEach(id => $(id).addEventListener('change', refreshTqCount));
+$('tqKeyword').addEventListener('input', refreshTqCount);
+$('tqStart').addEventListener('click', startTopicTrain);
+$('tqPreview').addEventListener('click', previewTopicList);
 $('modalClose').addEventListener('click', closeCardModal);
 $('modalCancel').addEventListener('click', closeCardModal);
 $('modalOk').addEventListener('click', submitCard);
@@ -1741,7 +1874,7 @@ document.addEventListener('keydown', e => {
   else if(e.key === '3') mark(3);
   else if(browseMode && e.code === 'ArrowLeft'){ e.preventDefault(); browseStep(-1); }
   else if(browseMode && e.code === 'ArrowRight'){ e.preventDefault(); browseStep(1); }
-  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
+  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
 });
 
 /* ---------- 初始化 ---------- */
