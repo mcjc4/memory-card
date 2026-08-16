@@ -1459,18 +1459,42 @@ async function importFile(file){
       const buf = new Uint8Array(await file.arrayBuffer());
       if(!(buf[0] === 0x50 && buf[1] === 0x4b)) throw new Error('请使用 xlsx（Excel 2007+）格式，或另存为 csv');
       const entries = XL.findEntries(buf);
-      const get = async n => XL.txt(await XL.readEntry(buf, entries[n]));
+      /* 大小写不敏感索引（部分工具生成的 xlsx 大小写不统一） */
+      const lowerKeys = {};
+      Object.keys(entries).forEach(k => { lowerKeys[k.toLowerCase()] = k; });
+      const get = async n => {
+        const realKey = entries[n] ? n : lowerKeys[n.toLowerCase()];
+        if(!realKey) throw new Error('文件结构不兼容（缺少 ' + n + '）；请用 Excel/WPS 打开后「另存为 .xlsx」再试，或转 CSV 导入');
+        return XL.txt(await XL.readEntry(buf, entries[realKey]));
+      };
       const wbdoc = new DOMParser().parseFromString(await get('xl/workbook.xml'), 'text/xml');
-      const first = wbdoc.getElementsByTagName('sheet')[0];
-      const rid = first.getAttribute('r:id') || first.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
-      let target = 'xl/worksheets/sheet1.xml';
-      const reldoc = new DOMParser().parseFromString(await get('xl/_rels/workbook.xml.rels'), 'text/xml');
-      for(const r of reldoc.getElementsByTagName('Relationship')){
-        if((r.getAttribute('Id') || '') === rid){ target = r.getAttribute('Target') || target; break; }
+      const sheets = wbdoc.getElementsByTagName('sheet');
+      if(!sheets.length) throw new Error('文件中没有工作表');
+      const first = sheets[0];
+      /* rid 多种方式取（命名空间属性在不同浏览器/解析器下行为不一） */
+      let rid = first.getAttribute('r:id');
+      if(!rid){
+        for(const a of first.attributes){
+          if(a.localName === 'id' && a.namespaceURI && a.namespaceURI.indexOf('relationships') !== -1){ rid = a.value; break; }
+        }
       }
-      if(!target.startsWith('xl/')) target = 'xl/' + target.replace(/^\//, '');
+      if(!rid){
+        for(const a of first.attributes){ if(/^r:id$/.test(a.name)){ rid = a.value; break; } }
+      }
+      let target = 'xl/worksheets/sheet1.xml';
+      if(rid){
+        const reldoc = new DOMParser().parseFromString(await get('xl/_rels/workbook.xml.rels'), 'text/xml');
+        for(const r of reldoc.getElementsByTagName('Relationship')){
+          if((r.getAttribute('Id') || '') === rid){ target = r.getAttribute('Target') || target; break; }
+        }
+      }
+      if(target.startsWith('/')) target = target.slice(1);
+      if(!target.startsWith('xl/')) target = 'xl/' + target;
+      /* sharedStrings 可选（缺失时所有 string 走 inlineStr） */
       let shared = [];
-      if(entries['xl/sharedStrings.xml']) shared = XL.parseShared(await get('xl/sharedStrings.xml'));
+      if(lowerKeys['xl/sharedstrings.xml']){
+        try{ shared = XL.parseShared(await get('xl/sharedStrings.xml')); }catch(e){ shared = []; }
+      }
       rows = XL.parseSheet(await get(target), shared);
     }
     const {name, items} = buildSubject(rows, file.name);
