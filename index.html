@@ -67,6 +67,24 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .tqChips input{width:16px;height:16px}
 .tqResult{font-size:13px;color:#6b7280;background:#f9fafb;border-radius:8px;padding:8px 12px;margin:10px 0}
 .tqResult b{color:#185FA5;font-size:16px}
+.tqFilters{display:flex;gap:10px}
+.taskBox{width:min(880px,96vw);max-height:92vh;overflow:auto}
+.taskTableWrap{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:auto;max-height:55vh}
+.taskTable{width:100%;border-collapse:collapse;font-size:13px}
+.taskTable th{background:#f9fafb;text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-weight:500;position:sticky;top:0;z-index:1}
+.taskTable td{padding:10px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.taskTable tr:hover td{background:#FAFCFE}
+.taskTable .name{font-weight:500;color:#1f2329}
+.taskTable .src{color:#6b7280;font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.taskTable .statusDot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.taskTable .stUnt{background:#d1d5db}
+.taskTable .stPass{background:#3B6D11}
+.taskTable .stHalf{background:#BA7517}
+.taskTable .stFail{background:#A32D2D}
+.taskTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 8px;margin:0 2px;font-size:12px;cursor:pointer}
+.taskTable .actBtn:hover{border-color:#185FA5;color:#185FA5}
+.taskTable .del{color:#A32D2D}
+.taskTable .del:hover{border-color:#A32D2D;color:#A32D2D}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
 .sig{font-size:18px;line-height:1.9;color:#042C53;font-weight:500}
 .concl{font-size:16px;line-height:2.0;color:#1f2329}
@@ -247,6 +265,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button id="soundBtn">🔊 音效</button>
     <button id="browseBtn" class="browse">👁 速览</button>
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
+    <button id="taskMgrBtn" class="manage">📋 任务管理</button>
     <button id="topicTrainBtn" class="manage">🎯 专题练</button>
     <button id="manageBtn" class="manage">🗂 管理</button>
     <button id="importBtn" class="add">＋ 导入科目</button>
@@ -354,6 +373,62 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="mExpCsvBtn">导出 CSV</button>
     </div>
     <div class="manageTable" id="manageTable"></div>
+  </div>
+</div>
+
+<!-- 任务管理弹窗 -->
+<div class="modalMask" id="taskModal">
+  <div class="modalBox taskBox">
+    <h2><span>📋 任务管理</span><span class="x" id="taskModalClose">×</span></h2>
+    <div class="tqRow">
+      <label>搜索任务名 / 学科 / 出处（多个关键词用「、」分隔，OR 关系）</label>
+      <input id="tkSearch" placeholder="如：动量 物理 物一轮011">
+    </div>
+    <div class="tqRow tqFilters">
+      <div style="flex:1">
+        <label>学科</label>
+        <select id="tkSubj"><option value="">全部学科</option></select>
+      </div>
+      <div style="flex:1">
+        <label>卡片状态</label>
+        <select id="tkStatus">
+          <option value="">全部状态</option>
+          <option value="pass">记住了</option>
+          <option value="half">模糊</option>
+          <option value="fail">没记住</option>
+          <option value="unt">未打卡</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:end;gap:8px">
+        <button id="tkSelAll" class="ok">全选</button>
+        <button id="tkSelNone">取消</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#6b7280;margin:6px 0 8px">显示 <b id="tkCount">0</b> / 共 <b id="tkTotal">0</b> 条任务</div>
+    <div class="taskTableWrap">
+      <table class="taskTable">
+        <thead><tr><th style="width:32px"><input type="checkbox" id="tkAll"></th><th style="width:36px">#</th><th>任务名称</th><th style="width:80px">学科</th><th>出处</th><th style="width:64px">时长</th><th style="width:100px">日期</th><th style="width:60px">已打卡</th><th style="width:88px">操作</th></tr></thead>
+        <tbody id="taskTbody"></tbody>
+      </table>
+    </div>
+    <div class="row2" style="margin-top:12px">
+      <button id="tkAddBtn">＋ 新增任务</button>
+      <button id="tkCheckinBtn" class="ok">对选中任务打卡</button>
+    </div>
+  </div>
+</div>
+
+<!-- 任务编辑弹窗 -->
+<div class="modalMask" id="taskEditModal">
+  <div class="modalBox">
+    <h2><span id="taskEditTitle">新增任务</span><span class="x" id="taskEditClose">×</span></h2>
+    <div class="tqRow"><label>任务名称</label><input id="teName" placeholder="如：调整状态，做好开学准备"></div>
+    <div class="tqRow"><label>学科</label><select id="teSubj"></select></div>
+    <div class="tqRow"><label>时长（分钟）</label><input id="teDur" type="number" min="0" placeholder="如：30"></div>
+    <div class="tqRow"><label>日期</label><input id="teDate" type="date"></div>
+    <div class="tqRow"><label>关联卡片（可选，按出处搜索）</label><input id="teCardSearch" placeholder="如：氢原子 / 物一轮011"></div>
+    <div class="tqResult" id="teCardList" style="max-height:140px;overflow:auto"></div>
+    <div class="row2"><button id="teCancel">取消</button><button id="teSave" class="ok">保存</button></div>
   </div>
 </div>
 
@@ -559,9 +634,9 @@ const PERSON_KEY = 'wulun_person_v2';
 const ACTIVE_KEY = 'wulun_active_person';
 const PERSON_STORE = loadJ(PERSON_KEY, {});
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
-let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes;   /* 当前执行人的数据（bindPerson 绑定） */
+let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[]};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -569,13 +644,13 @@ function bindPerson(key){
   personKey = pkey;
   const d = PERSON_STORE[pkey] || (PERSON_STORE[pkey] = emptyPerson());
   state = d.state; todayD = d.today; goal = d.goal; best = d.best; streakD = d.streak;
-  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView; lastRes = d.lastRes;
+  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView; lastRes = d.lastRes; tasks = d.tasks;
   saveJ(ACTIVE_KEY, pkey);
 }
 function savePerson(){
   const d = PERSON_STORE[personKey] || (PERSON_STORE[personKey] = emptyPerson());
   d.state = state; d.today = todayD; d.goal = goal; d.best = best; d.streak = streakD;
-  d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes;
+  d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks;
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -1737,6 +1812,188 @@ function previewTopicList(){
   const lines = ids.slice(0, 12).map(id => { const it = itemById(id); return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）'; });
   alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
 }
+/* ---------- 任务管理（列表模式 + 拆词 OR 搜索 + 状态筛选） ---------- */
+let tkSelected = new Set();   /* 列表中勾选的任务 id */
+function taskCardState(t){
+  if(!t.cardId) return 'unt';
+  const lr = lastRes[t.subject] && lastRes[t.subject][t.cardId];
+  if(!lr) return 'unt';
+  if(lr.v === 1) return 'pass';
+  if(lr.v === 3) return 'half';
+  if(lr.v === 2) return 'fail';
+  return 'unt';
+}
+function taskStatusLabel(s){
+  return {unt:'未打卡', pass:'记住了', half:'模糊', fail:'没记住'}[s] || '-';
+}
+function taskSearchFilter(task){
+  /* 拆词 OR：输入按「、」/空格/逗号 拆分，任一关键词命中即匹配 name/subject/出处 */
+  const raw = $('tkSearch').value.trim();
+  const kws = raw ? raw.split(/[、,，\s]+/).filter(Boolean) : [];
+  const subjF = $('tkSubj').value;
+  const statusF = $('tkStatus').value;
+  if(subjF && task.subject !== subjF) return false;
+  if(statusF && taskCardState(task) !== statusF) return false;
+  if(!kws.length) return true;
+  const card = task.cardId ? itemById(task.cardId) : null;
+  const hay = (task.name || '') + ' ' + (task.subject || '') + ' ' + (card ? ((card.src||'') + ' ' + (card.t||'')) : '');
+  const lower = hay.toLowerCase();
+  return kws.some(k => lower.includes(k.toLowerCase()));
+}
+function renderTaskList(){
+  const tbody = $('taskTbody');
+  tbody.innerHTML = '';
+  const filtered = tasks.filter(taskSearchFilter);
+  $('tkCount').textContent = filtered.length;
+  $('tkTotal').textContent = tasks.length;
+  if(!filtered.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="9" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的任务</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+  filtered.forEach((t, i) => {
+    const card = t.cardId ? itemById(t.cardId) : null;
+    const src = card ? ((card.src || card.t || '')) : '-';
+    const st = taskCardState(t);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><input type="checkbox" data-tkid="' + t.id + '"' + (tkSelected.has(t.id) ? ' checked' : '') + '></td>'
+      + '<td>' + (i + 1) + '</td>'
+      + '<td class="name">' + escHtml(t.name || '(未命名)') + '</td>'
+      + '<td>' + escHtml(t.subject || '-') + '</td>'
+      + '<td class="src" title="' + escHtml(src) + '">' + escHtml(src) + '</td>'
+      + '<td>' + (t.duration || 0) + ' 分</td>'
+      + '<td>' + escHtml(t.date || '-') + '</td>'
+      + '<td>' + (t.checkins ? t.checkins.length : 0) + '</td>'
+      + '<td><button class="actBtn" data-act="checkin" data-tkid="' + t.id + '">打卡</button><button class="actBtn" data-act="edit" data-tkid="' + t.id + '">✎</button><button class="actBtn del" data-act="del" data-tkid="' + t.id + '">🗑</button></td>';
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input[data-tkid]').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const id = e.target.getAttribute('data-tkid');
+      if(e.target.checked) tkSelected.add(id); else tkSelected.delete(id);
+    });
+  });
+  tbody.querySelectorAll('button[data-act]').forEach(b => {
+    b.addEventListener('click', e => {
+      const id = e.target.getAttribute('data-tkid');
+      const act = e.target.getAttribute('data-act');
+      if(act === 'edit') openTaskEdit(tasks.find(t => t.id === id));
+      else if(act === 'del') deleteTask(id);
+      else if(act === 'checkin') checkinTasks([id]);
+    });
+  });
+  /* 标题加状态点（视觉提示） */
+  tbody.querySelectorAll('tr').forEach((tr, i) => {
+    const t = filtered[i];
+    if(!t) return;
+    const nameEl = tr.querySelector('.name');
+    if(!nameEl) return;
+    const dot = document.createElement('span');
+    dot.className = 'statusDot st' + taskCardState(t).charAt(0).toUpperCase() + taskCardState(t).slice(1);
+    dot.title = taskStatusLabel(taskCardState(t));
+    nameEl.prepend(dot);
+  });
+}
+function openTaskMgr(){
+  /* 填充学科下拉 */
+  const sel = $('tkSubj');
+  sel.innerHTML = '<option value="">全部学科</option>';
+  Object.keys(ALL_SUBJECTS).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
+  tkSelected.clear();
+  $('tkAll').checked = false;
+  renderTaskList();
+  $('taskModal').classList.add('show');
+}
+function deleteTask(id){
+  const t = tasks.find(x => x.id === id);
+  if(!t) return;
+  if(!confirm('确定删除任务「' + (t.name || '') + '」？')) return;
+  tasks = tasks.filter(x => x.id !== id);
+  tkSelected.delete(id);
+  savePerson();
+  renderTaskList();
+  toast('任务已删除');
+}
+function checkinTasks(ids){
+  if(!ids.length){ toast('请先勾选任务或点单条「打卡」'); return; }
+  const td = today();
+  ids.forEach(id => {
+    const t = tasks.find(x => x.id === id);
+    if(!t) return;
+    t.checkins = t.checkins || [];
+    t.checkins.push(td);
+  });
+  savePerson();
+  renderTaskList();
+  toast('已打卡 ' + ids.length + ' 条任务（今日）');
+}
+/* 任务编辑弹窗 */
+let tkEditingId = null;
+function openTaskEdit(existing){
+  tkEditingId = existing ? existing.id : null;
+  $('taskEditTitle').textContent = existing ? '编辑任务' : '新增任务';
+  $('teName').value = existing ? existing.name : '';
+  $('teDur').value = existing ? (existing.duration || '') : '';
+  $('teDate').value = existing ? (existing.date || today()) : today();
+  $('teCardSearch').value = '';
+  /* 学科下拉 */
+  const sel = $('teSubj');
+  sel.innerHTML = '';
+  Object.keys(ALL_SUBJECTS).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
+  sel.value = existing ? existing.subject : (cur || SUBJ_NAMES[0]);
+  refreshTaskCardList(existing ? existing.cardId : null);
+  $('taskEditModal').classList.add('show');
+}
+function refreshTaskCardList(curId){
+  const subj = $('teSubj').value;
+  const kw = $('teCardSearch').value.trim().toLowerCase();
+  const subjDef2 = subjDef(subj);
+  const list = $('teCardList');
+  list.innerHTML = '';
+  if(!subjDef2) return;
+  const matched = subjDef2.items.filter(it => {
+    if(!kw) return true;
+    const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
+    return hay.includes(kw);
+  }).slice(0, 30);
+  if(!matched.length){ list.textContent = '未匹配到卡片'; return; }
+  const wrap = document.createElement('div');
+  matched.forEach(it => {
+    const btn = document.createElement('div');
+    btn.style.cssText = 'padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;margin:4px 0;cursor:pointer;background:#fff;display:flex;justify-content:space-between;align-items:center';
+    btn.innerHTML = '<span>' + escHtml(it.t || '未分类') + ' · ' + escHtml((it.s||'').slice(0, 32)) + '…</span><span style="font-size:12px;color:#185FA5">' + (curId === it.id ? '✓ 当前' : '选择') + '</span>';
+    btn.addEventListener('click', () => {
+      $('teCardList').dataset.cardId = it.id;
+      $('teCardList').querySelectorAll('div').forEach(d => d.style.borderColor = '#e5e7eb');
+      btn.style.borderColor = '#185FA5';
+      btn.querySelector('span:last-child').textContent = '✓ 已选';
+    });
+    if(curId === it.id){ btn.style.borderColor = '#185FA5'; $('teCardList').dataset.cardId = it.id; }
+    wrap.appendChild(btn);
+  });
+  list.appendChild(wrap);
+}
+function saveTaskEdit(){
+  const name = $('teName').value.trim();
+  const subject = $('teSubj').value;
+  const duration = parseInt($('teDur').value) || 0;
+  const date = $('teDate').value || today();
+  const cardId = $('teCardList').dataset.cardId || null;
+  if(!name) return toast('请填写任务名称');
+  if(!subject) return toast('请选择学科');
+  if(tkEditingId){
+    const t = tasks.find(x => x.id === tkEditingId);
+    if(t){ t.name = name; t.subject = subject; t.duration = duration; t.date = date; t.cardId = cardId; }
+  } else {
+    tasks.push({id: 'tk_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5), name, subject, duration, date, cardId, checkins: []});
+  }
+  savePerson();
+  $('taskEditModal').classList.remove('show');
+  renderTaskList();
+  toast(tkEditingId ? '任务已更新' : '任务已新增');
+}
+
 function openSettings(){
   $('pushEnabled').checked = !!pushCfg.enabled;
   $('pushWechatOn').checked = !!pushCfg.wechatOn;
@@ -1837,6 +2094,31 @@ $('tqTopic').addEventListener('change', refreshTqCount);
 $('tqKeyword').addEventListener('input', refreshTqCount);
 $('tqStart').addEventListener('click', startTopicTrain);
 $('tqPreview').addEventListener('click', previewTopicList);
+/* 任务管理 */
+$('taskMgrBtn').addEventListener('click', openTaskMgr);
+$('taskModalClose').addEventListener('click', () => $('taskModal').classList.remove('show'));
+['tkSearch','tkSubj','tkStatus'].forEach(id => {
+  const el = $(id);
+  if(id === 'tkSearch') el.addEventListener('input', renderTaskList);
+  else el.addEventListener('change', renderTaskList);
+});
+$('tkAll').addEventListener('change', e => {
+  const checked = e.target.checked;
+  tkSelected.clear();
+  if(checked){
+    tasks.filter(taskSearchFilter).forEach(t => tkSelected.add(t.id));
+  }
+  renderTaskList();
+});
+$('tkSelAll').addEventListener('click', () => { tkSelected.clear(); tasks.filter(taskSearchFilter).forEach(t => tkSelected.add(t.id)); renderTaskList(); $('tkAll').checked = true; });
+$('tkSelNone').addEventListener('click', () => { tkSelected.clear(); renderTaskList(); $('tkAll').checked = false; });
+$('tkAddBtn').addEventListener('click', () => openTaskEdit(null));
+$('tkCheckinBtn').addEventListener('click', () => checkinTasks(Array.from(tkSelected)));
+$('taskEditClose').addEventListener('click', () => $('taskEditModal').classList.remove('show'));
+$('teCancel').addEventListener('click', () => $('taskEditModal').classList.remove('show'));
+$('teSave').addEventListener('click', saveTaskEdit);
+$('teSubj').addEventListener('change', () => refreshTaskCardList(null));
+$('teCardSearch').addEventListener('input', () => refreshTaskCardList($('teCardList').dataset.cardId || null));
 $('modalClose').addEventListener('click', closeCardModal);
 $('modalCancel').addEventListener('click', closeCardModal);
 $('modalOk').addEventListener('click', submitCard);
@@ -1874,7 +2156,7 @@ document.addEventListener('keydown', e => {
   else if(e.key === '3') mark(3);
   else if(browseMode && e.code === 'ArrowLeft'){ e.preventDefault(); browseStep(-1); }
   else if(browseMode && e.code === 'ArrowRight'){ e.preventDefault(); browseStep(1); }
-  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
+  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('taskEditModal').classList.contains('show')) $('taskEditModal').classList.remove('show'); else if($('taskModal').classList.contains('show')) $('taskModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
 });
 
 /* ---------- 初始化 ---------- */
