@@ -14,7 +14,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f3f4f6;color:#1f2329;min-height:100vh;padding:22px 16px 60px}
-.wrap{max-width:720px;margin:0 auto}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
 h1{font-size:21px;font-weight:500;text-align:center}
 .sub{text-align:center;color:#6b7280;font-size:13px;margin:4px 0 14px}
 .tabs{display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
@@ -92,6 +92,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseBar{display:flex;align-items:center;gap:10px;background:#FAEEDA;border:1px solid #FAC775;border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:13px;color:#633806}
 .browseBar b{font-weight:500}
 .browseBar .exit{margin-left:auto;background:#fff;border:1px solid #BA7517;color:#854F0B;border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer}
+.topicTrainBar{display:flex;align-items:center;gap:10px;background:#E8F2FE;border:1px solid #93B5DB;border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:13px;color:#0C447C}
 .toolbar button.browse{background:#F1EFE8;border-color:#B4B2A9;color:#444441}
 .toolbar button.browse.active{background:#BA7517;border-color:#BA7517;color:#fff}
 .toolbar button.browse.active:hover{background:#854F0B}
@@ -146,6 +147,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .modalMask{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:flex-start;justify-content:center;z-index:150;padding:18px;overflow:auto}
 .modalMask.show{display:flex}
 .modalBox{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:480px;margin:auto}
+.modalMask{display:flex;align-items:center;justify-content:center}
+.tqBox{max-width:min(1080px,96vw);max-height:92vh;overflow:auto;display:grid;gap:14px;grid-template-columns:1fr 1fr;align-content:start}
+.tqBox h2{grid-column:1/-1}
+.tqBox .tqFull{grid-column:1/-1}
+.tqBox .tqRow{margin:0}
 .modalBox h2{font-size:16px;font-weight:500;margin:0 0 12px;display:flex;justify-content:space-between;align-items:center}
 .modalBox h2 .x{cursor:pointer;color:#9ca3af;font-size:18px;line-height:1}
 .modalBox label{display:block;font-size:13px;color:#374151;margin:10px 0 4px}
@@ -293,6 +299,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <span id="browsePos" style="color:#854F0B"></span>
     <button class="exit" id="browseExit">退速览</button>
   </div>
+  <div class="topicTrainBar" id="topicTrainBar" style="display:none">
+    <b>🎯 专题练</b> · 不计入整体进度
+    <span id="topicTrainPos" style="color:#0C447C"></span>
+  </div>
   <div class="actions" id="markActions">
     <button class="btn fail" id="btnFail">没记住</button>
     <button class="btn half" id="btnHalf">模糊</button>
@@ -365,41 +375,50 @@ h1{font-size:21px;font-weight:500;text-align:center}
   </div>
 </div>
 
-<!-- 专题练弹窗（按任务管理搜索模式：拆词 OR + 出处多选 + 状态多选 + 学科） -->
+<!-- 专题练弹窗（按任务管理搜索模式：拆词 OR + 出处多选 + 状态多选 + 学科 + 日期范围） -->
 <div class="modalMask" id="topicModal">
-  <div class="modalBox taskBox">
+  <div class="modalBox tqBox">
     <h2><span>🎯 专题练 · 综合查询</span><span class="x" id="topicModalClose">×</span></h2>
-    <div class="tqRow">
+    <div class="tqRow tqFull">
       <label>搜索题干 / 出处 / 专题（多个关键词用「、」分隔，OR 关系）</label>
       <input id="tqKeyword" placeholder="如：氢原子、物一轮011、动量守恒">
     </div>
-    <div class="tqRow tqFilters">
-      <div style="flex:1">
-        <label>学科</label>
-        <select id="tqSubj"></select>
-      </div>
-      <div style="flex:1">
-        <label>专题</label>
-        <select id="tqTopic"><option value="">全部专题</option></select>
-      </div>
+    <div class="tqRow">
+      <label>学科</label>
+      <select id="tqSubj"></select>
     </div>
     <div class="tqRow">
-      <label>上次训练状态（不勾 = 全部状态）</label>
-      <div class="tqChips">
-        <label><input type="checkbox" id="tqUnt"> 未测</label>
-        <label><input type="checkbox" id="tqFail"> 没记住</label>
-        <label><input type="checkbox" id="tqHalf"> 模糊</label>
-        <label><input type="checkbox" id="tqPass"> 记住了</label>
-      </div>
+      <label>专题</label>
+      <select id="tqTopic"><option value="">全部专题</option></select>
     </div>
     <div class="tqRow">
+      <label>上次作答日期 - 开始</label>
+      <input id="tqDateStart" type="date">
+    </div>
+    <div class="tqRow">
+      <label>上次作答日期 - 结束</label>
+      <input id="tqDateEnd" type="date">
+    </div>
+    <div class="tqRow tqFull">
+      <label>上次训练状态</label>
+      <select id="tqStatus">
+        <option value="all">全部状态</option>
+        <option value="unt">未测</option>
+        <option value="fail">没记住</option>
+        <option value="half">模糊</option>
+        <option value="pass">记住了</option>
+      </select>
+    </div>
+    <div class="tqRow tqFull">
       <label>按出处（多选，不勾 = 全部出处）</label>
       <div id="tqSrcList" class="tqSrcList"></div>
     </div>
-    <div class="tqRow tqResult">匹配 <b id="tqCount">0</b> 张卡片</div>
-    <div class="row2">
-      <button id="tqPreview">预览清单</button>
-      <button id="tqStart" class="ok">开始训练</button>
+    <div class="tqRow tqFull tqResult">匹配 <b id="tqCount">0</b> 张卡片</div>
+    <div class="tqRow tqFull">
+      <div class="row2">
+        <button id="tqPreview">预览清单</button>
+        <button id="tqStart" class="ok">开始训练</button>
+      </div>
     </div>
   </div>
 </div>
@@ -664,6 +683,7 @@ let topic = "", mode = "order", onlyWeak = false;
 let queue = [], pos = 0, shown = false, combo = 0, markBusy = false;
 let retryOrder = [];   /* 本次会话，存 id */
 let browseMode = false;
+let isTopicTrain = false;   /* 专题练模式（自定义 queue），与速览模式互斥 */
 
 /* ---------- 稳定 id 生成 ---------- */
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -734,6 +754,8 @@ function topics(){
   return seen;
 }
 function buildQueue(){
+  isTopicTrain = false;
+  $('topicTrainBar').style.display = 'none';
   let ids = items().map(it => it.id);
   if(topic) ids = ids.filter(id => { const it = itemById(id); return it && it.t === topic; });
   if(srcFilterSet && srcFilterSet.size) ids = ids.filter(id => { const it = itemById(id); return it && srcFilterSet.has(it.src || ''); });
@@ -880,6 +902,9 @@ function show(){
   markBusy = false;
   $('comboBar').classList.remove('show');
   if(browseMode){ $('browsePos').textContent = '当前 ' + (pos + 1) + ' / ' + queue.length + ' 张'; }
+  if(isTopicTrain && queue.length){ $('topicTrainPos').textContent = '当前 ' + (pos + 1) + ' / ' + queue.length + ' 张'; }
+  $('browseBar').style.display = browseMode ? 'flex' : 'none';
+  $('topicTrainBar').style.display = isTopicTrain ? 'flex' : 'none';
   savePos();
 }
 function flip(){ if(queue.length && !shown){ $('card').classList.add('show'); shown = true; } }
@@ -1690,72 +1715,7 @@ function switchPerson(pkey){
   /* 云端文档 id 随执行人变化 → 重新连接拉取该执行人自己的数据 */
   initCloud();
 }
-/* ---------- 专题练（综合查询 → 形成训练队列） ---------- */
-function topicQuery(){
-  const subjName = $('tqSubj').value;
-  const t = $('tqTopic').value;
-  const kw = $('tqKeyword').value.trim().toLowerCase();
-  const flags = {unt:$('tqUnt').checked, fail:$('tqFail').checked, half:$('tqHalf').checked, pass:$('tqPass').checked};
-  const anyState = !(flags.unt || flags.fail || flags.half || flags.pass);
-  const subj = subjDef(subjName);
-  if(!subj) return [];
-  const st = state[subjName] || {};
-  const res = [];
-  subj.items.forEach(it => {
-    if(t && it.t !== t) return;
-    if(kw){
-      const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
-      if(!hay.includes(kw)) return;
-    }
-    const v = st[it.id];
-    const isUnt = v === undefined || v === null;
-    if(anyState){ res.push(it.id); return; }
-    if(flags.unt && isUnt) res.push(it.id);
-    if(flags.fail && v === 2) res.push(it.id);
-    if(flags.half && v === 3) res.push(it.id);
-    if(flags.pass && v === 1) res.push(it.id);
-  });
-  return res;
-}
-function refreshTqTopic(){
-  const sel = $('tqTopic');
-  sel.innerHTML = '<option value="">全部专题</option>';
-  const subj = subjDef($('tqSubj').value);
-  if(!subj) return;
-  const seen = new Set();
-  subj.items.forEach(it => {
-    if(it.t && !seen.has(it.t)){ seen.add(it.t); const o = document.createElement('option'); o.value = it.t; o.textContent = it.t; sel.appendChild(o); }
-  });
-}
-function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
-function openTopicTrain(){
-  const sel = $('tqSubj');
-  sel.innerHTML = '';
-  SUBJ_NAMES.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
-  sel.value = cur;
-  refreshTqTopic();
-  refreshTqCount();
-  $('topicModal').classList.add('show');
-}
-function startTopicTrain(){
-  const ids = topicQuery();
-  if(!ids.length){ toast('没有匹配的卡片'); return; }
-  queue = ids.slice();
-  pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
-  $('topicModal').classList.remove('show');
-  showView('train');
-  show();
-  toast('专题练开始：' + ids.length + ' 张卡片');
-}
-function previewTopicList(){
-  const ids = topicQuery();
-  if(!ids.length){ toast('没有匹配的卡片'); return; }
-  const st = state[$('tqSubj').value] || {};
-  const names = {1:'记住了', 2:'没记住', 3:'模糊'};
-  const lines = ids.slice(0, 12).map(id => { const it = itemById(id); return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）'; });
-  alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
-}
-/* ---------- 专题练（拆词 OR + 出处多选 + 状态多选 + 学科/专题） ---------- */
+/* ---------- 专题练（拆词 OR + 出处多选 + 状态多选 + 学科/专题 + 日期范围） ---------- */
 /* 出处多选状态（任务管理并入后保留的多选） */
 let srcFilterSet = new Set();   /* 工具栏 📄 出处 多选；作用于 buildQueue */
 function refreshSrcFilterList(){
@@ -1782,14 +1742,18 @@ function topicQuery(){
   const kw = $('tqKeyword').value.trim();
   /* 拆词 OR：按「、」/空格/逗号 拆分 */
   const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()) : [];
-  const flags = {unt:$('tqUnt').checked, fail:$('tqFail').checked, half:$('tqHalf').checked, pass:$('tqPass').checked};
-  const anyState = !(flags.unt || flags.fail || flags.half || flags.pass);
+  const stF = $('tqStatus').value;   /* 'all' | 'unt' | 'fail' | 'half' | 'pass' */
+  const ds = $('tqDateStart').value;
+  const de = $('tqDateEnd').value;
+  const dsT = ds ? new Date(ds).getTime() : null;
+  const deT = de ? new Date(de).getTime() + 86399999 : null;
   /* 出处多选（仅取当前学科的勾选项） */
   const srcChecked = new Set();
   $('tqSrcList').querySelectorAll('input[data-src]:checked').forEach(cb => srcChecked.add(cb.getAttribute('data-src')));
   const subj = subjDef(subjName);
   if(!subj) return [];
   const st = state[subjName] || {};
+  const lr = lastRes[subjName] || {};
   const res = [];
   subj.items.forEach(it => {
     if(t && it.t !== t) return;
@@ -1798,13 +1762,21 @@ function topicQuery(){
       const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
       if(!kws.some(k => hay.includes(k))) return;
     }
-    const v = st[it.id];
-    const isUnt = v === undefined || v === null;
-    if(anyState){ res.push(it.id); return; }
-    if(flags.unt && isUnt) res.push(it.id);
-    if(flags.fail && v === 2) res.push(it.id);
-    if(flags.half && v === 3) res.push(it.id);
-    if(flags.pass && v === 1) res.push(it.id);
+    if(dsT || deT){
+      const item = lr[it.id];
+      if(!item) return;
+      if(dsT && item.ts < dsT) return;
+      if(deT && item.ts > deT) return;
+    }
+    if(stF !== 'all'){
+      const v = st[it.id];
+      const isUnt = v === undefined || v === null;
+      if(stF === 'unt' && !isUnt) return;
+      if(stF === 'fail' && v !== 2) return;
+      if(stF === 'half' && v !== 3) return;
+      if(stF === 'pass' && v !== 1) return;
+    }
+    res.push(it.id);
   });
   return res;
 }
@@ -1834,6 +1806,11 @@ function startTopicTrain(){
   if(!ids.length){ toast('没有匹配的卡片'); return; }
   queue = ids.slice();
   pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
+  browseMode = false;
+  isTopicTrain = true;
+  $('browseBar').style.display = 'none';
+  $('topicTrainBar').style.display = 'flex';
+  $('topicTrainPos').textContent = '当前 0 / ' + queue.length + ' 张';
   $('topicModal').classList.remove('show');
   showView('train');
   show();
@@ -1943,7 +1920,7 @@ $('topicTrainBtn').addEventListener('click', openTopicTrain);
 $('topicModalClose').addEventListener('click', () => $('topicModal').classList.remove('show'));
 $('tqSubj').addEventListener('change', () => { refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); });
 $('tqTopic').addEventListener('change', refreshTqCount);
-['tqUnt','tqFail','tqHalf','tqPass'].forEach(id => $(id).addEventListener('change', refreshTqCount));
+['tqStatus','tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
 $('tqKeyword').addEventListener('input', refreshTqCount);
 $('tqStart').addEventListener('click', startTopicTrain);
 $('tqPreview').addEventListener('click', previewTopicList);
