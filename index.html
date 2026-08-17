@@ -78,19 +78,24 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .srcPopover{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.12);z-index:120;max-height:280px;overflow:auto;min-width:260px}
 .srcPopover label{display:flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;margin:4px 0;cursor:pointer}
 .srcPopover input{width:14px;height:14px}
-.browseTable{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
-.browseTable th{background:#f9fafb;text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-weight:500;position:sticky;top:0;z-index:1}
+.browseTable{width:100%;border-collapse:collapse;font-size:13px;background:#fff;min-width:640px}
+.browseTable th{background:#f9fafb;text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-weight:500;position:sticky;top:0;z-index:1;white-space:nowrap}
 .browseTable td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
 .browseTable tr:hover td{background:#FAFCFE}
-.browseTable .ts{color:#185FA5;font-weight:500;font-size:12px}
+.browseTable .ts{color:#185FA5;font-weight:500;font-size:12px;white-space:nowrap}
 .browseTable .ts small{display:block;color:#9ca3af;font-weight:normal;font-size:11px}
 .browseTable .sig{font-weight:500;color:#042C53;line-height:1.5}
 .browseTable .sig small{display:block;color:#6b7280;font-weight:normal;font-size:11px;margin-top:2px;max-height:40px;overflow:hidden}
-.browseTable .modeTag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:500}
+.browseTable .modeTag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap}
 .browseTable .mTrain{background:#DBEAFE;color:#185FA5}
 .browseTable .mBrowse{background:#FAEEDA;color:#854F0B}
 .browseTable .mTopic{background:#F3E8FF;color:#6B21A8}
-.browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5}
+.browseTable .stTag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap}
+.browseTable .stPass{background:#DCFCE7;color:#3B6D11}
+.browseTable .stFail{background:#FDE2E2;color:#A32D2D}
+.browseTable .stHalf{background:#FEF3C7;color:#854F0B}
+.browseTable .stUnt{background:#F1F5F9;color:#6b7280}
+.browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5;white-space:nowrap}
 .browseTable .actBtn:hover{background:#E6F1FB;border-color:#185FA5}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
 .sig{font-size:18px;line-height:1.9;color:#042C53;font-weight:500}
@@ -169,6 +174,21 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .tqBox h2{grid-column:1/-1}
 .tqBox .tqFull{grid-column:1/-1}
 .tqBox .tqRow{margin:0}
+/* 浏览历史弹窗：自适应浏览器宽度 + 横向滚动表格 */
+.taskBox{max-width:min(1040px,96vw);max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.bhFilters{display:flex;flex-direction:column;gap:4px}
+.bhRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bhRow .tqRow{margin:0}
+.bhTableWrap{overflow:auto;border:1px solid #eef2f7;border-radius:10px;max-height:52vh}
+.bhFoot{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.bhFoot .bhInfo{margin-right:auto;font-size:12px;color:#6b7280}
+@media (max-width:680px){
+  .bhRow{grid-template-columns:1fr 1fr}
+  .browseTable{min-width:560px}
+}
+@media (max-width:460px){
+  .bhRow{grid-template-columns:1fr}
+}
 .modalBox h2{font-size:16px;font-weight:500;margin:0 0 12px;display:flex;justify-content:space-between;align-items:center}
 .modalBox h2 .x{cursor:pointer;color:#9ca3af;font-size:18px;line-height:1}
 .modalBox label{display:block;font-size:13px;color:#374151;margin:10px 0 4px}
@@ -393,33 +413,57 @@ h1{font-size:21px;font-weight:500;text-align:center}
   </div>
 </div>
 
-<!-- 浏览历史弹窗（按截图3风格，今日已学点击） -->
+<!-- 浏览历史弹窗（自适应宽度 + 日期/状态筛选 + 一键生成专题练） -->
 <div class="modalMask" id="browseHistoryModal">
   <div class="modalBox taskBox">
-    <h2><span>📋 今日已学 / 浏览历史</span><span class="x" id="browseHistoryClose">×</span></h2>
-    <div class="tqRow">
-      <label>搜索题干信号 / 结论 / 出处 / 章节</label>
-      <input id="bhSearch" placeholder="如：氢原子、物一轮011、诱导公式">
-    </div>
-    <div class="tqRow tqFilters">
-      <div style="flex:1">
-        <label>学科</label>
-        <select id="bhSubj"><option value="">全部学科</option></select>
+    <h2><span>📋 浏览历史</span><span class="x" id="browseHistoryClose">×</span></h2>
+    <div class="bhFilters">
+      <div class="tqRow">
+        <label>搜索题干信号 / 结论 / 出处 / 章节</label>
+        <input id="bhSearch" placeholder="如：氢原子、物一轮011、诱导公式">
       </div>
-      <div style="flex:1">
-        <label>模式</label>
-        <select id="bhMode">
-          <option value="">全部模式</option>
-          <option value="训练">训练</option>
-          <option value="速览">速览</option>
-          <option value="专题练">专题练</option>
-        </select>
+      <div class="bhRow">
+        <div class="tqRow">
+          <label>学科</label>
+          <select id="bhSubj"><option value="">全部学科</option></select>
+        </div>
+        <div class="tqRow">
+          <label>模式</label>
+          <select id="bhMode">
+            <option value="">全部模式</option>
+            <option value="训练">训练</option>
+            <option value="速览">速览</option>
+            <option value="专题练">专题练</option>
+          </select>
+        </div>
+        <div class="tqRow">
+          <label>卡片状态</label>
+          <select id="bhStatus">
+            <option value="all">全部状态</option>
+            <option value="fail">没记住</option>
+            <option value="half">模糊</option>
+            <option value="pass">记住了</option>
+          </select>
+        </div>
+      </div>
+      <div class="bhRow">
+        <div class="tqRow">
+          <label>浏览日期 - 开始</label>
+          <input id="bhDateStart" type="date">
+        </div>
+        <div class="tqRow">
+          <label>浏览日期 - 结束</label>
+          <input id="bhDateEnd" type="date">
+        </div>
       </div>
     </div>
-    <div style="font-size:12px;color:#6b7280;margin:6px 0 8px">显示 <b id="bhCount">0</b> / 共 <b id="bhTotal">0</b> 条（按日期倒序）</div>
-    <div class="taskTableWrap">
+    <div class="bhFoot">
+      <span class="bhInfo">匹配 <b id="bhCount">0</b> / 共 <b id="bhTotal">0</b> 条（按日期倒序）· <b id="bhCardCount">0</b> 张去重卡片</span>
+      <button id="bhStart" class="ok" style="background:#3B6D11;color:#fff;border:1px solid #3B6D11;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer">🎯 开始专题练</button>
+    </div>
+    <div class="bhTableWrap">
       <table class="browseTable">
-        <thead><tr><th style="width:160px">浏览时间</th><th style="width:80px">模式</th><th>题干信号</th><th style="width:80px">学科</th><th>出处</th><th style="width:100px">章节</th><th style="width:60px">操作</th></tr></thead>
+        <thead><tr><th style="width:150px">浏览时间</th><th style="width:70px">模式</th><th>题干信号</th><th style="width:64px">状态</th><th style="width:72px">学科</th><th>出处</th><th style="width:96px">章节</th><th style="width:56px">操作</th></tr></thead>
         <tbody id="browseTbody"></tbody>
       </table>
     </div>
@@ -828,21 +872,36 @@ function gapText(){
   if(g === 1) return { text:'昨天打过卡', cls:'' };
   return { text:'已断签 ' + g + ' 天', cls:'warn' };
 }
-function markLearned(){
+function markLearned(sName){
   const t = today();
   if (!streakD.includes(t)) { streakD.push(t); savePerson(); }
-  const td = todayD[cur] || { date: '', count: 0 };
+  const td = todayD[sName] || { date: '', count: 0 };
   if (td.date !== t) { td.date = t; td.count = 0; }
   td.count++;
-  todayD[cur] = td; savePerson();
+  todayD[sName] = td; savePerson();
   refreshToday();
-  const g = goal[cur] || 100;
+  const g = goal[sName] || 100;
   if (td.count === g) { confetti(); sGoal(); toast('今日目标达成！连续打卡 ' + calcStreak() + ' 天 🔥'); }
 }
 
 /* ---------- 数据 & 队列（统一按 id） ---------- */
 function items(){ return subjDef(cur).items; }
-function itemById(id){ const its = items(); return its.find(x => x.id === id); }
+/* 全局按 id 查找卡片（跨学科），用于专题练等队列可能包含多科卡片的场景 */
+function itemById(id){
+  for(const name of allSubjectOrder()){
+    const def = subjDef(name);
+    if(def){ const f = def.items.find(x => x.id === id); if(f) return f; }
+  }
+  return null;
+}
+/* 根据卡片 id 反查其所属学科（用于跨学科训练时按卡片实际学科读写状态） */
+function subjectOfId(id){
+  for(const name of allSubjectOrder()){
+    const def = subjDef(name);
+    if(def && def.items.some(x => x.id === id)) return name;
+  }
+  return null;
+}
 function N(){ return items().length; }
 function topics(){
   const seen = [], set = new Set();
@@ -980,13 +1039,14 @@ function show(){
   /* 记录浏览历史（防重复，同卡连续翻牌只记一次） */
   if(d.id !== lastBrowseId){
     lastBrowseId = d.id;
-    browseHistory.unshift({ts: Date.now(), id: d.id, mode: isTopicTrain ? '专题练' : (browseMode ? '速览' : '训练'), subject: cur, src: d.src || '', t: d.t || ''});
+    browseHistory.unshift({ts: Date.now(), id: d.id, mode: isTopicTrain ? '专题练' : (browseMode ? '速览' : '训练'), subject: subjectOfId(d.id) || cur, src: d.src || '', t: d.t || ''});
     if(browseHistory.length > 500) browseHistory.length = 500;
     if(savePersonTimer) clearTimeout(savePersonTimer);
     savePersonTimer = setTimeout(savePerson, 5000);
   }
   /* 左上角：上次训练结果 + 距上次天数 */
-  const lr = lastRes[cur] && lastRes[cur][d.id];
+  const sName = subjectOfId(d.id);
+  const lr = (sName && lastRes[sName]) ? lastRes[sName][d.id] : null;
   if(lr){
     const vTxt = lr.v === 1 ? '记住了' : lr.v === 2 ? '没记住' : lr.v === 3 ? '模糊' : '';
     const days = Math.floor((Date.now() - lr.ts) / 86400000);
@@ -1079,15 +1139,17 @@ function jumpToNextTopic(){
 function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
   if(!shown || markBusy || pos >= queue.length) return;
   const id = queue[pos];
-  const st = state[cur] || (state[cur] = {});
+  const sName = subjectOfId(id);
+  if(!sName) return;
+  const st = state[sName] || (state[sName] = {});
   st[id] = level === 1 ? 2 : level === 2 ? 3 : 1;   /* 存储：2=答错 3=模糊 1=记住（兼容旧数据） */
-  lastRes[cur] = lastRes[cur] || {};
-  lastRes[cur][id] = {v: st[id], ts: Date.now()};
+  lastRes[sName] = lastRes[sName] || {};
+  lastRes[sName][id] = {v: st[id], ts: Date.now()};
   savePerson();
   markBusy = true;
   if(level === 3){
     combo++;
-    if(combo > (best[cur]||0)){ best[cur] = combo; savePerson(); }
+    if(combo > (best[sName]||0)){ best[sName] = combo; savePerson(); }
     sCorrect(combo);
     if(combo >= 3 && combo % 3 === 0) confetti();
     if(combo >= 2){ const c = $('comboBar'); c.textContent = '连击 ×' + combo + ' 🔥'; c.classList.remove('show'); void c.offsetWidth; c.classList.add('show'); }
@@ -1096,7 +1158,7 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
     else { combo = 0; sWrong(); toast('已加入待重练'); }
     if(!retryOrder.includes(id)) retryOrder.push(id);
   }
-  markLearned();
+  markLearned(sName);
   schedulePush();
   const card = $('card');
   card.classList.remove('show');
@@ -1937,38 +1999,60 @@ function relTime(ts){
   return new Date(ts).toLocaleDateString('zh-CN');
 }
 function modeClass(m){ return m === '速览' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : 'mTrain'); }
-function renderBrowseHistory(){
-  const tbody = $('browseTbody');
-  tbody.innerHTML = '';
+function getBhFiltered(){
   const kw = $('bhSearch').value.trim().toLowerCase();
   const subjF = $('bhSubj').value;
   const modeF = $('bhMode').value;
+  const statusF = $('bhStatus').value;   /* all | fail | half | pass */
+  const ds = $('bhDateStart').value, de = $('bhDateEnd').value;
+  const dsT = ds ? new Date(ds).getTime() : null;
+  const deT = de ? new Date(de).getTime() + 86399999 : null;
   const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean) : [];
-  const filtered = browseHistory.filter(e => {
+  return browseHistory.filter(e => {
     if(subjF && e.subject !== subjF) return false;
     if(modeF && e.mode !== modeF) return false;
+    if(dsT && e.ts < dsT) return false;
+    if(deT && e.ts > deT) return false;
+    if(statusF !== 'all'){
+      const v = (state[e.subject] || {})[e.id];
+      if(statusF === 'fail' && v !== 2) return false;
+      if(statusF === 'half' && v !== 3) return false;
+      if(statusF === 'pass' && v !== 1) return false;
+    }
     if(!kws.length) return true;
     const it = itemById(e.id);
     if(!it) return false;
     const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
     return kws.some(k => hay.includes(k));
   });
+}
+function renderBrowseHistory(){
+  const tbody = $('browseTbody');
+  tbody.innerHTML = '';
+  const filtered = getBhFiltered();
   $('bhCount').textContent = filtered.length;
   $('bhTotal').textContent = browseHistory.length;
+  const seen = new Set(); let cardN = 0;
+  filtered.forEach(e => { if(!seen.has(e.id)){ seen.add(e.id); cardN++; } });
+  $('bhCardCount').textContent = cardN;
   if(!filtered.length){
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="7" style="text-align:center;color:#9ca3af;padding:24px">还没有浏览记录</td>';
+    tr.innerHTML = '<td colspan="8" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的浏览记录</td>';
     tbody.appendChild(tr);
     return;
   }
+  const stMap = {1:['记住了','stPass'], 2:['没记住','stFail'], 3:['模糊','stHalf']};
   filtered.forEach(e => {
     const it = itemById(e.id);
     const sig = it ? (it.s || '').slice(0, 36) : '(卡片已删除)';
     const conc = it ? (it.c || '').slice(0, 48) : '';
+    const v = (state[e.subject] || {})[e.id];
+    const st = stMap[v] || ['未测','stUnt'];
     const tr = document.createElement('tr');
     tr.innerHTML = '<td class="ts">' + relTime(e.ts) + '<small>' + new Date(e.ts).toLocaleString('zh-CN', {hour12:false}) + '</small></td>'
       + '<td><span class="modeTag ' + modeClass(e.mode) + '">' + escHtml(e.mode) + '</span></td>'
       + '<td class="sig">' + escHtml(sig) + (conc ? '<small>' + escHtml(conc) + '…</small>' : '') + '</td>'
+      + '<td><span class="stTag ' + st[1] + '">' + st[0] + '</span></td>'
       + '<td>' + escHtml(e.subject || '-') + '</td>'
       + '<td>' + escHtml(it ? (it.src || '') : (e.src || '')) + '</td>'
       + '<td>' + escHtml(it ? (it.t || '') : (e.t || '')) + '</td>'
@@ -1978,6 +2062,27 @@ function renderBrowseHistory(){
   tbody.querySelectorAll('button[data-bid]').forEach(b => {
     b.addEventListener('click', () => jumpToCard(b.getAttribute('data-bid')));
   });
+}
+/* 由浏览历史筛选结果一键生成专题练（支持跨学科） */
+function startBhPractice(){
+  try{
+    const filtered = getBhFiltered();
+    const seen = new Set(); const ids = [];
+    filtered.forEach(e => { if(!seen.has(e.id)){ seen.add(e.id); ids.push(e.id); } });
+    if(!ids.length){ toast('没有可练习的卡片，请调整筛选条件'); return; }
+    queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
+    browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
+    $('browseBar').style.display = 'none';
+    $('topicTrainBar').style.display = 'flex';
+    $('topicTrainPos').textContent = '当前 1 / ' + queue.length + ' 张';
+    $('browseHistoryModal').classList.remove('show');
+    showView('train');
+    show();
+    toast('专题练开始：' + ids.length + ' 张卡片');
+  }catch(e){
+    console.error('startBhPractice failed:', e);
+    toast('生成专题练失败：' + e.message);
+  }
 }
 function jumpToCard(id){
   const entry = browseHistory.find(e => e.id === id);
@@ -2000,6 +2105,9 @@ function openBrowseHistory(){
     Object.keys(ALL_SUBJECTS).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
     $('bhSearch').value = '';
     $('bhMode').value = '';
+    $('bhStatus').value = 'all';
+    $('bhDateStart').value = '';
+    $('bhDateEnd').value = '';
     renderBrowseHistory();
     $('browseHistoryModal').classList.add('show');
   }catch(e){
@@ -2142,11 +2250,12 @@ $('tqSrcList').addEventListener('change', refreshTqCount);
 $('tqStart').addEventListener('click', startTopicTrain);
 $('tqPreview').addEventListener('click', previewTopicList);
 $('browseHistoryClose').addEventListener('click', () => $('browseHistoryModal').classList.remove('show'));
-['bhSearch','bhSubj','bhMode'].forEach(id => {
+['bhSearch','bhSubj','bhMode','bhStatus','bhDateStart','bhDateEnd'].forEach(id => {
   const el = $(id);
   const evt = id === 'bhSearch' ? 'input' : 'change';
   el.addEventListener(evt, renderBrowseHistory);
 });
+$('bhStart').addEventListener('click', startBhPractice);
 $('dTodayCard').addEventListener('click', openBrowseHistory);
 $('dTodayCard').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 $('browseHistoryToolbarBtn').addEventListener('click', openBrowseHistory);
