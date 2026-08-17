@@ -231,7 +231,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <p class="sub">当前执行人：<b id="dashPerson" style="color:#185FA5">-</b> · 今天该学哪科，一眼看清 · 点卡片进入训练</p>
     </div>
     <div class="dashStats">
-      <div class="dashStat" id="dTodayCard" style="cursor:pointer" title="点击查看今日浏览历史"><span class="k">今日已学</span><span class="v" id="dToday">0 题</span></div>
+      <div class="dashStat" id="dTodayCard" style="cursor:pointer;user-select:none;-webkit-tap-highlight-color:rgba(24,95,165,0.15)" title="点击查看今日浏览历史"><span class="k">今日已学</span><span class="v" id="dToday">0 题</span></div>
       <div class="dashStat"><span class="k">连续打卡</span><span class="v" id="dStreak">0 天</span></div>
       <div class="dashStat"><span class="k">总掌握率</span><span class="v" id="dRate">0%</span></div>
       <div class="dashStat"><span class="k">待重练</span><span class="v" id="dWeak" style="color:#A32D2D">0</span></div>
@@ -278,6 +278,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button id="browseBtn" class="browse">👁 速览</button>
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
     <button id="srcFilterBtn" class="browse">📄 出处</button>
+    <button id="browseHistoryToolbarBtn" class="browse">📋 浏览历史</button>
     <button id="topicTrainBtn" class="manage">🎯 专题练</button>
     <button id="manageBtn" class="manage">🗂 管理</button>
     <button id="importBtn" class="add">＋ 导入科目</button>
@@ -1993,13 +1994,18 @@ function jumpToCard(id){
   toast('已跳转到「' + entry.subject + '」' + (entry.t ? '·' + entry.t : ''));
 }
 function openBrowseHistory(){
-  const sel = $('bhSubj');
-  sel.innerHTML = '<option value="">全部学科</option>';
-  Object.keys(ALL_SUBJECTS).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
-  $('bhSearch').value = '';
-  $('bhMode').value = '';
-  renderBrowseHistory();
-  $('browseHistoryModal').classList.add('show');
+  try{
+    const sel = $('bhSubj');
+    sel.innerHTML = '<option value="">全部学科</option>';
+    Object.keys(ALL_SUBJECTS).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
+    $('bhSearch').value = '';
+    $('bhMode').value = '';
+    renderBrowseHistory();
+    $('browseHistoryModal').classList.add('show');
+  }catch(e){
+    console.error('openBrowseHistory failed:', e);
+    toast('浏览历史打开失败：' + e.message);
+  }
 }
 function openTopicTrain(){
   const sel = $('tqSubj');
@@ -2142,6 +2148,9 @@ $('browseHistoryClose').addEventListener('click', () => $('browseHistoryModal').
   el.addEventListener(evt, renderBrowseHistory);
 });
 $('dTodayCard').addEventListener('click', openBrowseHistory);
+$('dTodayCard').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
+$('browseHistoryToolbarBtn').addEventListener('click', openBrowseHistory);
+$('browseHistoryToolbarBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 /* 工具栏 📄 出处 多选（影响 buildQueue） */
 function openSrcPopover(){
   const pop = $('srcPopover');
