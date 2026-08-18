@@ -51,12 +51,14 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .card{position:relative;display:flex;flex-direction:column;min-height:320px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:26px;cursor:pointer;overflow:hidden;margin-bottom:12px;transition:box-shadow .3s}
 .card.burst{animation:burst .5s}
 @keyframes burst{0%{box-shadow:0 0 0 0 rgba(59,109,17,.4)}100%{box-shadow:0 0 0 18px rgba(59,109,17,0)}}
-.signal-zone{flex:1 1 0;min-height:0;display:flex;flex-direction:column;justify-content:center;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .35s ease,flex-basis .4s cubic-bezier(.4,0,.2,1)}
-.card.show .signal-zone{transform:translateY(-22px) scale(.985);opacity:.96;flex-basis:33.333%}
-.answer-zone{flex:0 0 0;min-height:0;overflow:hidden;opacity:0;transform:translateY(18px);transition:flex .55s cubic-bezier(.4,0,.2,1),opacity .35s ease .12s,transform .5s cubic-bezier(.4,0,.2,1) .06s;border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0;display:flex;flex-direction:column;justify-content:center}
+.signal-zone{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;padding:6px 0;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .35s ease}
+.card.show .signal-zone{transform:translateY(0);opacity:1}
+.answer-zone{flex:0 0 auto;min-height:0;max-height:0;overflow:hidden;opacity:0;transform:translateY(8px);transition:max-height .55s cubic-bezier(.4,0,.2,1),opacity .35s ease .1s,transform .5s cubic-bezier(.4,0,.2,1) .05s,padding .5s ease;border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0;display:flex;flex-direction:column;justify-content:flex-start;padding:0 14px}
 .answer-inner{overflow:hidden;padding:0 14px}
-.card.show .answer-zone{flex:2 2 0;opacity:1;transform:none}
-.card.show .answer-inner{padding:12px 14px}
+.card.show .answer-zone{max-height:2000px;opacity:1;transform:none;padding:14px}
+.card.show .answer-inner{padding:0 14px}
+.card.show .sig{font-size:14px;line-height:1.55}
+.card.show .concl{font-size:16px;line-height:1.85}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
 .lastRes{font-size:11px;font-weight:500;margin-bottom:6px;align-self:flex-start}
@@ -163,6 +165,8 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .backBtn:hover{background:#f3f4f6}
 .trainHead{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .trainHead h1{font-size:18px;font-weight:500;margin:0;flex:1;text-align:left}
+.trainPerson{font-size:13px;color:#374151;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:5px 12px;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0}
+.trainPerson b{color:#185FA5;font-weight:500}
 @media (max-width:560px){.dashGrid{grid-template-columns:repeat(2,1fr)}.dashStats{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:520px){.todayRow{grid-template-columns:86px 1fr}.sig{font-size:16px}.concl{font-size:15px}.card{min-height:280px}}
 
@@ -264,6 +268,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
   <div class="trainHead">
     <button id="backBtn" class="backBtn">← 六科总览</button>
     <h1 id="trainTitle">记忆训练</h1>
+    <div class="trainPerson">👤 <b id="trainPersonName">-</b></div>
   </div>
   <div class="tabs" id="tabs"></div>
 
@@ -1071,7 +1076,12 @@ function show(){
   $('topicTrainBar').style.display = isTopicTrain ? 'flex' : 'none';
   savePos();
 }
-function flip(){ if(queue.length && !shown){ $('card').classList.add('show'); shown = true; } }
+function flip(){
+  if(!queue.length) return;
+  const card = $('card');
+  if(shown){ card.classList.remove('show'); shown = false; }
+  else { card.classList.add('show'); shown = true; }
+}
 /* 手动切卡：答案展开时先收缩题目再切换，未展开直接切 */
 function switchCard(nextPos){
   const card = $('card');
@@ -1309,6 +1319,7 @@ function switchSubject(name){
   topic = ''; onlyWeak = false; combo = 0; retryOrder = [];
   $('onlyWeak').textContent = '专练没记住和模糊';
   $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + ALL_SUBJECTS[name].items.length + ' 条';
+  $('trainPersonName').textContent = personName();
   renderTabs();
   const sel = $('topicSel'); sel.innerHTML = '<option value="">全部专题</option>';
   topics().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
