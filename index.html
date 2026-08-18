@@ -158,6 +158,8 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .subjCard .scBar i{display:block;height:100%;border-radius:3px;transition:width .4s}
 .subjCard .scRow{font-size:12px;color:#6b7280;margin:2px 0;line-height:1.7}
 .subjCard .scGo{font-size:12px;margin-top:8px;font-weight:500}
+.subjCard .scEdit{background:transparent;border:1px solid #e5e7eb;border-radius:6px;color:#9ca3af;cursor:pointer;font-size:12px;padding:1px 6px;line-height:1.4;margin-left:4px;flex-shrink:0}
+.subjCard .scEdit:hover{color:#185FA5;border-color:#185FA5;background:#E6F1FB}
 .subjEmpty{opacity:.72}
 .subjEmpty:hover{opacity:1}
 .priBadge{display:inline-block;background:#FCEBEB;color:#A32D2D;font-size:11px;padding:1px 8px;border-radius:999px;border:0.5px solid #F09595;margin-left:6px;font-weight:400}
@@ -1200,6 +1202,23 @@ function dashStats(){
   $('dRate').textContent = total ? Math.round(pass / total * 100) + '%' : '0%';
   $('dWeak').textContent = weak;
 }
+/* 修改科目显示名称（key 不变，仅改 display，写入 CUSTOM 覆盖层） */
+function renameSubject(name){
+  const subj = subjDef(name);
+  if(!subj) return toast('科目不存在');
+  const input = prompt('修改科目显示名称（key「' + name + '」不变）：', subj.display);
+  if(input === null) return;
+  const newDisp = input.trim();
+  if(!newDisp || newDisp === subj.display) return;
+  if(!CUSTOM[name]) CUSTOM[name] = { color: subj.color, display: subj.display, items: subj.items };
+  CUSTOM[name].display = newDisp;
+  savePerson();
+  rebuildSubjects();
+  renderDash();
+  if($('viewTrain').style.display !== 'none'){ $('trainTitle').textContent = (cur === name ? newDisp : (ALL_SUBJECTS[cur] ? ALL_SUBJECTS[cur].display + ' · ' + ALL_SUBJECTS[cur].items.length + ' 条' : '')); renderTabs(); }
+  if(cur === name){ document.documentElement.style.setProperty('--badge-bg', (subj.color || '#185FA5') + '26'); }
+  toast('已将「' + name + '」改名为「' + newDisp + '」');
+}
 function renderDash(){
   $('dashPerson').textContent = personName();
   dashStats();
@@ -1237,12 +1256,17 @@ function renderDash(){
       const cnt = td.date === today() ? td.count : 0;
       const goalN = goal[name] || 100;
       const pri = (fail === maxWeak && fail > 0) ? '<span class="priBadge">今日优先</span>' : '';
-      card.innerHTML = '<div class="scTop"><span>' + escHtml(subj.display) + pri + '</span><span class="scPct">' + pct + '%</span></div>'
+      card.innerHTML = '<div class="scTop"><span>' + escHtml(subj.display) + pri + '<button class="scEdit" data-rename="' + escHtml(name) + '" title="修改科目名称">✎</button></span><span class="scPct">' + pct + '%</span></div>'
         + '<div class="scBar"><i style="width:' + pct + '%;background:' + c + '"></i></div>'
         + '<div class="scRow">已掌握 ' + pass + ' / ' + subj.items.length + ' 条</div>'
         + '<div class="scRow">薄弱 <span style="color:#A32D2D">' + fail + '</span> · 模糊 <span style="color:#854F0B">' + half + '</span> · 今日 ' + cnt + '/' + goalN + '</div>'
         + '<div class="scGo" style="color:' + c + '">进入训练 ↗</div>';
-      card.addEventListener('click', () => { switchSubject(name); showView('train'); });
+      card.addEventListener('click', e => {
+        if(e.target.closest('.scEdit')) return;   /* 点 ✎ 不进入训练 */
+        switchSubject(name); showView('train');
+      });
+      const editBtn = card.querySelector('.scEdit');
+      if(editBtn) editBtn.addEventListener('click', e => { e.stopPropagation(); renameSubject(name); });
     }
     grid.appendChild(card);
   });
@@ -2357,11 +2381,14 @@ document.addEventListener('keydown', e => {
       document.documentElement.style.setProperty('--badge-bg', c + '26');
       document.documentElement.style.setProperty('--badge-fg', c);
       $('soundBtn').textContent = SOUND ? '🔊 音效' : '🔇 静音';
-      buildQueue(); refreshToday(); updateStats(); show();
-      if(lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
-        switchSubject(lastView.subject);
-      } else {
-        showView('dash');
+      refreshToday(); dashStats();
+      /* 优先恢复最近浏览过的卡片（任意模式：训练/速览/专题练，只要停留过就算） */
+      if(!resumeLastBrowsed()){
+        if(lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
+          switchSubject(lastView.subject);
+        } else {
+          showView('dash');
+        }
       }
     }
     initCloud();
@@ -2371,6 +2398,23 @@ document.addEventListener('keydown', e => {
     try{ showView('dash'); }catch(_){}
   }
 })();
+/* 根据最近浏览历史恢复卡片（用于 init 自动跳到上次停留的卡片） */
+function resumeLastBrowsed(){
+  if(!browseHistory || !browseHistory.length) return false;
+  const entry = browseHistory[0];
+  if(!entry || !entry.id || !entry.subject) return false;
+  if(!ALL_SUBJECTS[entry.subject]) return false;
+  const subj = subjDef(entry.subject);
+  if(!subj || !subj.items.some(it => it.id === entry.id)) return false;
+  lastBrowseId = entry.id;   /* 预置，防 switchSubject 内的 show() 重复记入浏览历史 */
+  switchSubject(entry.subject);
+  setTimeout(() => {
+    const idx = queue.indexOf(entry.id);
+    if(idx >= 0){ pos = idx; shown = false; show(); }
+    toast('已恢复最近浏览：' + (ALL_SUBJECTS[entry.subject] ? ALL_SUBJECTS[entry.subject].display : entry.subject) + (entry.t ? ' · ' + entry.t : ''));
+  }, 60);
+  return true;
+}
 </script>
 </body>
 </html>
