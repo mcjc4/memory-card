@@ -1334,13 +1334,22 @@ function renderTabs(){
     box.appendChild(b);
   });
 }
+/* 根据科目持久化的 state 把所有「答错/模糊」卡片回填到 retryOrder，让待重练列表跨刷新存活 */
+function seedRetryOrderFor(name){
+  const st = state[name] || {};
+  const lr = lastRes[name] || {};
+  const ids = Object.keys(st).filter(id => st[id] === 2 || st[id] === 3);
+  /* 按 lastRes 时间正序：最早标记的在前（FIFO 重练语义） */
+  ids.sort((a, b) => (lr[a] ? lr[a].ts : 0) - (lr[b] ? lr[b].ts : 0));
+  retryOrder = ids;
+}
 function switchSubject(name){
   cur = name;
   const c = ALL_SUBJECTS[name].color;
   document.documentElement.style.setProperty('--accent', c);
   document.documentElement.style.setProperty('--badge-bg', c + '26');
   document.documentElement.style.setProperty('--badge-fg', c);
-  topic = ''; onlyWeak = false; combo = 0; retryOrder = [];
+  topic = ''; onlyWeak = false; combo = 0; seedRetryOrderFor(name);
   $('onlyWeak').textContent = '专练没记住和模糊';
   $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + ALL_SUBJECTS[name].items.length + ' 条';
   $('trainPersonName').textContent = personName();
