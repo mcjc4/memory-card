@@ -62,6 +62,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
 .lastRes{font-size:11px;font-weight:500;margin-bottom:6px;align-self:flex-start}
+.browsedTag{display:inline-block;background:#E6F1FB;color:#185FA5;font-size:11px;font-weight:500;padding:2px 10px;border-radius:999px;align-self:flex-start;margin-bottom:6px}
 .tqRow{margin:8px 0}
 .tqRow label{display:block;font-size:13px;color:#374151;margin:8px 0 4px}
 .tqRow select,.tqRow input{width:100%;font-size:14px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;font-family:inherit}
@@ -305,6 +306,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 
   <div class="toolbar">
     <select id="topicSel"><option value="">全部专题</option></select>
+    <button id="srcFilterBtn" class="browse">📄 出处</button>
     <select id="modeSel">
       <option value="order">顺序</option>
       <option value="rand">随机</option>
@@ -313,7 +315,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button id="soundBtn">🔊 音效</button>
     <button id="browseBtn" class="browse">👁 速览</button>
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
-    <button id="srcFilterBtn" class="browse">📄 出处</button>
     <button id="browseHistoryToolbarBtn" class="browse">📋 浏览历史</button>
     <button id="topicTrainBtn" class="manage">🎯 专题练</button>
     <button id="manageBtn" class="manage">🗂 管理</button>
@@ -333,6 +334,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="cardDelBtn">🗑 删除</button>
     </div>
     <div class="signal-zone">
+      <div class="browsedTag" id="fBrowsed" style="display:none"></div>
       <div class="lastRes" id="fLast" style="display:none"></div>
       <div class="src-front" id="fSrc" style="display:none"></div>
       <span class="badge" id="fBadge"></span>
@@ -706,9 +708,9 @@ const PERSON_KEY = 'wulun_person_v2';
 const ACTIVE_KEY = 'wulun_active_person';
 const PERSON_STORE = loadJ(PERSON_KEY, {});
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
-let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory;   /* 当前执行人的数据（bindPerson 绑定） */
+let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[]};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -720,12 +722,24 @@ function bindPerson(key){
   lastRes = d.lastRes = d.lastRes || {};
   tasks = d.tasks = d.tasks || [];
   browseHistory = d.browseHistory = d.browseHistory || [];
+  browseMeta = d.browseMeta = d.browseMeta || {};
+  trainCount = d.trainCount = d.trainCount || {};
+  /* 从 browseHistory 回填 browseMeta：browsed 来自 mode==='速览' 的历史记录；lastBrowse 取最大 ts */
+  browseHistory.forEach(e => {
+    if(!e || !e.subject || !e.id || !e.ts) return;
+    if(!browseMeta[e.subject]) browseMeta[e.subject] = {};
+    const m = browseMeta[e.subject][e.id] || {browsed:false, lastBrowse:0};
+    if(e.ts > m.lastBrowse) m.lastBrowse = e.ts;
+    if(e.mode === '速览') m.browsed = true;
+    browseMeta[e.subject][e.id] = m;
+  });
   saveJ(ACTIVE_KEY, pkey);
 }
 function savePerson(){
   const d = PERSON_STORE[personKey] || (PERSON_STORE[personKey] = emptyPerson());
   d.state = state; d.today = todayD; d.goal = goal; d.best = best; d.streak = streakD;
   d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks; d.browseHistory = browseHistory;
+  d.browseMeta = browseMeta; d.trainCount = trainCount;
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -1110,16 +1124,33 @@ function show(){
   if(!d){ pos++; show(); return; }
   $('fBadge').textContent = d.t || '未分类';
   $('bBadge').textContent = d.t || '未分类';
-  /* 记录浏览历史（防重复，同卡连续翻牌只记一次） */
+  /* 记录浏览历史（防重复，同卡连续翻牌只记一次） + 更新 browseMeta */
   if(d.id !== lastBrowseId){
     lastBrowseId = d.id;
-    browseHistory.unshift({ts: Date.now(), id: d.id, mode: isTopicTrain ? '专题练' : (browseMode ? '速览' : '训练'), subject: subjectOfId(d.id) || cur, src: d.src || '', t: d.t || ''});
+    const tsNow = Date.now();
+    const sForMeta = subjectOfId(d.id) || cur;
+    const curMode = isTopicTrain ? '专题练' : (browseMode ? '速览' : '训练');
+    browseHistory.unshift({ts: tsNow, id: d.id, mode: curMode, subject: sForMeta, src: d.src || '', t: d.t || ''});
     if(browseHistory.length > 500) browseHistory.length = 500;
+    /* 持久化：每张卡的浏览时间和速览标记（训练/速览/专题练都更新 lastBrowse；只有速览模式设 browsed） */
+    const bm = browseMeta[sForMeta] || (browseMeta[sForMeta] = {});
+    const m = bm[d.id] || (bm[d.id] = {browsed:false, lastBrowse:0});
+    m.lastBrowse = tsNow;
+    if(browseMode) m.browsed = true;
     if(savePersonTimer) clearTimeout(savePersonTimer);
     savePersonTimer = setTimeout(savePerson, 5000);
   }
-  /* 左上角：上次训练结果 + 距上次天数 */
+  /* 左上角：是否被速览过 */
   const sName = subjectOfId(d.id);
+  const bmCur = (sName && browseMeta[sName]) ? browseMeta[sName][d.id] : null;
+  if(bmCur && bmCur.browsed){
+    $('fBrowsed').textContent = '👁 已速览';
+    $('fBrowsed').style.display = '';
+  } else {
+    $('fBrowsed').textContent = '';
+    $('fBrowsed').style.display = 'none';
+  }
+  /* 左上角：上次训练结果 + 距上次天数 */
   const lr = (sName && lastRes[sName]) ? lastRes[sName][d.id] : null;
   if(lr){
     const vTxt = lr.v === 1 ? '记住了' : lr.v === 2 ? '没记住' : lr.v === 3 ? '模糊' : '';
@@ -1224,6 +1255,11 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
   st[id] = level === 1 ? 2 : level === 2 ? 3 : 1;   /* 存储：2=答错 3=模糊 1=记住（兼容旧数据） */
   lastRes[sName] = lastRes[sName] || {};
   lastRes[sName][id] = {v: st[id], ts: Date.now()};
+  /* 累加 训练计数（不记得/模糊 次数，跨刷新跨会话累计） */
+  const tc = trainCount[sName] || (trainCount[sName] = {});
+  const cnt = tc[id] || (tc[id] = {fail:0, half:0});
+  if(level === 1) cnt.fail++;
+  else if(level === 2) cnt.half++;
   savePerson();
   markBusy = true;
   if(level === 3){
