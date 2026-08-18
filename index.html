@@ -81,6 +81,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .srcPopover{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.12);z-index:120;max-height:280px;overflow:auto;min-width:260px}
 .srcPopover label{display:flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;margin:4px 0;cursor:pointer}
 .srcPopover input{width:14px;height:14px}
+.srcPopover .srcBar{display:flex;gap:8px;margin-bottom:8px;border-bottom:1px solid #f0f0f0;padding-bottom:8px}
+.srcPopover .srcBar button{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 0;font-size:12px;cursor:pointer;color:#374151}
+.srcPopover .srcBar button:hover{background:#E6F1FB;border-color:#185FA5;color:#185FA5}
+.srcPopover .srcHint{font-size:11px;color:#9ca3af;margin-bottom:6px}
 .browseTable{width:100%;border-collapse:collapse;font-size:13px;background:#fff;min-width:640px}
 .browseTable th{background:#f9fafb;text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-weight:500;position:sticky;top:0;z-index:1;white-space:nowrap}
 .browseTable td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
@@ -943,7 +947,7 @@ function buildQueue(){
   $('topicTrainBar').style.display = 'none';
   let ids = items().map(it => it.id);
   if(topic) ids = ids.filter(id => { const it = itemById(id); return it && it.t === topic; });
-  if(srcFilterSet && srcFilterSet.size) ids = ids.filter(id => { const it = itemById(id); return it && srcFilterSet.has(it.src || ''); });
+  if(srcFilterSets[cur] && srcFilterSets[cur].size) ids = ids.filter(id => { const it = itemById(id); return it && srcFilterSets[cur].has(it.src || ''); });
   const st = state[cur] || {};
   if(onlyWeak) ids = ids.filter(id => st[id] === 2 || st[id] === 3);
   if(mode === "rand"){ for(let i = ids.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i],ids[j]] = [ids[j],ids[i]]; } }
@@ -1454,6 +1458,8 @@ function switchSubject(name){
   document.documentElement.style.setProperty('--badge-fg', c);
   topic = ''; onlyWeak = false; combo = 0; seedRetryOrderFor(name);
   $('onlyWeak').textContent = '专练没记住和模糊';
+  updateSrcBtn();
+  const pop = $('srcPopover'); if(pop) pop.style.display = 'none';
   $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + ALL_SUBJECTS[name].items.length + ' 条';
   $('trainPersonName').textContent = personName();
   renderTabs();
@@ -2053,8 +2059,23 @@ function switchPerson(pkey){
   initCloud();
 }
 /* ---------- 专题练（拆词 OR + 出处多选 + 状态多选 + 学科/专题 + 日期范围） ---------- */
-/* 出处多选状态（任务管理并入后保留的多选） */
-let srcFilterSet = new Set();   /* 工具栏 📄 出处 多选；作用于 buildQueue */
+/* 出处多选状态（按科目隔离；空集合 = 不过滤 = 显示全部 = 默认全选） */
+let srcFilterSets = {};
+function srcSet(name){ if(!srcFilterSets[name]) srcFilterSets[name] = new Set(); return srcFilterSets[name]; }
+function allSrcNames(name){
+  const def = subjDef(name);
+  if(!def) return [];
+  const seen = new Set();
+  def.items.forEach(it => { if(it.src) seen.add(it.src); });
+  return [...seen];
+}
+function updateSrcBtn(){
+  const all = allSrcNames(cur);
+  const sf = srcFilterSets[cur];
+  const n = sf ? sf.size : 0;
+  const allSelected = n > 0 && all.length > 0 && all.every(s => sf.has(s));
+  $('srcFilterBtn').textContent = (n === 0 || allSelected) ? '📄 出处' : '📄 出处(' + n + ')';
+}
 function refreshSrcFilterList(){
   const sel = $('tqSrcList');
   if(!sel || sel.tagName !== 'SELECT') return;
@@ -2062,6 +2083,7 @@ function refreshSrcFilterList(){
   const subj = $('tqSubj') ? $('tqSubj').value : '';
   const def = subj ? subjDef(subj) : null;
   if(!def){ const opt = document.createElement('option'); opt.textContent = '请先选择科目'; opt.disabled = true; sel.appendChild(opt); return; }
+  const sf = srcFilterSets[subj];
   const seen = new Set();
   def.items.forEach(it => {
     if(it.src && !seen.has(it.src)){
@@ -2069,7 +2091,7 @@ function refreshSrcFilterList(){
       const opt = document.createElement('option');
       opt.value = it.src;
       opt.textContent = it.src;
-      if(srcFilterSet.has(it.src)) opt.selected = true;
+      if(!sf || sf.size === 0 || sf.has(it.src)) opt.selected = true;
       sel.appendChild(opt);
     }
   });
@@ -2407,24 +2429,59 @@ $('dTodayCard').addEventListener('click', openBrowseHistory);
 $('dTodayCard').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 $('browseHistoryToolbarBtn').addEventListener('click', openBrowseHistory);
 $('browseHistoryToolbarBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
-/* 工具栏 📄 出处 多选（影响 buildQueue） */
+/* 工具栏 📄 出处 多选（影响 buildQueue）；默认全选 = 空集合显示全部 */
 function openSrcPopover(){
   const pop = $('srcPopover');
   pop.innerHTML = '';
   const def = subjDef(cur);
   if(!def){ toast('请先选择科目'); return; }
-  const seen = new Set();
-  def.items.forEach(it => { if(it.src && !seen.has(it.src)){ seen.add(it.src); const lab = document.createElement('label'); lab.innerHTML = '<input type="checkbox" data-src2="' + escHtml(it.src) + '"> ' + escHtml(it.src); pop.appendChild(lab); } });
-  if(!seen.size){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无出处字段</div>'; }
-  pop.querySelectorAll('input[data-src2]').forEach(cb => {
-    const s = cb.getAttribute('data-src2');
-    if(srcFilterSet.has(s)) cb.checked = true;
-    cb.addEventListener('change', () => {
-      if(cb.checked) srcFilterSet.add(s); else srcFilterSet.delete(s);
-      $('srcFilterBtn').textContent = srcFilterSet.size ? '📄 出处(' + srcFilterSet.size + ')' : '📄 出处';
-      buildQueue(); show();
+  const all = allSrcNames(cur);
+  if(!all.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无出处字段</div>'; }
+  else {
+    const sf = srcSet(cur);
+    const hint = document.createElement('div');
+    hint.className = 'srcHint';
+    hint.textContent = '默认全选 · 取消勾选即排除该出处';
+    pop.appendChild(hint);
+    const bar = document.createElement('div');
+    bar.className = 'srcBar';
+    const allBtn = document.createElement('button'); allBtn.textContent = '☑ 全选';
+    const clearBtn = document.createElement('button'); clearBtn.textContent = '☐ 重置为全部';
+    bar.appendChild(allBtn); bar.appendChild(clearBtn);
+    pop.appendChild(bar);
+    all.forEach(s => {
+      const lab = document.createElement('label');
+      lab.innerHTML = '<input type="checkbox" data-src2="' + escHtml(s) + '"> ' + escHtml(s);
+      pop.appendChild(lab);
     });
-  });
+    pop.querySelectorAll('input[data-src2]').forEach(cb => {
+      const s = cb.getAttribute('data-src2');
+      cb.checked = sf.size === 0 || sf.has(s);   /* 空集合 = 未设置 = 默认全选 */
+      cb.addEventListener('change', () => {
+        if(sf.size === 0 && !cb.checked){
+          /* 首次从「全选」状态取消某一项：先把全部出处加入集合，再删掉这一项 */
+          all.forEach(x => sf.add(x));
+          sf.delete(s);
+        } else if(cb.checked){
+          sf.add(s);
+        } else {
+          sf.delete(s);
+        }
+        updateSrcBtn();
+        buildQueue(); show();
+      });
+    });
+    allBtn.addEventListener('click', () => {
+      all.forEach(s => sf.add(s));
+      pop.querySelectorAll('input[data-src2]').forEach(cb => cb.checked = true);
+      updateSrcBtn(); buildQueue(); show();
+    });
+    clearBtn.addEventListener('click', () => {
+      sf.clear();
+      pop.querySelectorAll('input[data-src2]').forEach(cb => cb.checked = true);   /* 空集合 = 显示全部，视觉上仍全选 */
+      updateSrcBtn(); buildQueue(); show();
+    });
+  }
   const btn = $('srcFilterBtn');
   const rect = btn.getBoundingClientRect();
   pop.style.left = rect.left + 'px';
