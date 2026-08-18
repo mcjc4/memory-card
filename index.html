@@ -136,6 +136,15 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .weak .w-sig{font-size:14px;color:#042C53;font-weight:500;margin-bottom:4px;line-height:1.8}
 .weak .w-concl{font-size:13px;color:#4b5563;line-height:1.8}
 .weak .w-meta{font-size:12px;color:#9ca3af;margin-top:4px}
+/* 待重练卡片：状态标签 + 距今天数 + 跳转按钮 */
+.weak .retryItem .retryHead{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.weak .retryItem .retryStatus{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;flex-shrink:0}
+.weak .retryItem .retryStatus.fail{background:#FDE2E2;color:#A32D2D}
+.weak .retryItem .retryStatus.half{background:#FEF3C7;color:#854F0B}
+.weak .retryItem .retryStatus.unt{background:#F1F5F9;color:#6b7280}
+.weak .retryItem .retryDays{font-size:11px;color:#6b7280}
+.weak .retryItem .retryJump{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:2px 9px;font-size:14px;cursor:pointer;color:#185FA5;margin-left:auto;line-height:1.2;font-weight:500}
+.weak .retryItem .retryJump:hover{background:#E6F1FB;border-color:#185FA5}
 .toast{position:fixed;top:280px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1f2329;color:#fff;padding:10px 20px;border-radius:999px;font-size:14px;z-index:200;transition:transform .35s;opacity:0}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 #confettiBox{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:99}
@@ -977,7 +986,7 @@ function updateStats(){
   items().forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2) fail++; else if(v===3) half++; });
   $('bar').style.width = ((pass + fail + half) / N() * 100).toFixed(1) + '%';
   $('bestV').textContent = best[cur] || 0;
-  renderList('retryList', 'retryEmpty', 'retryCnt', retryOrder.map(id => { const it = itemById(id); return it ? {d:it, id:id} : null; }).filter(Boolean));
+  renderRetryList();
   const weak = items().map(it => ({d:it, id:it.id})).filter(x => st[x.id] === 2);
   $('weakCnt').textContent = weak.length;
   renderList('weakList', 'weakEmpty', null, weak, true);
@@ -995,6 +1004,64 @@ function renderList(ulId, emptyId, cntId, arr, skipCount){
     li.appendChild(sig); li.appendChild(concl); li.appendChild(meta);
     ul.appendChild(li);
   });
+}
+/* 待重练专用渲染：在原 w-sig/w-concl/w-meta 之上加一行「状态标签 + 距今天数 + 跳转按钮」 */
+function renderRetryList(){
+  const ul = $('retryList');
+  const cnt = $('retryCnt');
+  const empty = $('retryEmpty');
+  ul.innerHTML = '';
+  const st = state[cur] || {};
+  const lr = lastRes[cur] || {};
+  const arr = retryOrder.map(id => { const it = itemById(id); return it ? {d:it, id:id} : null; }).filter(Boolean);
+  cnt.textContent = arr.length;
+  empty.style.display = arr.length ? 'none' : 'block';
+  arr.slice(0, 50).forEach(x => {
+    const v = st[x.id];
+    const stCls = v === 2 ? 'fail' : v === 3 ? 'half' : 'unt';
+    const stTxt = v === 2 ? '没记住' : v === 3 ? '模糊' : '未测';
+    const lrEntry = lr[x.id];
+    let daysTxt = '';
+    if(lrEntry){
+      const days = Math.floor((Date.now() - lrEntry.ts) / 86400000);
+      daysTxt = days <= 0 ? '今天' : days + '天前';
+    }
+    const li = document.createElement('li');
+    li.className = 'retryItem';
+    const head = document.createElement('div');
+    head.className = 'retryHead';
+    const tag = document.createElement('span');
+    tag.className = 'retryStatus ' + stCls;
+    tag.textContent = stTxt;
+    const day = document.createElement('span');
+    day.className = 'retryDays';
+    day.textContent = daysTxt;
+    const jump = document.createElement('button');
+    jump.className = 'retryJump';
+    jump.textContent = '→';
+    jump.title = '跳到此卡训练';
+    jump.addEventListener('click', e => { e.stopPropagation(); jumpToRetryCard(x.id); });
+    head.appendChild(tag); head.appendChild(day); head.appendChild(jump);
+    const sig = document.createElement('div'); sig.className = 'w-sig'; sig.innerHTML = renderMath(x.d.s);
+    const concl = document.createElement('div'); concl.className = 'w-concl'; concl.innerHTML = renderMath(x.d.c);
+    const meta = document.createElement('div'); meta.className = 'w-meta'; meta.textContent = (x.d.t || '未分类') + (x.d.src ? ' · ' + x.d.src : '');
+    li.appendChild(head); li.appendChild(sig); li.appendChild(concl); li.appendChild(meta);
+    ul.appendChild(li);
+  });
+}
+/* 从待重练列表跳到指定卡片训练（已在当前科目内；如有 topic 过滤导致卡片不在队列则清掉） */
+function jumpToRetryCard(id){
+  if(!cur || !ALL_SUBJECTS[cur]) return;
+  const it = itemById(id);
+  if(!it) return toast('卡片已删除');
+  if(queue.indexOf(id) < 0){
+    if(topic){ topic = ''; $('topicSel').value = ''; }
+    buildQueue();
+  }
+  const idx = queue.indexOf(id);
+  if(idx < 0) return toast('该卡片不在当前队列');
+  pos = idx; shown = false; show();
+  toast('已跳到待重练卡片');
 }
 
 /* ---------- 位置记忆（按执行人隔离，随容器持久化） ---------- */
