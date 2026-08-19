@@ -2041,7 +2041,8 @@ function sbHeaders(key, contentType){
 let cloudCfg = loadCloudCfg();
 let cloudReady = false, cloudStatus = 'off', cloudPushTimer = null;
 function cloudPayload(){
-  return { v:1, custom:CUSTOM, imported:IMPORTED, state:state, today:todayD, goal:goal, best:best, streak:streakD };
+  return { v:1, custom:CUSTOM, imported:IMPORTED, state:state, today:todayD, goal:goal, best:best, streak:streakD,
+           browseHistory:browseHistory, browseMeta:browseMeta, lastRes:lastRes, pos:POS, trainCount:trainCount, subjectTime:subjectTime };
 }
 function applyCloudPayload(p){
   if(!p || typeof p !== 'object') return;
@@ -2052,6 +2053,53 @@ function applyCloudPayload(p){
   if(p.goal && typeof p.goal === 'object') Object.keys(p.goal).forEach(k => goal[k] = p.goal[k]);
   if(p.best && typeof p.best === 'object') Object.keys(p.best).forEach(k => best[k] = p.best[k]);
   if(Array.isArray(p.streak)) streakD.splice(0, streakD.length, ...p.streak);
+  /* ---- 以下字段原本未同步，现补齐（键值表按 key 级合并；数组去重合并） ---- */
+  if(p.browseHistory && Array.isArray(p.browseHistory) && p.browseHistory.length){
+    const seen = new Set(); const merged = [];
+    browseHistory.concat(p.browseHistory).forEach(e => {
+      if(!e || e.id == null) return;
+      const key = (e.ts||0) + '|' + e.id;
+      if(seen.has(key)) return; seen.add(key); merged.push(e);
+    });
+    merged.sort((a,b) => (b.ts||0) - (a.ts||0));
+    if(merged.length > 500) merged.length = 500;
+    browseHistory = merged;
+  }
+  if(p.browseMeta && typeof p.browseMeta === 'object'){
+    Object.keys(p.browseMeta).forEach(subj => {
+      const src = p.browseMeta[subj] || {}; const dst = browseMeta[subj] || (browseMeta[subj] = {});
+      Object.keys(src).forEach(id => {
+        const s = src[id] || {}; const d = dst[id] || (dst[id] = {browsed:false, lastBrowse:0});
+        if(s.browsed) d.browsed = true;
+        if((s.lastBrowse||0) > (d.lastBrowse||0)) d.lastBrowse = s.lastBrowse;
+      });
+    });
+  }
+  if(p.lastRes && typeof p.lastRes === 'object'){
+    Object.keys(p.lastRes).forEach(subj => {
+      const src = p.lastRes[subj] || {}; const dst = lastRes[subj] || (lastRes[subj] = {});
+      Object.keys(src).forEach(id => {
+        const s = src[id] || {}; const d = dst[id] || (dst[id] = {v:null, ts:0});
+        if((s.ts||0) > (d.ts||0)){ d.v = s.v; d.ts = s.ts; }
+      });
+    });
+  }
+  if(p.pos && typeof p.pos === 'object'){ Object.keys(p.pos).forEach(subj => { POS[subj] = p.pos[subj]; }); }
+  if(p.trainCount && typeof p.trainCount === 'object'){
+    Object.keys(p.trainCount).forEach(subj => {
+      const src = p.trainCount[subj] || {}; const dst = trainCount[subj] || (trainCount[subj] = {});
+      Object.keys(src).forEach(id => {
+        const s = src[id] || {}; const d = dst[id] || (dst[id] = {fail:0, half:0});
+        d.fail = Math.max(d.fail||0, s.fail||0); d.half = Math.max(d.half||0, s.half||0);
+      });
+    });
+  }
+  if(p.subjectTime && typeof p.subjectTime === 'object'){
+    Object.keys(p.subjectTime).forEach(subj => {
+      const v = Number(p.subjectTime[subj])||0;
+      if(v > (Number(subjectTime[subj])||0)) subjectTime[subj] = v;
+    });
+  }
   savePerson();
 }
 function renderCloudBadge(){
