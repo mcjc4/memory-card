@@ -621,9 +621,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div style="font-size:16px;font-weight:500;margin-top:2px" id="cloudStatusTxt">未连接</div>
       <div style="font-size:12px;color:#9ca3af;margin-top:4px" id="cloudStatusSub"></div>
     </div>
-    <div class="row2">
-      <button id="cloudSyncNow">立即同步</button>
-      <button id="cloudResetCfg" class="del">恢复默认配置</button>
+    <div class="row2" style="grid-template-columns:1fr 1fr 1fr">
+      <button id="cloudPullBtn">从云端同步到本地</button>
+      <button id="cloudPushBtn">从本地同步到云端</button>
+      <button id="cloudDisconnectBtn" class="del">断开云端</button>
     </div>
 
     <div style="font-size:14px;font-weight:500;margin:16px 0 8px">📢 卡片朗读（Edge 神经音色 · 在线优先，离线自动降级系统语音）</div>
@@ -2116,6 +2117,17 @@ function renderCloudBadge(){
   }
   const cp = $('cloudPerson');
   if(cp) cp.textContent = personName();
+  /* 同步控制按钮状态联动 */
+  const db = $('cloudDisconnectBtn');
+  if(db) {
+    if(cloudStatus === 'off' && cloudCfg && cloudCfg.disabled){
+      db.textContent = '重新连接云端';
+      db.classList.remove('del');
+    } else {
+      db.textContent = '断开云端';
+      db.classList.add('del');
+    }
+  }
 }
 /* 带超时的 fetch（AbortController + Promise.race 双重保险，DNS 阻塞时也能打断） */
 function fetchTimeout(url, opts, ms){
@@ -2934,16 +2946,39 @@ $('cloudBtn').addEventListener('click', () => {
   }
   openSettings();
 });
-$('cloudSyncNow').addEventListener('click', async () => {
-  toast('正在同步…');
-  try{ await pullCloud(false, false); await pushCloud(); toast('同步完成'); }
-  catch(e){ toast('同步失败：' + e.message); }
+/* 云端同步控制 */
+$('cloudPullBtn').addEventListener('click', async () => {
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法同步'); return; }
+  $('cloudPullBtn').textContent = '同步中…';
+  $('cloudPullBtn').disabled = true;
+  try{ await pullCloud(false, true); toast('✅ 已从云端同步到本地'); }
+  catch(e){ toast('❌ 同步失败：' + e.message); }
+  finally{ $('cloudPullBtn').textContent = '从云端同步到本地'; $('cloudPullBtn').disabled = false; }
 });
-$('cloudResetCfg').addEventListener('click', () => {
-  if(confirm('恢复默认 Supabase 配置（学习工作台同项目）？')){
-    saveCloudCfg(defaultCloudCfg()); cloudCfg = defaultCloudCfg();
-    toast('已恢复默认配置');
+$('cloudPushBtn').addEventListener('click', async () => {
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法同步'); return; }
+  $('cloudPushBtn').textContent = '上传中…';
+  $('cloudPushBtn').disabled = true;
+  try{ await pushCloud(); toast('✅ 已从本地同步到云端'); }
+  catch(e){ toast('❌ 上传失败：' + e.message); }
+  finally{ $('cloudPushBtn').textContent = '从本地同步到云端'; $('cloudPushBtn').disabled = false; }
+});
+$('cloudDisconnectBtn').addEventListener('click', async () => {
+  if(cloudStatus === 'off' && cloudCfg && cloudCfg.disabled){
+    /* 重新连接 */
+    cloudCfg.disabled = false;
+    saveCloudCfg(cloudCfg);
+    toast('正在重新连接云端…');
+    await initCloud();
+    return;
   }
+  if(!confirm('确定断开云端同步？\n\n断开后数据仅保存在本机浏览器本地存储（localStorage），不会上传也不会拉取。\n\n之后可以点击「重新连接云端」恢复。')) return;
+  cloudCfg.disabled = true;
+  saveCloudCfg(cloudCfg);
+  cloudReady = false;
+  cloudStatus = 'off';
+  renderCloudBadge();
+  toast('已断开云端 · 数据仅保存在本机');
 });
 /* 设置（PushPlus 推送） */
 $('settingsBtn').addEventListener('click', openSettings);
