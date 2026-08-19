@@ -1150,12 +1150,12 @@ function restoreSubjectPos(name){
 }
 
 /* ---------- 卡片：题面上收缩、答案从下展开 ---------- */
-/* 让题干文字自适应占卡片宽度的 80%（"显示窗口"指当前卡片宽度） */
+/* 让题干文字自适应占卡片宽度的 95%（"显示窗口"指当前卡片宽度，红框大小） */
 function fitSigText(){
   const el = $('fSig'); if(!el) return;
   if(!el.offsetParent) return;   /* 元素不可见（不在训练页） */
   const card = $('card');
-  const target = card.clientWidth * 0.8;
+  const target = card.clientWidth * 0.95;
   if(target <= 0) return;
   let lo = 18, hi = 140;
   while(hi - lo > 1){
