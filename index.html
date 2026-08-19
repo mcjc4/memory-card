@@ -63,6 +63,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
 .lastRes{font-size:11px;font-weight:500;margin-bottom:6px;align-self:flex-start}
 .browsedTag{display:inline-block;background:#E6F1FB;color:#185FA5;font-size:11px;font-weight:500;padding:2px 10px;border-radius:999px;align-self:flex-start;margin-bottom:6px}
+.speakBtn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:#F1EFE8;border:1px solid #d1d5db;border-radius:50%;cursor:pointer;font-size:15px;margin:0 6px 6px 0;align-self:flex-start;transition:background .2s,transform .15s;line-height:1;flex-shrink:0}
+.speakBtn:hover{background:#E6F1FB;border-color:#185FA5}
+.speakBtn:active{transform:scale(.9)}
+.speakBtn.speaking{background:#E6F1FB;border-color:#185FA5;animation:pulse .9s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(24,95,165,.35)}50%{box-shadow:0 0 0 6px rgba(24,95,165,0)}}
 .tqRow{margin:8px 0}
 .tqRow label{display:block;font-size:13px;color:#374151;margin:8px 0 4px}
 .tqRow select,.tqRow input{width:100%;font-size:14px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;font-family:inherit}
@@ -338,6 +343,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="cardDelBtn">🗑 删除</button>
     </div>
     <div class="signal-zone">
+      <button class="speakBtn" id="fSpeakBtn" title="朗读当前卡片（点一下读正面，再点停止）">🔊</button>
       <div class="browsedTag" id="fBrowsed" style="display:none"></div>
       <div class="lastRes" id="fLast" style="display:none"></div>
       <div class="src-front" id="fSrc" style="display:none"></div>
@@ -558,6 +564,37 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div class="row2">
       <button id="cloudSyncNow">立即同步</button>
       <button id="cloudResetCfg" class="del">恢复默认配置</button>
+    </div>
+
+    <div style="font-size:14px;font-weight:500;margin:16px 0 8px">📢 卡片朗读（Edge 神经音色 · 在线优先，离线自动降级系统语音）</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="ttsEnabled" style="width:16px;height:16px"> 启用卡片朗读
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="ttsAutoEn" style="width:16px;height:16px"> 英语科目自动朗读（默认开）
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="ttsAutoOther" style="width:16px;height:16px"> 其他科目自动朗读（默认关）
+    </label>
+    <label>朗读语速</label>
+    <select id="ttsRate">
+      <option value="slow">慢</option>
+      <option value="normal">正常</option>
+      <option value="fast">快</option>
+    </select>
+    <label>朗读音色（Edge 神经音色）</label>
+    <select id="ttsVoice">
+      <option value="en-US-EmmaMultilingualNeural">Emma 多语言（英语为主，中文也能读）</option>
+      <option value="en-US-AriaNeural">Aria（美式女声）</option>
+      <option value="en-US-JennyNeural">Jenny（美式女声）</option>
+      <option value="en-US-GuyNeural">Guy（美式男声）</option>
+      <option value="zh-CN-XiaoxiaoNeural">晓晓（中文女声）</option>
+      <option value="zh-CN-YunxiNeural">云希（中文男声）</option>
+    </select>
+    <div class="modalHint">中英文混排按原文朗读；翻卡自动读题干、展开答案自动读答案（英语默认开，其他学科默认手动点 🔊）。</div>
+    <div class="row2">
+      <button id="ttsTestBtn">🔊 试听</button>
+      <button id="ttsSaveBtn" class="ok">保存朗读设置</button>
     </div>
 
     <div style="font-size:14px;font-weight:500;margin:16px 0 8px">消息推送（开始训练时推送）</div>
@@ -1154,6 +1191,12 @@ function show(){
     $('fBrowsed').textContent = '';
     $('fBrowsed').style.display = 'none';
   }
+  /* 自动朗读题干（英语默认开，其他学科默认关；初始化阶段与同一张卡不重复读） */
+  if(ttsShouldAuto() && !ttsInitSkip && d.id !== ttsLastId){
+    ttsLastId = d.id;
+    const tFront = (d.s || '').trim();
+    if(tFront) speakText(tFront);
+  }
   /* 左上角：上次训练结果 + 距上次天数 */
   const lr = (sName && lastRes[sName]) ? lastRes[sName][d.id] : null;
   if(lr){
@@ -1183,12 +1226,23 @@ function show(){
 function flip(){
   if(!queue.length) return;
   const card = $('card');
-  if(shown){ card.classList.remove('show'); shown = false; }
-  else { card.classList.add('show'); shown = true; }
+  if(shown){
+    card.classList.remove('show'); shown = false;
+    stopSpeak();   /* 收起答案时停止朗读 */
+  } else {
+    card.classList.add('show'); shown = true;
+    /* 展开答案自动朗读答案（英语默认开） */
+    if(ttsShouldAuto()){
+      const d = itemById(queue[pos]);
+      const tBack = ((d && d.c) || '').trim();
+      if(tBack) speakText(tBack);
+    }
+  }
 }
 /* 手动切卡：答案展开时先收缩题目再切换，未展开直接切 */
 function switchCard(nextPos){
   const card = $('card');
+  stopSpeak();
   if(shown){
     card.classList.remove('show');
     card.classList.add('collapsing');
@@ -1286,6 +1340,7 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
     if(pos + 1 >= queue.length){
       if(jumpToNextTopic()) return;
     }
+    stopSpeak();
     pos++; updateStats(); show();
   }, 260);
 }
@@ -1460,6 +1515,7 @@ function switchSubject(name){
   $('onlyWeak').textContent = '专练没记住和模糊';
   updateSrcBtn();
   const pop = $('srcPopover'); if(pop) pop.style.display = 'none';
+  stopSpeak();   /* 切换科目时停止朗读 */
   $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + ALL_SUBJECTS[name].items.length + ' 条';
   $('trainPersonName').textContent = personName();
   renderTabs();
@@ -1930,6 +1986,138 @@ async function initCloud(){
   renderCloudBadge();
 }
 
+/* ===================== 卡片朗读（Edge TTS 在线神经音色 + Web Speech 离线降级） ===================== */
+const TTS_CFG_KEY = 'wulun_tts_cfg';
+const DEFAULT_TTS = { enabled: true, autoEn: true, autoOther: false, rate: 'normal', voice: 'en-US-EmmaMultilingualNeural' };
+const TTS_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+const TTS_GEC_VERSION = '1-143.0.3650.75';
+function loadTtsCfg(){
+  try{ const c = JSON.parse(localStorage.getItem(TTS_CFG_KEY) || 'null'); if(c && typeof c === 'object') return Object.assign({}, DEFAULT_TTS, c); }catch(e){}
+  return Object.assign({}, DEFAULT_TTS);
+}
+let ttsCfg = loadTtsCfg();
+let ttsAudio = null;          /* 当前播放的 Audio（Edge TTS blob） */
+let ttsCancel = false;        /* 取消标记：切卡/收起时中断 */
+let ttsLastId = null;         /* 自动朗读去重：同一张卡只自动读一次 */
+let ttsInitSkip = true;       /* 初始化首次 show 不自动朗读 */
+function ttsShouldAuto(){ return ttsCfg.enabled && (cur === '英语' ? !!ttsCfg.autoEn : !!ttsCfg.autoOther); }
+function ttsRateStr(){ return ttsCfg.rate === 'slow' ? '-20%' : ttsCfg.rate === 'fast' ? '+20%' : '+0%'; }
+/* Sec-MS-GEC：SHA256(Windows file time 取整5分钟 ×1e7 + TrustedClientToken) hex 大写 */
+async function genSecMsGec(){
+  let t = Date.now() / 1000 + 11644473600;
+  t -= t % 300;
+  t *= 1e7;
+  const str = t.toFixed(0) + TTS_TOKEN;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+function uuidNoDash(){ try{ return crypto.randomUUID().replace(/-/g, ''); }catch(e){ return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16); }); } }
+function jsDateStr(){ const d = new Date(); const wd = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]; const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]; const p = n => String(n).padStart(2,'0'); return wd + ' ' + mo + ' ' + p(d.getDate()) + ' ' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + ' GMT+0000 (Coordinated Universal Time)'; }
+function xmlEscape(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+/* Edge TTS WebSocket 合成，返回 audio/mpeg Blob */
+function edgeTTS(text, voice, rate){
+  return new Promise(async (resolve, reject) => {
+    let secMsGec;
+    try{ secMsGec = await genSecMsGec(); }catch(e){ reject(e); return; }
+    const connId = uuidNoDash();
+    const url = 'wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=' + TTS_TOKEN + '&Sec-MS-GEC=' + secMsGec + '&Sec-MS-GEC-Version=' + TTS_GEC_VERSION + '&ConnectionId=' + connId;
+    let ws;
+    try{ ws = new WebSocket(url, 'speech'); }catch(e){ reject(e); return; }
+    const chunks = [];
+    let settled = false;
+    const settle = (fn, arg) => { if(settled) return; settled = true; try{ ws.close(); }catch(_){} fn(arg); };
+    ws.onopen = () => {
+      try{
+        ws.send('X-Timestamp:' + jsDateStr() + '\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}');
+        const ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='" + voice + "'><prosody pitch='+0Hz' rate='" + rate + "' volume='+0%'>" + xmlEscape(text) + "</prosody></voice></speak>";
+        ws.send('X-RequestId:' + connId + '\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:' + jsDateStr() + 'Z\r\nPath:ssml\r\n\r\n' + ssml);
+      }catch(e){ settle(reject, e); }
+    };
+    ws.onmessage = ev => {
+      if(ttsCancel){ settle(reject, new Error('cancelled')); return; }
+      if(typeof ev.data === 'string'){
+        if(ev.data.indexOf('Path:turn.end') >= 0){ try{ ws.close(); }catch(_){} }
+        return;
+      }
+      const process = buf => {
+        /* 跳过二进制帧头 "Path:audio...\r\n\r\n" */
+        let idx = 0;
+        for(let i = 0; i < buf.length - 3; i++){
+          if(buf[i]===13 && buf[i+1]===10 && buf[i+2]===13 && buf[i+3]===10){ idx = i + 4; break; }
+        }
+        const audio = buf.subarray(idx);
+        if(audio.length) chunks.push(audio);
+      };
+      if(ev.data instanceof Blob){ ev.data.arrayBuffer().then(ab => process(new Uint8Array(ab))); }
+      else if(ev.data instanceof ArrayBuffer){ process(new Uint8Array(ev.data)); }
+    };
+    ws.onerror = () => { settle(reject, new Error('ws error')); };
+    ws.onclose = () => {
+      if(settled) return;
+      if(ttsCancel || !chunks.length){ settle(reject, new Error('cancelled-or-empty')); return; }
+      const total = chunks.reduce((s, c) => s + c.length, 0);
+      const merged = new Uint8Array(total);
+      let off = 0;
+      chunks.forEach(c => { merged.set(c, off); off += c.length; });
+      settle(resolve, new Blob([merged], {type: 'audio/mpeg'}));
+    };
+  });
+}
+/* 降级：浏览器系统语音（完全离线可用） */
+function fallbackSpeak(text){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = /[\u4e00-\u9fff]/.test(text) ? 'zh-CN' : 'en-US';
+    const vs = window.speechSynthesis.getVoices();
+    if(vs.length){
+      const target = u.lang === 'zh-CN' ? vs.find(v => /zh[-_]CN/i.test(v.lang)) : (vs.find(v => /en[-_]US/i.test(v.lang) && /google|microsoft|aria|natural/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang)));
+      if(target) u.voice = target;
+    }
+    u.rate = ttsCfg.rate === 'slow' ? 0.8 : ttsCfg.rate === 'fast' ? 1.3 : 1;
+    window.speechSynthesis.speak(u);
+  }catch(e){ console.warn('fallback speak failed', e); }
+}
+/* 朗读一段文本：Edge TTS 优先，失败降级系统语音 */
+async function speakText(text){
+  if(!text || !ttsCfg.enabled) return;
+  stopSpeak();
+  ttsCancel = false;
+  try{
+    const blob = await edgeTTS(text, ttsCfg.voice || 'en-US-EmmaMultilingualNeural', ttsRateStr());
+    if(ttsCancel) return;
+    const url = URL.createObjectURL(blob);
+    ttsAudio = new Audio(url);
+    ttsAudio.onended = () => { URL.revokeObjectURL(url); ttsAudio = null; setSpeakBtn(false); };
+    ttsAudio.onerror = () => { URL.revokeObjectURL(url); ttsAudio = null; setSpeakBtn(false); };
+    await ttsAudio.play();
+    setSpeakBtn(true);
+  }catch(e){
+    if(ttsCancel) return;
+    console.warn('Edge TTS failed, fallback:', e);
+    fallbackSpeak(text);
+    setSpeakBtn(true);
+  }
+}
+function stopSpeak(){
+  ttsCancel = true;
+  if(ttsAudio){ try{ ttsAudio.pause(); ttsAudio = null; }catch(_){} }
+  if('speechSynthesis' in window){ try{ window.speechSynthesis.cancel(); }catch(_){} }
+  setSpeakBtn(false);
+}
+function setSpeakBtn(on){
+  const b = $('fSpeakBtn');
+  if(b){ b.classList.toggle('speaking', !!on); b.textContent = on ? '⏹' : '🔊'; }
+}
+/* 当前卡片可见文本：未展开读题干，展开后读答案+出处 */
+function currentCardText(){
+  const d = pos < queue.length ? itemById(queue[pos]) : null;
+  if(!d) return '';
+  if(shown) return ((d.c || '') + ' ' + (d.src || '')).trim();
+  return (d.s || '').trim();
+}
+
 /* ===================== 消息推送（钉钉 + PushPlus 微信） ===================== */
 const PUSH_CFG_KEY = 'wulun_push_cfg';
 const PUSH_LAST_KEY = 'wulun_push_last';
@@ -2326,9 +2514,29 @@ function openSettings(){
   $('pushWebhook').value = pushCfg.webhook || '';
   $('pushKeyword').value = pushCfg.keyword || '';
   $('pushProxy').value = pushCfg.proxy || '';
+  $('ttsEnabled').checked = !!ttsCfg.enabled;
+  $('ttsAutoEn').checked = !!ttsCfg.autoEn;
+  $('ttsAutoOther').checked = !!ttsCfg.autoOther;
+  $('ttsRate').value = ttsCfg.rate || 'normal';
+  $('ttsVoice').value = ttsCfg.voice || 'en-US-EmmaMultilingualNeural';
   renderPersonList();
   renderCloudBadge();
   $('settingsModal').classList.add('show');
+}
+function saveTtsCfg(){
+  ttsCfg.enabled = $('ttsEnabled').checked;
+  ttsCfg.autoEn = $('ttsAutoEn').checked;
+  ttsCfg.autoOther = $('ttsAutoOther').checked;
+  ttsCfg.rate = $('ttsRate').value || 'normal';
+  ttsCfg.voice = $('ttsVoice').value || 'en-US-EmmaMultilingualNeural';
+  saveJ(TTS_CFG_KEY, ttsCfg);
+  toast('朗读设置已保存');
+}
+async function testTts(){
+  saveTtsCfg();
+  if(!ttsCfg.enabled){ toast('请先启用卡片朗读'); return; }
+  toast('正在试听…');
+  await speakText('Hello, how are you today? 你好，今天过得怎么样？');
 }
 function savePushCfg(){
   pushCfg.enabled = $('pushEnabled').checked;
@@ -2408,6 +2616,17 @@ $('settingsBtn').addEventListener('click', openSettings);
 $('settingsModalClose').addEventListener('click', () => $('settingsModal').classList.remove('show'));
 $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('pushTestBtn').addEventListener('click', testPush);
+/* 卡片朗读 */
+$('ttsSaveBtn').addEventListener('click', saveTtsCfg);
+$('ttsTestBtn').addEventListener('click', testTts);
+function toggleSpeak(){
+  if(ttsAudio || (window.speechSynthesis && window.speechSynthesis.speaking)){ stopSpeak(); return; }
+  const txt = currentCardText();
+  if(!txt){ toast('没有可朗读的文本'); return; }
+  speakText(txt);
+}
+$('fSpeakBtn').addEventListener('click', e => { e.stopPropagation(); toggleSpeak(); });
+$('fSpeakBtn').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleSpeak(); }, {passive:false});
 /* 专题练 */
 $('topicTrainBtn').addEventListener('click', openTopicTrain);
 $('topicModalClose').addEventListener('click', () => $('topicModal').classList.remove('show'));
@@ -2561,6 +2780,7 @@ document.addEventListener('keydown', e => {
       }
     }
     initCloud();
+    ttsInitSkip = false;   /* 初始化完成，之后翻卡/展开可自动朗读 */
   }catch(e){
     console.error('init failed:', e);
     toast('初始化异常：' + e.message);
