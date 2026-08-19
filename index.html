@@ -57,7 +57,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .answer-inner{overflow:hidden;padding:0 14px;transform:scale(.92);transform-origin:center bottom;transition:transform .5s cubic-bezier(.4,0,.2,1) .04s}
 .card.show .answer-zone{max-height:2000px;opacity:1;transform:scale(1);padding:14px}
 .card.show .answer-inner{transform:scale(1);padding:0 14px}
-.card.show .sig{font-size:14px;line-height:1.55}
 .card.show .concl{font-size:16px;line-height:1.85}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
@@ -110,9 +109,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5;white-space:nowrap}
 .browseTable .actBtn:hover{background:#E6F1FB;border-color:#185FA5}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
-.sig{font-size:18px;line-height:1.9;color:#042C53;font-weight:500}
+.sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500;overflow-wrap:break-word;word-break:break-word}
 .concl{font-size:16px;line-height:2.0;color:#1f2329}
 .sig .katex,.concl .katex{font-size:1.05em}
+.card.show .sig{font-size:clamp(16px,4cqw,32px);line-height:1.5}
 .hint{margin-top:20px;font-size:13px;color:#9ca3af;text-align:center;transition:opacity .25s,max-height .25s,margin .25s;overflow:hidden}
 .card.show .hint{opacity:0;max-height:0;margin-top:0}
 .src{margin-top:14px;font-size:12px;color:#9ca3af;word-break:break-all;padding-bottom:14px}
@@ -1150,6 +1150,26 @@ function restoreSubjectPos(name){
 }
 
 /* ---------- 卡片：题面上收缩、答案从下展开 ---------- */
+/* 让题干文字自适应占卡片宽度的 80%（"显示窗口"指当前卡片宽度） */
+function fitSigText(){
+  const el = $('fSig'); if(!el) return;
+  if(!el.offsetParent) return;   /* 元素不可见（不在训练页） */
+  const card = $('card');
+  const target = card.clientWidth * 0.8;
+  if(target <= 0) return;
+  let lo = 18, hi = 140;
+  while(hi - lo > 1){
+    const mid = (lo + hi) >> 1;
+    el.style.setProperty('--sig-fit', mid + 'px');
+    if(el.scrollWidth > target) hi = mid; else lo = mid;
+  }
+  el.style.setProperty('--sig-fit', lo + 'px');
+}
+let _fitSigTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_fitSigTimer);
+  _fitSigTimer = setTimeout(fitSigText, 160);
+});
 function show(){
   if(pos >= queue.length){
     const empty = $('empty');
@@ -1211,6 +1231,7 @@ function show(){
   if(d.src){ $('fSrc').textContent = '📄 ' + d.src; $('fSrc').style.display = ''; }
   else { $('fSrc').textContent = ''; $('fSrc').style.display = 'none'; }
   $('fSig').innerHTML = renderMath(d.s);
+  fitSigText();   /* 题干字号自适应卡片宽度，占 80% */
   $('bConcl').innerHTML = renderMath(d.c);
   $('bSrc').textContent = d.src ? '出处：' + d.src : '';
   $('card').classList.remove('show', 'hide', 'collapsing');
