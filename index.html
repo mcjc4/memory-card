@@ -571,6 +571,14 @@ h1{font-size:21px;font-weight:500;text-align:center}
       </select>
     </div>
     <div class="tqRow tqFull">
+      <label>速览状态</label>
+      <select id="tqBrowseStatus">
+        <option value="all">全部状态</option>
+        <option value="browsed">已速览</option>
+        <option value="unbrowsed">未速览</option>
+      </select>
+    </div>
+    <div class="tqRow tqFull">
       <label>按出处（按 Ctrl/Command 多选，不选 = 全部出处）</label>
       <select id="tqSrcList" multiple size="6" class="tqSrcSelect"></select>
     </div>
@@ -2482,6 +2490,15 @@ function topicQuery(){
       if(stF === 'fail' && v !== 2) return;
       if(stF === 'half' && v !== 3) return;
       if(stF === 'pass' && v !== 1) return;
+    }
+    /* 速览状态筛选：从 browseMeta[subjName][it.id] 取 browsed 标记 */
+    const bsF = $('tqBrowseStatus').value;   /* 'all' | 'browsed' | 'unbrowsed' */
+    if(bsF !== 'all'){
+      const bmSubj = browseMeta[subjName] || {};
+      const bmItem = bmSubj[it.id];
+      const isBrowsed = bmItem ? bmItem.browsed : false;
+      if(bsF === 'browsed' && !isBrowsed) return;
+      if(bsF === 'unbrowsed' && isBrowsed) return;
     }
     res.push(it.id);
   });
