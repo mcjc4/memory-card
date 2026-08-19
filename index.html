@@ -175,6 +175,16 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .cardEdit button{border:1px solid #e5e7eb;background:rgba(255,255,255,.92);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:#374151}
 .cardEdit button:hover{background:#f3f4f6}
 .dashStats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+/* 顶部：各科投入时间分布环 */
+.timeRingWrap{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin-bottom:14px}
+.timeRingOuter{position:relative;width:124px;height:124px;flex-shrink:0}
+.timeRing{width:124px;height:124px;border-radius:50%;background:#eef0f3;transition:background .4s}
+.timeRingInner{position:absolute;inset:0;margin:auto;width:72px;height:72px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.timeRingInner b{font-size:20px;font-weight:600;color:#185FA5;line-height:1}
+.timeRingInner span{font-size:10px;color:#9ca3af;margin-top:3px;letter-spacing:.5px}
+.timeLegend{flex:1;font-size:12px;color:#374151;line-height:1.9;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.timeLegend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
+@media (max-width:520px){.timeRingWrap{flex-direction:column;align-items:flex-start}.timeLegend{flex-direction:column;align-items:flex-start;gap:4px}}
 .dashStat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;text-align:center;display:flex;flex-direction:column;gap:2px}
 .dashStat .k{font-size:12px;color:#6b7280}
 .dashStat .v{font-size:22px;font-weight:500}
@@ -284,6 +294,13 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div style="text-align:center;margin-bottom:14px">
       <h1>六科记忆总览</h1>
       <p class="sub">当前执行人：<b id="dashPerson" style="color:#185FA5">-</b> · 今天该学哪科，一眼看清 · 点卡片进入训练</p>
+    </div>
+    <div class="timeRingWrap">
+      <div class="timeRingOuter">
+        <div class="timeRing" id="timeRing"></div>
+        <div class="timeRingInner"><b id="timeTotal">0</b><span>总分钟</span></div>
+      </div>
+      <div class="timeLegend" id="timeLegend"></div>
     </div>
     <div class="dashStats">
       <div class="dashStat" id="dTodayCard" style="cursor:pointer;user-select:none;-webkit-tap-highlight-color:rgba(24,95,165,0.15)" title="点击查看今日浏览历史"><span class="k">今日已学</span><span class="v" id="dToday">0 题</span></div>
@@ -770,9 +787,9 @@ const PERSON_KEY = 'wulun_person_v2';
 const ACTIVE_KEY = 'wulun_active_person';
 const PERSON_STORE = loadJ(PERSON_KEY, {});
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
-let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount;   /* 当前执行人的数据（bindPerson 绑定） */
+let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount, subjectTime;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -786,6 +803,7 @@ function bindPerson(key){
   browseHistory = d.browseHistory = d.browseHistory || [];
   browseMeta = d.browseMeta = d.browseMeta || {};
   trainCount = d.trainCount = d.trainCount || {};
+  subjectTime = d.subjectTime = d.subjectTime || {};
   /* 从 browseHistory 回填 browseMeta：browsed 来自 mode==='速览' 的历史记录；lastBrowse 取最大 ts */
   browseHistory.forEach(e => {
     if(!e || !e.subject || !e.id || !e.ts) return;
@@ -801,7 +819,7 @@ function savePerson(){
   const d = PERSON_STORE[personKey] || (PERSON_STORE[personKey] = emptyPerson());
   d.state = state; d.today = todayD; d.goal = goal; d.best = best; d.streak = streakD;
   d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks; d.browseHistory = browseHistory;
-  d.browseMeta = browseMeta; d.trainCount = trainCount;
+  d.browseMeta = browseMeta; d.trainCount = trainCount; d.subjectTime = subjectTime;
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -1235,8 +1253,10 @@ function show(){
     $('card').style.display = 'none';
     $('btnFail').disabled = $('btnHalf').disabled = $('btnPass').disabled = true;
     $('trainPos').textContent = '';
+    viewingCard = false;
     return;
   }
+  viewingCard = true;
   $('card').style.display = '';
   $('btnFail').disabled = $('btnHalf').disabled = $('btnPass').disabled = false;
   $('trainPos').textContent = '第 ' + (pos + 1) + ' / ' + queue.length + ' 张';
@@ -1455,9 +1475,39 @@ function renameSubject(name){
   if(cur === name){ document.documentElement.style.setProperty('--badge-bg', (subj.color || '#185FA5') + '26'); }
   toast('已将「' + name + '」改名为「' + newDisp + '」');
 }
+/* 各科投入时间分布环（顶部） */
+function renderTimeRing(){
+  const ring = $('timeRing'); if(!ring) return;
+  const total = SUBJ_ORDER.reduce((s, n) => s + (subjectTime[n] || 0), 0);
+  const totalMin = Math.round(total / 60000);
+  if(total <= 0){ ring.style.background = '#eef0f3'; }
+  else {
+    let acc = 0;
+    const segs = [];
+    SUBJ_ORDER.forEach(n => {
+      const ms = subjectTime[n] || 0;
+      const end = acc + (ms / total * 100);
+      segs.push(SUBJ_COLORS[n] + ' ' + acc + '% ' + end + '%');
+      acc = end;
+    });
+    ring.style.background = 'conic-gradient(' + segs.join(',') + ')';
+  }
+  $('timeTotal') && ($('timeTotal').textContent = totalMin);
+  const lg = $('timeLegend');
+  if(lg){
+    const items = SUBJ_ORDER.map(n => {
+      const ms = subjectTime[n] || 0;
+      const pct = total ? Math.round(ms / total * 100) : 0;
+      const min = Math.round(ms / 60000);
+      return '<i style="background:' + SUBJ_COLORS[n] + '"></i>' + n + ' ' + min + '分 (' + pct + '%)';
+    });
+    lg.innerHTML = items.join(' &nbsp; ');
+  }
+}
 function renderDash(){
   $('dashPerson').textContent = personName();
   dashStats();
+  renderTimeRing();   /* 顶部：各科投入时间分布 */
   const grid = $('dashGrid');
   grid.innerHTML = '';
   const order = allSubjectOrder();
@@ -1512,7 +1562,7 @@ function renderDash(){
 function showView(v){
   $('viewDash').style.display = v === 'dash' ? '' : 'none';
   $('viewTrain').style.display = v === 'train' ? '' : 'none';
-  if(v === 'dash'){ lastView = {view:'dash'}; savePerson(); renderDash(); }
+  if(v === 'dash'){ viewingCard = false; flushTime(); lastView = {view:'dash'}; savePerson(); renderDash(); }
 }
 function openManage(){ $('viewManage').style.display = 'block'; renderManage(); }
 function closeManage(){ $('viewManage').style.display = 'none'; }
@@ -2849,6 +2899,24 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---------- 初始化 ---------- */
+/* ===================== 各科投入时间自动累计 ===================== */
+let viewingCard = false;        /* 是否正在训练页看卡（用于是否计入投入时间） */
+let lastTick = Date.now();
+function flushTime(){
+  if(!viewingCard) { lastTick = Date.now(); return; }
+  const now = Date.now();
+  const dt = now - lastTick;
+  lastTick = now;
+  if(dt > 0 && cur){
+    subjectTime[cur] = (subjectTime[cur] || 0) + dt;
+    renderTimeRing();   /* 实时刷新看板时间分布 */
+    if(savePersonTimer) clearTimeout(savePersonTimer);
+    savePersonTimer = setTimeout(savePerson, 3000);
+  }
+}
+setInterval(flushTime, 5000);
+window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, PERSON_STORE); });
+
 (function init(){
   try{
     rebuildSubjects();
