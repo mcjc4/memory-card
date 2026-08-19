@@ -91,6 +91,18 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .tqSrcSelect{width:100%;min-height:140px;padding:6px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box}
 .tqSrcSelect option{padding:4px 6px;margin:1px 0;border-radius:4px;cursor:pointer}
 .tqSrcSelect option:checked{background:#DBEAFE linear-gradient(0deg,#DBEAFE,#DBEAFE);color:#0C447C;font-weight:500}
+/* 专题练内嵌多选触发按钮（模拟 select 外观） */
+.tqMultiBtn{width:100%;font-size:14px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;font-family:inherit;text-align:left;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:space-between;color:#374151}
+.tqMultiBtn:hover{border-color:#93B5DB}
+.tqMultiBtn .tqMultiHint{color:#9ca3af;font-size:12px}
+/* 专题练内嵌勾选弹窗（相对定位在 tqBox 内） */
+.tqInlinePop{position:absolute;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.15);z-index:200;max-height:260px;overflow:auto;min-width:280px;display:none}
+.tqInlinePop label{display:flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;margin:4px 0;cursor:pointer}
+.tqInlinePop input[type=checkbox]{width:14px;height:14px}
+.tqInlinePop .tqIpBar{display:flex;gap:8px;margin-bottom:8px;border-bottom:1px solid #f0f0f0;padding-bottom:8px}
+.tqInlinePop .tqIpBar button{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 0;font-size:12px;cursor:pointer;color:#374151}
+.tqInlinePop .tqIpBar button:hover{background:#E6F1FB;border-color:#185FA5;color:#185FA5}
+.tqInlinePop .tqIpHint{font-size:11px;color:#9ca3af;margin-bottom:6px}
 .srcPopover{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.12);z-index:120;max-height:280px;overflow:auto;min-width:260px}
 .srcPopover label{display:flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;margin:4px 0;cursor:pointer}
 .srcPopover input{width:14px;height:14px}
@@ -215,7 +227,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .modalMask{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:flex-start;justify-content:center;z-index:150;padding:18px;overflow:auto}
 .modalMask.show{display:flex;align-items:center;justify-content:center}
 .modalBox{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:480px;margin:auto}
-.tqBox{max-width:min(1080px,96vw);max-height:92vh;overflow:auto;display:grid;gap:14px;grid-template-columns:1fr 1fr;align-content:start}
+.tqBox{max-width:min(1080px,96vw);max-height:92vh;overflow:auto;display:grid;gap:14px;grid-template-columns:1fr 1fr;align-content:start;position:relative}
 .tqBox h2{grid-column:1/-1}
 .tqBox .tqFull{grid-column:1/-1}
 .tqBox .tqRow{margin:0}
@@ -359,7 +371,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     </select>
     <button id="onlyWeak">专练没记住和模糊</button>
     <button id="soundBtn">🔊 音效</button>
-    <button id="browseBtn" class="browse">👁 速览</button>
+    <button id="browseBtn" class="browse">👁 审核</button>
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
     <button id="browseHistoryToolbarBtn" class="browse">📋 浏览历史</button>
     <button id="topicTrainBtn" class="manage">🎯 专题练</button>
@@ -399,9 +411,9 @@ h1{font-size:21px;font-weight:500;text-align:center}
 
   <div class="trainPos" id="trainPos"></div>
   <div class="browseBar" id="browseBar" style="display:none">
-    <b>👁 速览模式</b> · 只看不打卡，不计入进度
+    <b>👁 审核模式</b> · 只看不打卡，不计入进度
     <span id="browsePos" style="color:#854F0B"></span>
-    <button class="exit" id="browseExit">退速览</button>
+    <button class="exit" id="browseExit">退审核</button>
   </div>
   <div class="topicTrainBar" id="topicTrainBar" style="display:none">
     <b>🎯 专题练</b> · 不计入整体进度
@@ -498,7 +510,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
           <select id="bhMode">
             <option value="">全部模式</option>
             <option value="训练">训练</option>
-            <option value="速览">速览</option>
+            <option value="审核">审核</option>
             <option value="专题练">专题练</option>
           </select>
         </div>
@@ -548,9 +560,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <label>学科</label>
       <select id="tqSubj"></select>
     </div>
-    <div class="tqRow">
+    <div class="tqRow" style="position:relative">
       <label>专题</label>
-      <select id="tqTopic"><option value="">全部专题</option></select>
+      <div class="tqMultiBtn" id="tqTopicBtn">全部专题<span class="tqMultiHint">▼</span></div>
+      <div class="tqInlinePop" id="tqTopicPop"></div>
     </div>
     <div class="tqRow">
       <label>上次作答日期 - 开始</label>
@@ -571,16 +584,17 @@ h1{font-size:21px;font-weight:500;text-align:center}
       </select>
     </div>
     <div class="tqRow tqFull">
-      <label>速览状态</label>
+      <label>审核状态</label>
       <select id="tqBrowseStatus">
         <option value="all">全部状态</option>
-        <option value="browsed">已速览</option>
-        <option value="unbrowsed">未速览</option>
+        <option value="browsed">已审核</option>
+        <option value="unbrowsed">未审核</option>
       </select>
     </div>
-    <div class="tqRow tqFull">
-      <label>按出处（按 Ctrl/Command 多选，不选 = 全部出处）</label>
-      <select id="tqSrcList" multiple size="6" class="tqSrcSelect"></select>
+    <div class="tqRow tqFull" style="position:relative">
+      <label>按出处（点击弹出勾选，不选 = 全部出处）</label>
+      <div class="tqMultiBtn" id="tqSrcBtn">全部出处<span class="tqMultiHint">▼</span></div>
+      <div class="tqInlinePop" id="tqSrcPop"></div>
     </div>
     <div class="tqRow tqFull tqResult">匹配 <b id="tqCount">0</b> 张卡片</div>
     <div class="tqRow tqFull">
@@ -812,13 +826,13 @@ function bindPerson(key){
   browseMeta = d.browseMeta = d.browseMeta || {};
   trainCount = d.trainCount = d.trainCount || {};
   subjectTime = d.subjectTime = d.subjectTime || {};
-  /* 从 browseHistory 回填 browseMeta：browsed 来自 mode==='速览' 的历史记录；lastBrowse 取最大 ts */
+  /* 从 browseHistory 回填 browseMeta：browsed 来自 mode==='审核' 的历史记录；lastBrowse 取最大 ts */
   browseHistory.forEach(e => {
     if(!e || !e.subject || !e.id || !e.ts) return;
     if(!browseMeta[e.subject]) browseMeta[e.subject] = {};
     const m = browseMeta[e.subject][e.id] || {browsed:false, lastBrowse:0};
     if(e.ts > m.lastBrowse) m.lastBrowse = e.ts;
-    if(e.mode === '速览') m.browsed = true;
+    if(e.mode === '审核') m.browsed = true;
     browseMeta[e.subject][e.id] = m;
   });
   saveJ(ACTIVE_KEY, pkey);
@@ -939,7 +953,7 @@ let topic = "", mode = "order", onlyWeak = false;
 let queue = [], pos = 0, shown = false, combo = 0, markBusy = false;
 let retryOrder = [];   /* 本次会话，存 id */
 let browseMode = false;
-let isTopicTrain = false;   /* 专题练模式（自定义 queue），与速览模式互斥 */
+let isTopicTrain = false;   /* 专题练模式（自定义 queue），与审核模式互斥 */
 let lastBrowseId = null;   /* 记录浏览历史用，避免重复记录同一卡片 */
 let savePersonTimer = null;   /* 节流 savePerson */
 
@@ -1214,7 +1228,7 @@ function enterBrowseSilently(){
   $('markActions').style.display = 'none';
   $('browseBtn').classList.add('active');
 }
-/* 恢复某科最后位置（专题筛选 + 用卡片 id 定位 + 是否速览模式）；返回是否命中记录 */
+/* 恢复某科最后位置（专题筛选 + 用卡片 id 定位 + 是否审核模式）；返回是否命中记录 */
 function restoreSubjectPos(name){
   const p = POS[name];
   if(!p) return false;
@@ -1278,10 +1292,10 @@ function show(){
     lastBrowseId = d.id;
     const tsNow = Date.now();
     const sForMeta = subjectOfId(d.id) || cur;
-    const curMode = isTopicTrain ? '专题练' : (browseMode ? '速览' : '训练');
+    const curMode = isTopicTrain ? '专题练' : (browseMode ? '审核' : '训练');
     browseHistory.unshift({ts: tsNow, id: d.id, mode: curMode, subject: sForMeta, src: d.src || '', t: d.t || ''});
     if(browseHistory.length > 500) browseHistory.length = 500;
-    /* 持久化：每张卡的浏览时间和速览标记（训练/速览/专题练都更新 lastBrowse；只有速览模式设 browsed） */
+    /* 持久化：每张卡的浏览时间和审核标记（训练/审核/专题练都更新 lastBrowse；只有审核模式设 browsed） */
     const bm = browseMeta[sForMeta] || (browseMeta[sForMeta] = {});
     const m = bm[d.id] || (bm[d.id] = {browsed:false, lastBrowse:0});
     m.lastBrowse = tsNow;
@@ -1289,11 +1303,11 @@ function show(){
     if(savePersonTimer) clearTimeout(savePersonTimer);
     savePersonTimer = setTimeout(savePerson, 5000);
   }
-  /* 左上角：是否被速览过 */
+  /* 左上角：是否被审核过 */
   const sName = subjectOfId(d.id);
   const bmCur = (sName && browseMeta[sName]) ? browseMeta[sName][d.id] : null;
   if(bmCur && bmCur.browsed){
-    $('fBrowsed').textContent = '👁 已速览';
+    $('fBrowsed').textContent = '👁 已审核';
     $('fBrowsed').style.display = '';
   } else {
     $('fBrowsed').textContent = '';
@@ -1356,7 +1370,7 @@ function switchCard(nextPos){
     pos = nextPos; show();
   }
 }
-/* ---------- 速览模式（只看不打卡） ---------- */
+/* ---------- 审核模式（只看不打卡） ---------- */
 function toggleBrowse(){
   browseMode = !browseMode;
   $('browseBar').style.display = browseMode ? 'flex' : 'none';
@@ -1365,7 +1379,7 @@ function toggleBrowse(){
   $('browseBtn').classList.toggle('active', browseMode);
   if(browseMode){ combo = 0; $('comboBar').classList.remove('show'); }
   show();
-  toast(browseMode ? '已切换速览模式 · 不计入打卡' : '已退出速览');
+  toast(browseMode ? '已切换审核模式 · 不计入打卡' : '已退出审核');
 }
 function browseStep(delta){
   const next = pos + delta;
@@ -1588,7 +1602,7 @@ function rebuildSubjects(){
   const sel = $('topicSel'); sel.innerHTML = '<option value="">全部专题</option>';
   if(cur) topics().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
 }
-/* 卡片变更后的统一刷新：不重置队列、不跳走，保持当前视图（训练/速览/管理） */
+/* 卡片变更后的统一刷新：不重置队列、不跳走，保持当前视图（训练/审核/管理） */
 function afterCardChange(){
   rebuildSubjects();
   renderTabs();
@@ -2427,30 +2441,130 @@ function updateSrcBtn(){
   const allSelected = n > 0 && all.length > 0 && all.every(s => sf.has(s));
   $('srcFilterBtn').textContent = (n === 0 || allSelected) ? '📄 出处' : '📄 出处(' + n + ')';
 }
-function refreshSrcFilterList(){
-  const sel = $('tqSrcList');
-  if(!sel || sel.tagName !== 'SELECT') return;
-  sel.innerHTML = '';
+
+/* ========== 专题练内嵌多选：专题 + 出处（勾选弹窗样式） ========== */
+let tqTopicSel = new Set();   /* 专题练选中的专题集合，空=全部 */
+let tqSrcSel = new Set();     /* 专题练选中的出处集合，空=全部 */
+
+/* 打开/关闭专题练的专题勾选弹窗 */
+function openTqTopicPop(){
+  const pop = $('tqTopicPop');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+  pop.innerHTML = '';
   const subj = $('tqSubj') ? $('tqSubj').value : '';
   const def = subj ? subjDef(subj) : null;
-  if(!def){ const opt = document.createElement('option'); opt.textContent = '请先选择科目'; opt.disabled = true; sel.appendChild(opt); return; }
-  const sf = srcFilterSets[subj];
-  const seen = new Set();
-  def.items.forEach(it => {
-    if(it.src && !seen.has(it.src)){
-      seen.add(it.src);
-      const opt = document.createElement('option');
-      opt.value = it.src;
-      opt.textContent = it.src;
-      if(!sf || sf.has(it.src)) opt.selected = true;   /* 未配置=全选；重置为空后=不选 */
-      sel.appendChild(opt);
+  if(!def){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">请先选择科目</div>'; }
+  else {
+    const seen = new Set();
+    def.items.forEach(it => { if(it.t) seen.add(it.t); });
+    const topics = [...seen].sort();
+    if(!topics.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">该科目暂无专题</div>'; }
+    else {
+      const bar = document.createElement('div'); bar.className = 'tqIpBar';
+      const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
+      const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
+      bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
+      topics.forEach(t => {
+        const lab = document.createElement('label');
+        lab.innerHTML = '<input type="checkbox" data-tqt="' + escHtml(t) + '"> ' + escHtml(t);
+        pop.appendChild(lab);
+      });
+      pop.querySelectorAll('input[data-tqt]').forEach(cb => {
+        const t = cb.getAttribute('data-tqt');
+        cb.checked = tqTopicSel.has(t);
+        cb.addEventListener('change', () => {
+          if(cb.checked) tqTopicSel.add(t); else tqTopicSel.delete(t);
+          updateTqTopicBtn(); refreshTqCount();
+        });
+      });
+      aBtn.addEventListener('click', () => { topics.forEach(t => tqTopicSel.add(t)); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = true); updateTqTopicBtn(); refreshTqCount(); });
+      cBtn.addEventListener('click', () => { tqTopicSel.clear(); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = false); updateTqTopicBtn(); refreshTqCount(); });
+    }
+  }
+  /* 定位到按钮下方 */
+  const btn = $('tqTopicBtn');
+  const rect = btn.getBoundingClientRect();
+  const box = btn.closest('.tqBox');
+  const boxRect = box.getBoundingClientRect();
+  pop.style.left = (rect.left - boxRect.left) + 'px';
+  pop.style.top = (rect.bottom - boxRect.top + 4) + 'px';
+  pop.style.display = 'block';
+}
+function updateTqTopicBtn(){
+  const btn = $('tqTopicBtn');
+  if(!btn) return;
+  if(tqTopicSel.size === 0) btn.innerHTML = '全部专题<span class="tqMultiHint">▼</span>';
+  else btn.innerHTML = '已选 ' + tqTopicSel.size + ' 个专题<span class="tqMultiHint">▼</span>';
+}
+
+/* 打开/关闭专题练的出处勾选弹窗 */
+function openTqSrcPop(){
+  const pop = $('tqSrcPop');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+  pop.innerHTML = '';
+  const subj = $('tqSubj') ? $('tqSubj').value : '';
+  const def = subj ? subjDef(subj) : null;
+  if(!def){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">请先选择科目</div>'; }
+  else {
+    const seen = new Set();
+    def.items.forEach(it => { if(it.src) seen.add(it.src); });
+    const srcs = [...seen].sort();
+    if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">该科目暂无出处字段</div>'; }
+    else {
+      const hint = document.createElement('div'); hint.className = 'tqIpHint'; hint.textContent = '不选 = 全部出处（显示所有卡片）'; pop.appendChild(hint);
+      const bar = document.createElement('div'); bar.className = 'tqIpBar';
+      const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
+      const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
+      bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
+      srcs.forEach(s => {
+        const lab = document.createElement('label');
+        lab.innerHTML = '<input type="checkbox" data-tqs="' + escHtml(s) + '"> ' + escHtml(s);
+        pop.appendChild(lab);
+      });
+      pop.querySelectorAll('input[data-tqs]').forEach(cb => {
+        const s = cb.getAttribute('data-tqs');
+        cb.checked = tqSrcSel.has(s);
+        cb.addEventListener('change', () => {
+          if(cb.checked) tqSrcSel.add(s); else tqSrcSel.delete(s);
+          updateTqSrcBtn(); refreshTqCount();
+        });
+      });
+      aBtn.addEventListener('click', () => { srcs.forEach(s => tqSrcSel.add(s)); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = true); updateTqSrcBtn(); refreshTqCount(); });
+      cBtn.addEventListener('click', () => { tqSrcSel.clear(); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = false); updateTqSrcBtn(); refreshTqCount(); });
+    }
+  }
+  /* 定位到按钮下方 */
+  const btn = $('tqSrcBtn');
+  const rect = btn.getBoundingClientRect();
+  const box = btn.closest('.tqBox');
+  const boxRect = box.getBoundingClientRect();
+  pop.style.left = (rect.left - boxRect.left) + 'px';
+  pop.style.top = (rect.bottom - boxRect.top + 4) + 'px';
+  pop.style.display = 'block';
+}
+function updateTqSrcBtn(){
+  const btn = $('tqSrcBtn');
+  if(!btn) return;
+  if(tqSrcSel.size === 0) btn.innerHTML = '全部出处<span class="tqMultiHint">▼</span>';
+  else btn.innerHTML = '已选 ' + tqSrcSel.size + ' 个出处<span class="tqMultiHint">▼</span>';
+}
+
+/* 点击弹窗外区域关闭 */
+document.addEventListener('click', e => {
+  ['tqTopicPop','tqSrcPop'].forEach(id => {
+    const p = $(id);
+    if(p && p.style.display === 'block' && !p.contains(e.target)){
+      const btnId = id === 'tqTopicPop' ? 'tqTopicBtn' : 'tqSrcBtn';
+      if(e.target !== $(btnId) && !$(btnId).contains(e.target)) p.style.display = 'none';
     }
   });
-  if(!seen.size){ const opt = document.createElement('option'); opt.textContent = '该科目暂无出处字段'; opt.disabled = true; sel.appendChild(opt); }
-}
+});
+
+function refreshSrcFilterList(){ /* 兼容旧调用入口，不再操作 select */ }
 function topicQuery(){
   const subjName = $('tqSubj').value;
-  const t = $('tqTopic').value;
+  /* 专题筛选：tqTopicSel 非空则只保留选中专题，空=全部 */
+  const topicFilter = tqTopicSel;
   const kw = $('tqKeyword').value.trim();
   /* 拆词 OR：按「、」/空格/逗号 拆分 */
   const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()) : [];
@@ -2459,19 +2573,15 @@ function topicQuery(){
   const de = $('tqDateEnd').value;
   const dsT = ds ? new Date(ds).getTime() : null;
   const deT = de ? new Date(de).getTime() + 86399999 : null;
-  /* 出处多选：select multiple 勾选项 */
-  const srcSel = $('tqSrcList');
-  const srcChecked = new Set();
-  if(srcSel && srcSel.tagName === 'SELECT'){
-    Array.from(srcSel.selectedOptions || []).forEach(o => srcChecked.add(o.value));
-  }
+  /* 出处多选：tqSrcSel 空集合=全部出处（不过滤） */
+  const srcChecked = tqSrcSel;
   const subj = subjDef(subjName);
   if(!subj) return [];
   const st = state[subjName] || {};
   const lr = lastRes[subjName] || {};
   const res = [];
   subj.items.forEach(it => {
-    if(t && it.t !== t) return;
+    if(topicFilter.size && !topicFilter.has(it.t)) return;
     if(srcChecked.size && !srcChecked.has(it.src || '')) return;
     if(kws.length){
       const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
@@ -2491,7 +2601,7 @@ function topicQuery(){
       if(stF === 'half' && v !== 3) return;
       if(stF === 'pass' && v !== 1) return;
     }
-    /* 速览状态筛选：从 browseMeta[subjName][it.id] 取 browsed 标记 */
+    /* 审核状态筛选：从 browseMeta[subjName][it.id] 取 browsed 标记 */
     const bsF = $('tqBrowseStatus').value;   /* 'all' | 'browsed' | 'unbrowsed' */
     if(bsF !== 'all'){
       const bmSubj = browseMeta[subjName] || {};
@@ -2505,14 +2615,11 @@ function topicQuery(){
   return res;
 }
 function refreshTqTopic(){
-  const sel = $('tqTopic');
-  sel.innerHTML = '<option value="">全部专题</option>';
-  const subj = subjDef($('tqSubj').value);
-  if(!subj) return;
-  const seen = new Set();
-  subj.items.forEach(it => {
-    if(it.t && !seen.has(it.t)){ seen.add(it.t); const o = document.createElement('option'); o.value = it.t; o.textContent = it.t; sel.appendChild(o); }
-  });
+  /* 切换科目时重置专题选择，更新按钮文案 */
+  tqTopicSel.clear();
+  updateTqTopicBtn();
+  /* 关闭可能打开的弹窗 */
+  const p = $('tqTopicPop'); if(p) p.style.display = 'none';
 }
 function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
 /* ---------- 浏览历史（今日已学点击） ---------- */
@@ -2527,7 +2634,7 @@ function relTime(ts){
   if(d < 30) return d + ' 天前';
   return new Date(ts).toLocaleDateString('zh-CN');
 }
-function modeClass(m){ return m === '速览' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : 'mTrain'); }
+function modeClass(m){ return m === '审核' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : 'mTrain'); }
 function getBhFiltered(){
   const kw = $('bhSearch').value.trim().toLowerCase();
   const subjF = $('bhSubj').value;
@@ -2649,6 +2756,9 @@ function openTopicTrain(){
   sel.innerHTML = '';
   SUBJ_NAMES.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
   sel.value = cur;
+  /* 重置专题练内嵌多选状态 */
+  tqTopicSel.clear(); tqSrcSel.clear();
+  updateTqTopicBtn(); updateTqSrcBtn();
   refreshTqTopic();
   refreshSrcFilterList();
   refreshTqCount();
@@ -2743,7 +2853,7 @@ $('card').addEventListener('click', flip);
 $('btnPass').addEventListener('click', () => mark(3));
 $('btnHalf').addEventListener('click', () => mark(2));
 $('btnFail').addEventListener('click', () => mark(1));
-/* 卡片右上角编辑删除按钮（阻止冒泡到 flip；训练与速览模式均有效，删除后原地续看） */
+/* 卡片右上角编辑删除按钮（阻止冒泡到 flip；训练与审核模式均有效，删除后原地续看） */
 $('cardEditBtn').addEventListener('click', e => { e.stopPropagation(); if(pos < queue.length) openCardModal(queue[pos]); else toast('没有可编辑的卡片'); });
 $('cardDelBtn').addEventListener('click', e => {
   e.stopPropagation();
@@ -2802,11 +2912,12 @@ $('fSpeakBtn').addEventListener('touchstart', e => { e.preventDefault(); e.stopP
 /* 专题练 */
 $('topicTrainBtn').addEventListener('click', openTopicTrain);
 $('topicModalClose').addEventListener('click', () => $('topicModal').classList.remove('show'));
-$('tqSubj').addEventListener('change', () => { refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); });
-$('tqTopic').addEventListener('change', refreshTqCount);
+$('tqSubj').addEventListener('change', () => { refreshTqTopic(); tqSrcSel.clear(); updateTqSrcBtn(); refreshSrcFilterList(); refreshTqCount(); });
+$('tqTopicBtn').addEventListener('click', e => { e.stopPropagation(); openTqTopicPop(); });
+$('tqSrcBtn').addEventListener('click', e => { e.stopPropagation(); openTqSrcPop(); });
 ['tqStatus','tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
 $('tqKeyword').addEventListener('input', refreshTqCount);
-$('tqSrcList').addEventListener('change', refreshTqCount);
+$('tqBrowseStatus').addEventListener('change', refreshTqCount);
 $('tqStart').addEventListener('click', startTopicTrain);
 $('tqPreview').addEventListener('click', previewTopicList);
 $('browseHistoryClose').addEventListener('click', () => $('browseHistoryModal').classList.remove('show'));
@@ -2953,7 +3064,7 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
       document.documentElement.style.setProperty('--badge-fg', c);
       $('soundBtn').textContent = SOUND ? '🔊 音效' : '🔇 静音';
       refreshToday(); dashStats();
-      /* 优先恢复最近浏览过的卡片（任意模式：训练/速览/专题练，只要停留过就算） */
+      /* 优先恢复最近浏览过的卡片（任意模式：训练/审核/专题练，只要停留过就算） */
       if(!resumeLastBrowsed()){
         if(lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
           switchSubject(lastView.subject);
