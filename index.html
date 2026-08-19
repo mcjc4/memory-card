@@ -1005,7 +1005,14 @@ function buildQueue(){
   $('topicTrainBar').style.display = 'none';
   let ids = items().map(it => it.id);
   if(topic) ids = ids.filter(id => { const it = itemById(id); return it && it.t === topic; });
-  if(srcFilterSets[cur] && srcFilterSets[cur].size) ids = ids.filter(id => { const it = itemById(id); return it && srcFilterSets[cur].has(it.src || ''); });
+  const sf = srcFilterSets[cur];
+  if(sf && sf.size > 0){
+    /* 严格语义：只保留「无出处」或「出处 ∈ 选中集合」的卡 */
+    ids = ids.filter(id => { const it = itemById(id); return it && (!it.src || sf.has(it.src)); });
+  } else if(sf){
+    /* 显式「重置为空」：全部不选 → 只保留无出处的卡（通常为空） */
+    ids = ids.filter(id => { const it = itemById(id); return it && !it.src; });
+  }
   const st = state[cur] || {};
   if(onlyWeak) ids = ids.filter(id => st[id] === 2 || st[id] === 3);
   if(mode === "rand"){ for(let i = ids.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i],ids[j]] = [ids[j],ids[i]]; } }
@@ -1223,7 +1230,8 @@ function show(){
   if(pos >= queue.length){
     const empty = $('empty');
     empty.style.display = 'block';
-    empty.textContent = onlyWeak ? '该范围内没有薄弱点，太棒了！' : '该范围内所有条目都测完了！可以重置进度或换专题继续。';
+    const sfEmpty = srcFilterSets[cur] && srcFilterSets[cur].size === 0 && allSrcNames(cur).length > 0;
+    empty.textContent = sfEmpty ? '出处筛选已全部取消（重置为空）· 点「📄 出处」选「☑ 全选」恢复全部卡片' : (onlyWeak ? '该范围内没有薄弱点，太棒了！' : '该范围内所有条目都测完了！可以重置进度或换专题继续。');
     $('card').style.display = 'none';
     $('btnFail').disabled = $('btnHalf').disabled = $('btnPass').disabled = true;
     $('trainPos').textContent = '';
@@ -1304,12 +1312,7 @@ function flip(){
     stopSpeak();   /* 收起答案时停止朗读 */
   } else {
     card.classList.add('show'); shown = true;
-    /* 展开答案自动朗读答案（英语默认开） */
-    if(ttsShouldAuto()){
-      const d = itemById(queue[pos]);
-      const tBack = ((d && d.c) || '').trim();
-      if(tBack) speakText(tBack);
-    }
+    /* 按需求：答案区不朗读（只朗读题干） */
   }
 }
 /* 手动切卡：答案展开时先收缩题目再切换，未展开直接切 */
@@ -2171,9 +2174,7 @@ async function getOrFetchAudio(text){
 /* 预加载当前卡背面 + 下一卡正面，让翻牌/切卡的朗读零延迟 */
 function prefetchAdjacentAudio(){
   const its = items();
-  const back = pos < its.length ? its[pos] : null;
-  if(back && back.c){ const t = (back.c||'').trim(); if(t) getOrFetchAudio(t).catch(()=>{}); }
-  const next = pos + 1;
+  const next = pos + 1;   /* 只预取下一卡正面（答案区不朗读） */
   if(next < its.length && its[next] && its[next].s){ const t = (its[next].s||'').trim(); if(t) getOrFetchAudio(t).catch(()=>{}); }
 }
 /* 朗读一段文本：Edge TTS 优先（命中缓存零等待），失败降级系统语音 */
@@ -2211,8 +2212,7 @@ function setSpeakBtn(on){
 function currentCardText(){
   const d = pos < queue.length ? itemById(queue[pos]) : null;
   if(!d) return '';
-  if(shown) return ((d.c || '') + ' ' + (d.src || '')).trim();
-  return (d.s || '').trim();
+  return (d.s || '').trim();   /* 只朗读题干（答案区不朗读） */
 }
 
 /* ===================== 消息推送（钉钉 + PushPlus 微信） ===================== */
@@ -2344,8 +2344,9 @@ function switchPerson(pkey){
   initCloud();
 }
 /* ---------- 专题练（拆词 OR + 出处多选 + 状态多选 + 学科/专题 + 日期范围） ---------- */
-/* 出处多选状态（按科目隔离；空集合 = 不过滤 = 显示全部 = 默认全选） */
+/* 出处多选状态（按科目隔离；空集合 = 重置为空 = 全部不选 = 卡片清空） */
 let srcFilterSets = {};
+let srcInited = {};   /* 标记某科目出处弹层是否已初始化（首次打开默认全选） */
 function srcSet(name){ if(!srcFilterSets[name]) srcFilterSets[name] = new Set(); return srcFilterSets[name]; }
 function allSrcNames(name){
   const def = subjDef(name);
@@ -2376,7 +2377,7 @@ function refreshSrcFilterList(){
       const opt = document.createElement('option');
       opt.value = it.src;
       opt.textContent = it.src;
-      if(!sf || sf.size === 0 || sf.has(it.src)) opt.selected = true;
+      if(!sf || sf.has(it.src)) opt.selected = true;   /* 未配置=全选；重置为空后=不选 */
       sel.appendChild(opt);
     }
   });
@@ -2755,14 +2756,15 @@ function openSrcPopover(){
   if(!all.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无出处字段</div>'; }
   else {
     const sf = srcSet(cur);
+    if(!srcInited[cur]){ srcInited[cur] = true; all.forEach(s => sf.add(s)); }   /* 首次打开：默认全选 */
     const hint = document.createElement('div');
     hint.className = 'srcHint';
-    hint.textContent = '默认全选 · 取消勾选即排除该出处';
+    hint.textContent = '勾选=显示该出处 · 取消=排除；「重置为空」全部取消勾选（卡片清空）';
     pop.appendChild(hint);
     const bar = document.createElement('div');
     bar.className = 'srcBar';
     const allBtn = document.createElement('button'); allBtn.textContent = '☑ 全选';
-    const clearBtn = document.createElement('button'); clearBtn.textContent = '☐ 重置为全部';
+    const clearBtn = document.createElement('button'); clearBtn.textContent = '☐ 重置为空';
     bar.appendChild(allBtn); bar.appendChild(clearBtn);
     pop.appendChild(bar);
     all.forEach(s => {
@@ -2772,17 +2774,9 @@ function openSrcPopover(){
     });
     pop.querySelectorAll('input[data-src2]').forEach(cb => {
       const s = cb.getAttribute('data-src2');
-      cb.checked = sf.size === 0 || sf.has(s);   /* 空集合 = 未设置 = 默认全选 */
+      cb.checked = sf.has(s);   /* 严格语义：勾选=在集合中 */
       cb.addEventListener('change', () => {
-        if(sf.size === 0 && !cb.checked){
-          /* 首次从「全选」状态取消某一项：先把全部出处加入集合，再删掉这一项 */
-          all.forEach(x => sf.add(x));
-          sf.delete(s);
-        } else if(cb.checked){
-          sf.add(s);
-        } else {
-          sf.delete(s);
-        }
+        if(cb.checked) sf.add(s); else sf.delete(s);
         updateSrcBtn();
         buildQueue(); show();
       });
@@ -2794,7 +2788,7 @@ function openSrcPopover(){
     });
     clearBtn.addEventListener('click', () => {
       sf.clear();
-      pop.querySelectorAll('input[data-src2]').forEach(cb => cb.checked = true);   /* 空集合 = 显示全部，视觉上仍全选 */
+      pop.querySelectorAll('input[data-src2]').forEach(cb => cb.checked = false);   /* 全部不选 */
       updateSrcBtn(); buildQueue(); show();
     });
   }
