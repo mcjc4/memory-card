@@ -1471,7 +1471,7 @@ function renameSubject(name){
   savePerson();
   rebuildSubjects();
   renderDash();
-  if($('viewTrain').style.display !== 'none'){ $('trainTitle').textContent = (cur === name ? newDisp : (ALL_SUBJECTS[cur] ? ALL_SUBJECTS[cur].display + ' · ' + ALL_SUBJECTS[cur].items.length + ' 条' : '')); renderTabs(); }
+  if($('viewTrain').style.display !== 'none'){ const _t=ALL_SUBJECTS[cur],_s=state[cur]||{},_r=Object.values(_s).filter(v=>v===1).length; $('trainTitle').textContent = (cur === name ? newDisp : (_t ? _t.display + ' · ' + _t.items.length + (_r>0?'  \u258E记住了 '+_r:'') + ' 条' : '')); renderTabs(); }
   if(cur === name){ document.documentElement.style.setProperty('--badge-bg', (subj.color || '#185FA5') + '26'); }
   toast('已将「' + name + '」改名为「' + newDisp + '」');
 }
@@ -1614,7 +1614,10 @@ function renderTabs(){
   SUBJ_NAMES.forEach(name => {
     const b = document.createElement('button');
     b.className = 'tab' + (name === cur ? ' active' : '');
-    b.textContent = ALL_SUBJECTS[name].display + ' · ' + ALL_SUBJECTS[name].items.length;
+    const total = ALL_SUBJECTS[name].items.length;
+    const st = state[name] || {};
+    const remembered = Object.values(st).filter(v => v === 1).length;
+    b.textContent = ALL_SUBJECTS[name].display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '');
     if(name === cur) b.style.background = ALL_SUBJECTS[name].color;
     b.addEventListener('click', () => switchSubject(name));
     box.appendChild(b);
@@ -1641,7 +1644,10 @@ function switchSubject(name){
   const pop = $('srcPopover'); if(pop) pop.style.display = 'none';
   stopSpeak();   /* 切换科目时停止朗读 */
   ttsCache.clear(); ttsInFlight.clear();   /* 切科目清空语音缓存 */
-  $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + ALL_SUBJECTS[name].items.length + ' 条';
+  const total = ALL_SUBJECTS[name].items.length;
+  const st = state[name] || {};
+  const remembered = Object.values(st).filter(v => v === 1).length;
+  $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '') + ' 条';
   $('trainPersonName').textContent = personName();
   renderTabs();
   const sel = $('topicSel'); sel.innerHTML = '<option value="">全部专题</option>';
