@@ -109,11 +109,12 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5;white-space:nowrap}
 .browseTable .actBtn:hover{background:#E6F1FB;border-color:#185FA5}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
-.sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500;overflow-wrap:break-word;word-break:break-word}
+.sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500}
 .concl{font-size:16px;line-height:2.0;color:#1f2329}
 .sig .katex,.concl .katex{font-size:1.05em}
 .card.show .sig{font-size:clamp(16px,4cqw,32px);line-height:1.5}
 .hint{margin-top:20px;font-size:13px;color:#9ca3af;text-align:center;transition:opacity .25s,max-height .25s,margin .25s;overflow:hidden}
+.trainPos{text-align:center;font-size:13px;color:#6b7280;margin:0 0 12px;font-weight:500}
 .card.show .hint{opacity:0;max-height:0;margin-top:0}
 .src{margin-top:14px;font-size:12px;color:#9ca3af;word-break:break-all;padding-bottom:14px}
 .kbd{display:inline-block;border:1px solid #d1d5db;border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12px;background:#f9fafb;color:#4b5563;margin:0 2px}
@@ -360,6 +361,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     </div>
   </div>
 
+  <div class="trainPos" id="trainPos"></div>
   <div class="browseBar" id="browseBar" style="display:none">
     <b>👁 速览模式</b> · 只看不打卡，不计入进度
     <span id="browsePos" style="color:#854F0B"></span>
@@ -1181,10 +1183,12 @@ function show(){
     empty.textContent = onlyWeak ? '该范围内没有薄弱点，太棒了！' : '该范围内所有条目都测完了！可以重置进度或换专题继续。';
     $('card').style.display = 'none';
     $('btnFail').disabled = $('btnHalf').disabled = $('btnPass').disabled = true;
+    $('trainPos').textContent = '';
     return;
   }
   $('card').style.display = '';
   $('btnFail').disabled = $('btnHalf').disabled = $('btnPass').disabled = false;
+  $('trainPos').textContent = '第 ' + (pos + 1) + ' / ' + queue.length + ' 张';
   const d = itemById(queue[pos]);
   if(!d){ pos++; show(); return; }
   $('fBadge').textContent = d.t || '未分类';
