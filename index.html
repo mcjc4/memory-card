@@ -227,7 +227,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .modalMask{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:flex-start;justify-content:center;z-index:150;padding:18px;overflow:auto}
 .modalMask.show{display:flex;align-items:center;justify-content:center}
 .modalBox{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:480px;margin:auto}
-.tqBox{max-width:min(1080px,96vw);max-height:92vh;overflow:auto;display:grid;gap:14px;grid-template-columns:1fr 1fr;align-content:start;position:relative}
+.tqBox{max-width:min(1080px,96vw);max-height:92vh;overflow:auto;display:grid;gap:14px;grid-template-columns:1fr 1fr 1fr;align-content:start;position:relative}
 .tqBox h2{grid-column:1/-1}
 .tqBox .tqFull{grid-column:1/-1}
 .tqBox .tqRow{margin:0}
@@ -571,11 +571,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="tqInlinePop" id="tqSrcPop"></div>
     </div>
     <div class="tqRow">
-      <label>上次作答日期 - 开始</label>
+      <label>上次浏览时间 - 开始</label>
       <input id="tqDateStart" type="date">
     </div>
     <div class="tqRow">
-      <label>上次作答日期 - 结束</label>
+      <label>上次浏览时间 - 结束</label>
       <input id="tqDateEnd" type="date">
     </div>
     <div class="tqRow tqFull">
@@ -2579,6 +2579,7 @@ function topicQuery(){
   if(!subj) return [];
   const st = state[subjName] || {};
   const lr = lastRes[subjName] || {};
+  const bm = browseMeta[subjName] || {};
   const res = [];
   subj.items.forEach(it => {
     if(topicFilter.size && !topicFilter.has(it.t)) return;
@@ -2588,10 +2589,13 @@ function topicQuery(){
       if(!kws.some(k => hay.includes(k))) return;
     }
     if(dsT || deT){
-      const item = lr[it.id];
-      if(!item) return;
-      if(dsT && item.ts < dsT) return;
-      if(deT && item.ts > deT) return;
+      /* 上次浏览时间 = 训练时间 与 审核时间 的较新值 */
+      const tsTrain = lr[it.id] ? lr[it.id].ts : 0;
+      const tsBrowse = bm[it.id] ? bm[it.id].lastBrowse : 0;
+      const ts = Math.max(tsTrain, tsBrowse);
+      if(!ts) return;   /* 既无训练也无审核记录 → 排除 */
+      if(dsT && ts < dsT) return;
+      if(deT && ts > deT) return;
     }
     if(stF !== 'all'){
       const v = st[it.id];
