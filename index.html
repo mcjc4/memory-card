@@ -1369,7 +1369,15 @@ function jumpToNextTopic(){
 }
 function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
   if(!shown || markBusy || pos >= queue.length) return;
-  stopSpeak();      /* 点标记立即停止当前语音，避免与新卡语音重叠 */
+  stopSpeak();      /* 点标记立即停止当前语音 */
+  /* 立即播放下一卡正面语音（预加载缓存命中零等待；ttsLastId 预置防 show() 重复朗读） */
+  if(ttsShouldAuto()){
+    const nextIt = pos + 1 < queue.length ? itemById(queue[pos + 1]) : null;
+    if(nextIt && nextIt.s && (nextIt.s || '').trim()){
+      ttsLastId = nextIt.id;
+      speakText((nextIt.s || '').trim());
+    }
+  }
   const id = queue[pos];
   const sName = subjectOfId(id);
   if(!sName) return;
@@ -1404,8 +1412,7 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
     if(pos + 1 >= queue.length){
       if(jumpToNextTopic()) return;
     }
-    stopSpeak();
-    pos++; updateStats(); show();
+    pos++; updateStats(); show();   /* 注：不再 stopSpeak——mark() 顶部已停，且不能打断刚播出的下一卡语音 */
   }, 260);
 }
 
