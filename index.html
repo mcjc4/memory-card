@@ -1276,17 +1276,6 @@ function switchCard(nextPos){
     pos = nextPos; show();
   }
 }
-function browseStep(delta){
-  const next = pos + delta;
-  if(next < 0){ toast('已是第一张'); return; }
-  if(next >= queue.length){
-    if(jumpToNextTopic()) return;
-    toast(delta > 0 ? '已是最后一张' : '已是第一张');
-    return;
-  }
-  switchCard(next);
-}
-
 /* ---------- 速览模式（只看不打卡） ---------- */
 function toggleBrowse(){
   browseMode = !browseMode;
@@ -1306,6 +1295,7 @@ function browseStep(delta){
     toast(delta > 0 ? '已是最后一张' : '已是第一张');
     return;
   }
+  stopSpeak();      /* 切卡立即停止当前语音 */
   pos = next; show();
 }
 /* 找到当前专题之后的下一个有卡片的专题名称；未选专题或已是最后一个则返回 null */
@@ -1331,6 +1321,7 @@ function jumpToNextTopic(){
 }
 function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
   if(!shown || markBusy || pos >= queue.length) return;
+  stopSpeak();      /* 点标记立即停止当前语音，避免与新卡语音重叠 */
   const id = queue[pos];
   const sName = subjectOfId(id);
   if(!sName) return;
