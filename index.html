@@ -39,6 +39,15 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .statCard .ctl{display:flex;justify-content:center;gap:10px;font-size:13px}
 .statCard .ctl button{border:none;background:#f3f4f6;border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1}
 .statCard .ctl button:hover{background:#e5e7eb}
+.statCard.pieCard{gap:4px;padding:10px 6px}
+.pieWrap{position:relative;width:56px;height:56px;margin:2px auto}
+.pieRing{width:56px;height:56px;border-radius:50%;background:#eef0f3;transition:background .4s}
+.pieCenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;color:#374151;line-height:1.1;pointer-events:none}
+.pieCenter b{font-size:15px;font-weight:600;color:#3B6D11}
+.pieCenter .pieSlash{color:#9ca3af;margin:0 1px}
+.pieCenter i{font-size:9px;color:#9ca3af;font-style:normal;margin-top:1px;letter-spacing:0}
+.pieLegend{font-size:10px;color:#6b7280;display:flex;flex-wrap:wrap;justify-content:center;gap:3px 6px;line-height:1.5}
+.pieLegend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:3px;vertical-align:middle}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;margin-bottom:14px}
 .toolbar select,.toolbar button{font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#1f2329;cursor:pointer}
 .toolbar button:hover{background:#f3f4f6}
@@ -310,7 +319,17 @@ h1{font-size:21px;font-weight:500;text-align:center}
         <span class="sub" id="gapV">尚未打卡</span>
       </div>
       <div class="statCard"><span class="k">今日目标</span><span class="ctl"><button id="goalMinus">−</button><span class="v" id="goalV" style="font-size:16px">20</span><button id="goalPlus">+</button></span></div>
-      <div class="statCard"><span class="k">最高连击</span><span class="v" id="bestV">0</span><span class="k">答对连击</span></div>
+      <div class="statCard pieCard">
+        <span class="k">4 种状态（本科目）</span>
+        <div class="pieWrap">
+          <div class="pieRing" id="pieRing"></div>
+          <div class="pieCenter">
+            <b id="piePass">0</b><span class="pieSlash">/</span><span id="pieTotal">0</span>
+            <i>记住</i>
+          </div>
+        </div>
+        <div class="pieLegend" id="pieLegend">未测 0 · 模糊 0 · 不记得 0</div>
+      </div>
     </div>
   </div>
 
@@ -1042,11 +1061,35 @@ function updateStats(){
   let pass = 0, fail = 0, half = 0;
   items().forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2) fail++; else if(v===3) half++; });
   $('bar').style.width = ((pass + fail + half) / N() * 100).toFixed(1) + '%';
-  $('bestV').textContent = best[cur] || 0;
+  $('bestV') && ($('bestV').textContent = best[cur] || 0);
   renderRetryList();
+  renderStatePie();   /* 当前科目 4 种状态饼图 */
   const weak = items().map(it => ({d:it, id:it.id})).filter(x => st[x.id] === 2);
   $('weakCnt').textContent = weak.length;
   renderList('weakList', 'weakEmpty', null, weak, true);
+}
+/* 4 种状态饼图（conic-gradient）：记住了 / 模糊 / 不记得 / 未测 */
+function renderStatePie(){
+  const def = subjDef(cur);
+  const ring = $('pieRing'); if(!ring) return;
+  let pass = 0, fail = 0, half = 0, unt = 0;
+  const total = def ? def.items.length : 0;
+  if(def){
+    const st = state[cur] || {};
+    def.items.forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2) fail++; else if(v===3) half++; else unt++; });
+  }
+  if(total === 0){ ring.style.background = '#eef0f3'; }
+  else {
+    const passDeg = pass / total * 360;
+    const halfDeg = half / total * 360;
+    const failDeg = fail / total * 360;
+    /* 顺时针：未测(灰) → 不记得(红) → 模糊(黄) → 记住了(绿) */
+    ring.style.background = `conic-gradient(#d1d5db 0deg ${unt/total*360}deg, #A32D2D ${unt/total*360}deg ${(unt+fail)/total*360}deg, #BA7517 ${(unt+fail)/total*360}deg ${(unt+fail+half)/total*360}deg, #3B6D11 ${(unt+fail+half)/total*360}deg 360deg)`;
+  }
+  $('piePass') && ($('piePass').textContent = pass);
+  $('pieTotal') && ($('pieTotal').textContent = total);
+  const lg = $('pieLegend');
+  if(lg) lg.innerHTML = `<i style="background:#d1d5db"></i>未测 ${unt} <i style="background:#A32D2D"></i>不记得 ${fail} <i style="background:#BA7517"></i>模糊 ${half}`;
 }
 function renderList(ulId, emptyId, cntId, arr, skipCount){
   const ul = $(ulId);
@@ -1239,7 +1282,8 @@ function show(){
   if(d.src){ $('fSrc').textContent = '📄 ' + d.src; $('fSrc').style.display = ''; }
   else { $('fSrc').textContent = ''; $('fSrc').style.display = 'none'; }
   $('fSig').innerHTML = renderMath(d.s);
-  fitSigText();   /* 题干字号自适应卡片宽度，占 80% */
+  fitSigText();   /* 题干字号自适应：宽度 95% 且高度不超屏幕 */
+  prefetchAdjacentAudio();   /* 后台预加载：当前卡背面 + 下一卡正面，切卡翻牌零等待 */
   $('bConcl').innerHTML = renderMath(d.c);
   $('bSrc').textContent = d.src ? '出处：' + d.src : '';
   $('card').classList.remove('show', 'hide', 'collapsing');
@@ -1536,6 +1580,7 @@ function switchSubject(name){
   updateSrcBtn();
   const pop = $('srcPopover'); if(pop) pop.style.display = 'none';
   stopSpeak();   /* 切换科目时停止朗读 */
+  ttsCache.clear(); ttsInFlight.clear();   /* 切科目清空语音缓存 */
   $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + ALL_SUBJECTS[name].items.length + ' 条';
   $('trainPersonName').textContent = personName();
   renderTabs();
@@ -2099,13 +2144,38 @@ function fallbackSpeak(text){
     window.speechSynthesis.speak(u);
   }catch(e){ console.warn('fallback speak failed', e); }
 }
-/* 朗读一段文本：Edge TTS 优先，失败降级系统语音 */
+/* 预加载缓存：同一段文本同一音色同一语速只发一次请求；切换播放时直接命中，零等待 */
+const ttsCache = new Map();
+const ttsInFlight = new Map();
+function ttsCacheKey(text){ return (ttsCfg.voice || 'en-US-EmmaMultilingualNeural') + '|' + ttsRateStr() + '|' + text; }
+async function getOrFetchAudio(text){
+  const key = ttsCacheKey(text);
+  if(ttsCache.has(key)) return ttsCache.get(key);
+  if(ttsInFlight.has(key)) return ttsInFlight.get(key);
+  const p = edgeTTS(text, ttsCfg.voice || 'en-US-EmmaMultilingualNeural', ttsRateStr()).then(blob => {
+    ttsCache.set(key, blob);
+    if(ttsCache.size > 6){ const first = ttsCache.keys().next().value; ttsCache.delete(first); }
+    ttsInFlight.delete(key);
+    return blob;
+  }).catch(e => { ttsInFlight.delete(key); throw e; });
+  ttsInFlight.set(key, p);
+  return p;
+}
+/* 预加载当前卡背面 + 下一卡正面，让翻牌/切卡的朗读零延迟 */
+function prefetchAdjacentAudio(){
+  const its = items();
+  const back = pos < its.length ? its[pos] : null;
+  if(back && back.c){ const t = (back.c||'').trim(); if(t) getOrFetchAudio(t).catch(()=>{}); }
+  const next = pos + 1;
+  if(next < its.length && its[next] && its[next].s){ const t = (its[next].s||'').trim(); if(t) getOrFetchAudio(t).catch(()=>{}); }
+}
+/* 朗读一段文本：Edge TTS 优先（命中缓存零等待），失败降级系统语音 */
 async function speakText(text){
   if(!text || !ttsCfg.enabled) return;
   stopSpeak();
   ttsCancel = false;
   try{
-    const blob = await edgeTTS(text, ttsCfg.voice || 'en-US-EmmaMultilingualNeural', ttsRateStr());
+    const blob = await getOrFetchAudio(text);
     if(ttsCancel) return;
     const url = URL.createObjectURL(blob);
     ttsAudio = new Audio(url);
