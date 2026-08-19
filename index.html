@@ -1193,7 +1193,8 @@ function jumpToRetryCard(id){
 function savePos(){
   if(!cur) return;
   const d = queue && pos < queue.length ? itemById(queue[pos]) : null;
-  POS = { topic: topic, lastId: d ? d.id : null, mode: browseMode ? 'browse' : 'train' };
+  /* 按科目独立存储练习进度：POS[cur] = {topic, lastId, mode}，保留其他科目位置 */
+  POS[cur] = { topic: topic, lastId: d ? d.id : null, mode: browseMode ? 'browse' : 'train' };
   lastView = { view: 'train', subject: cur };
   savePerson();
 }
