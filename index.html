@@ -303,14 +303,21 @@ h1{font-size:21px;font-weight:500;text-align:center}
 <body>
 <div class="wrap">
   <div id="viewDash">
-    <div style="text-align:center;margin-bottom:14px">
-      <h1>六科记忆总览</h1>
-      <p class="sub">当前执行人：<b id="dashPerson" style="color:#185FA5">-</b> · 今天该学哪科，一眼看清 · 点卡片进入训练</p>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px">
+      <div>
+        <h1 style="margin-bottom:4px">各科</h1>
+        <p class="sub" style="margin-bottom:0"><b id="dashPerson" style="color:#185FA5;font-size:18px">-</b></p>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;padding-top:4px">
+        <button id="dashSettingsBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">⚙ 设置</button>
+        <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">☁ 同步状态</button>
+        <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
+      </div>
     </div>
     <div class="timeRingWrap">
       <div class="timeRingOuter">
         <div class="timeRing" id="timeRing"></div>
-        <div class="timeRingInner"><b id="timeTotal">0</b><span>总分钟</span></div>
+        <div class="timeRingInner"><b id="timeTotal">0</b><span>今日分钟</span></div>
       </div>
       <div class="timeLegend" id="timeLegend"></div>
     </div>
@@ -1216,8 +1223,8 @@ function jumpToRetryCard(id){
 function savePos(){
   if(!cur) return;
   const d = queue && pos < queue.length ? itemById(queue[pos]) : null;
-  /* 按科目独立存储练习进度：POS[cur] = {topic, lastId, mode}，保留其他科目位置 */
-  POS[cur] = { topic: topic, lastId: d ? d.id : null, mode: browseMode ? 'browse' : 'train' };
+  /* 按科目独立存储练习进度：POS[cur] = {topic, lastId}，保留其他科目位置；mode 不再保存，进入始终默认训练模式 */
+  POS[cur] = { topic: topic, lastId: d ? d.id : null };
   lastView = { view: 'train', subject: cur };
   savePerson();
 }
@@ -1229,7 +1236,7 @@ function enterBrowseSilently(){
   $('markActions').style.display = 'none';
   $('browseBtn').classList.add('active');
 }
-/* 恢复某科最后位置（专题筛选 + 用卡片 id 定位 + 是否审核模式）；返回是否命中记录 */
+/* 恢复某科最后位置（专题筛选 + 用卡片 id 定位）；返回是否命中记录 */
 function restoreSubjectPos(name){
   const p = POS[name];
   if(!p) return false;
@@ -1239,7 +1246,7 @@ function restoreSubjectPos(name){
   let idx = 0;
   if(p.lastId && queue.includes(p.lastId)) idx = queue.indexOf(p.lastId);
   pos = Math.min(idx, Math.max(0, queue.length - 1));
-  if(p.mode === 'browse') enterBrowseSilently();
+  /* 不再恢复 mode（审核/训练），从仪表盘进入始终默认训练模式；用户可手动切审核 */
   return true;
 }
 
@@ -1663,6 +1670,11 @@ function switchSubject(name){
   document.documentElement.style.setProperty('--badge-bg', c + '26');
   document.documentElement.style.setProperty('--badge-fg', c);
   topic = ''; onlyWeak = false; combo = 0; seedRetryOrderFor(name);
+  browseMode = false; isTopicTrain = false;   /* 从仪表盘进入始终默认训练模式 */
+  $('browseBar').style.display = 'none';
+  $('browseActions').style.display = 'none';
+  $('markActions').style.display = '';
+  $('browseBtn').classList.remove('active');
   $('onlyWeak').textContent = '专练没记住和模糊';
   updateSrcBtn();
   const pop = $('srcPopover'); if(pop) pop.style.display = 'none';
@@ -2982,6 +2994,10 @@ $('cloudDisconnectBtn').addEventListener('click', async () => {
 });
 /* 设置（PushPlus 推送） */
 $('settingsBtn').addEventListener('click', openSettings);
+/* 仪表盘快捷按钮（设置/同步/导入） */
+$('dashSettingsBtn').addEventListener('click', openSettings);
+$('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(b) b.click(); });
+$('dashImportBtn').addEventListener('click', () => $('fileInput').click());
 $('settingsModalClose').addEventListener('click', () => $('settingsModal').classList.remove('show'));
 $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('pushTestBtn').addEventListener('click', testPush);
