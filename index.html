@@ -29,7 +29,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .ringCenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .ringCenter b{font-size:18px;font-weight:500;line-height:1}
 .ringCenter span{font-size:10px;color:#9ca3af}
-.statGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.statGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .statCard{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;gap:4px;justify-content:center}
 .statCard .k{font-size:12px;color:#6b7280}
 .statCard .v{font-size:20px;font-weight:500;line-height:1.2}
@@ -218,8 +218,8 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .backBtn:hover{background:#f3f4f6}
 .trainHead{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .trainHead h1{font-size:18px;font-weight:500;margin:0;flex:1;text-align:left}
-.trainPerson{font-size:13px;color:#374151;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:5px 12px;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0}
-.trainPerson b{color:#185FA5;font-weight:500}
+.trainPerson{font-size:15px;color:#185FA5;background:#f0f7ff;border:1px solid #b9d4f5;border-radius:10px;padding:6px 16px;white-space:nowrap;display:flex;align-items:center;gap:6px;flex-shrink:0;min-width:120px;justify-content:center}
+.trainPerson b{color:#185FA5;font-weight:600;font-size:16px}
 @media (max-width:560px){.dashGrid{grid-template-columns:repeat(2,1fr)}.dashStats{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:520px){.todayRow{grid-template-columns:86px 1fr}.sig{font-size:16px}.concl{font-size:15px}.card{min-height:280px}}
 
@@ -347,15 +347,16 @@ h1{font-size:21px;font-weight:500;text-align:center}
           <circle class="ringBg" cx="38" cy="38" r="33"/>
           <circle class="ringVal" id="ringVal" cx="38" cy="38" r="33" stroke="var(--accent,#185FA5)" stroke-dasharray="207.3" stroke-dashoffset="207.3"/>
         </svg>
-        <div class="ringCenter"><b id="todayNum">0</b><span>/<span id="goalNum">20</span>题</span></div>
+        <div class="ringCenter"><b id="todayNum">0</b><span>题</span></div>
       </div>
+      <div style="text-align:center;margin-top:4px"><span class="k" style="font-size:11px">连续 <b id="streakVSmall">0</b> 天</span></div>
     </div>
     <div class="statGrid">
-      <div class="statCard">
-        <span class="k">连续打卡</span><span class="v" id="streakV">0 天</span>
+      <div class="statCard goalCard">
+        <span class="k">今日打卡目标（本科目）</span>
+        <span class="ctl"><button id="goalMinus">−</button><span class="v" id="goalV" style="font-size:20px">300</span><button id="goalPlus">+</button></span>
         <span class="sub" id="gapV">尚未打卡</span>
       </div>
-      <div class="statCard"><span class="k">今日目标</span><span class="ctl"><button id="goalMinus">−</button><span class="v" id="goalV" style="font-size:16px">20</span><button id="goalPlus">+</button></span></div>
       <div class="statCard pieCard">
         <span class="k">4 种状态（本科目）</span>
         <div class="pieWrap">
@@ -816,11 +817,13 @@ const PERSONS = [
 ];
 const PERSON_KEY = 'wulun_person_v2';
 const ACTIVE_KEY = 'wulun_active_person';
+const CARDS_IMPORTED_KEY = 'wulun_cards_imported';   /* 卡片库全局共享（不按执行人隔离） */
+const CARDS_CUSTOM_KEY = 'wulun_cards_custom';
 const PERSON_STORE = loadJ(PERSON_KEY, {});
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
 let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount, subjectTime;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], imported:{}, custom:{}, pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -828,7 +831,17 @@ function bindPerson(key){
   personKey = pkey;
   const d = PERSON_STORE[pkey] || (PERSON_STORE[pkey] = emptyPerson());
   state = d.state; todayD = d.today; goal = d.goal; best = d.best; streakD = d.streak;
-  IMPORTED = d.imported; CUSTOM = d.custom; POS = d.pos; lastView = d.lastView;
+  /* 卡片库从全局存储加载（跨执行人共享） */
+  IMPORTED = loadJ(CARDS_IMPORTED_KEY, {});
+  CUSTOM = loadJ(CARDS_CUSTOM_KEY, {});
+  /* 迁移：如果全局为空但该执行人旧数据里有卡片 → 迁移到全局（只做一次） */
+  if(!Object.keys(IMPORTED).length && !Object.keys(CUSTOM).length && (d.imported || d.custom)){
+    if(d.imported && typeof d.imported === 'object' && Object.keys(d.imported).length){ IMPORTED = d.imported; saveJ(CARDS_IMPORTED_KEY, IMPORTED); }
+    if(d.custom && typeof d.custom === 'object' && Object.keys(d.custom).length){ CUSTOM = d.custom; saveJ(CARDS_CUSTOM_KEY, CUSTOM); }
+    delete d.imported; delete d.custom;
+    saveJ(PERSON_KEY, PERSON_STORE);
+  }
+  POS = d.pos; lastView = d.lastView;
   lastRes = d.lastRes = d.lastRes || {};
   tasks = d.tasks = d.tasks || [];
   browseHistory = d.browseHistory = d.browseHistory || [];
@@ -849,8 +862,11 @@ function bindPerson(key){
 function savePerson(){
   const d = PERSON_STORE[personKey] || (PERSON_STORE[personKey] = emptyPerson());
   d.state = state; d.today = todayD; d.goal = goal; d.best = best; d.streak = streakD;
-  d.imported = IMPORTED; d.custom = CUSTOM; d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks; d.browseHistory = browseHistory;
-  d.browseMeta = browseMeta; d.trainCount = trainCount; d.subjectTime = subjectTime;
+  /* 卡片库存全局（跨执行人共享） */
+  saveJ(CARDS_IMPORTED_KEY, IMPORTED);
+  saveJ(CARDS_CUSTOM_KEY, CUSTOM);
+  d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks;
+  d.browseHistory = browseHistory; d.browseMeta = browseMeta; d.trainCount = trainCount; d.subjectTime = subjectTime;
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -1021,7 +1037,7 @@ function markLearned(sName){
   td.count++;
   todayD[sName] = td; savePerson();
   refreshToday();
-  const g = goal[sName] || 100;
+  const g = goal[sName] || 300;
   if (td.count === g) { confetti(); sGoal(); toast('今日目标达成！连续打卡 ' + calcStreak() + ' 天 🔥'); }
 }
 
@@ -1099,14 +1115,13 @@ function deleteCard(subj, id){
 /* ---------- 统计 & 列表 ---------- */
 function refreshToday(){
   const td = todayD[cur] || { date:'', count:0 };
-  const g = goal[cur] || 100;
+  const g = goal[cur] || 300;
   const cnt = td.date === today() ? td.count : 0;
   const ratio = Math.min(cnt / g, 1);
   $('todayNum').textContent = cnt;
-  $('goalNum').textContent = g;
   $('goalV').textContent = g;
   $('ringVal').style.strokeDashoffset = (RING_C * (1 - ratio)).toFixed(1);
-  $('streakV').textContent = calcStreak() + ' 天';
+  $('streakVSmall').textContent = calcStreak();
   const gp = gapText();
   const gv = $('gapV');
   gv.textContent = gp.text;
@@ -1542,7 +1557,7 @@ function renderDash(){
   if(sub){
     const td = todayD[cur] || {};
     const cnt = (td.date === today()) ? td.count : 0;
-    const goalN = goal[cur] || 100;
+    const goalN = goal[cur] || 300;
     const st = state[cur] || {};
     let pass = 0, total = 0;
     const def = subjDef(cur);
@@ -1583,7 +1598,7 @@ function renderDash(){
       const pct = Math.round(pass / subj.items.length * 100);
       const td = todayD[name] || {};
       const cnt = td.date === today() ? td.count : 0;
-      const goalN = goal[name] || 100;
+      const goalN = goal[name] || 300;
       const pri = (fail === maxWeak && fail > 0) ? '<span class="priBadge">今日优先</span>' : '';
       card.innerHTML = '<div class="scTop"><span>' + escHtml(subj.display) + pri + '<button class="scEdit" data-rename="' + escHtml(name) + '" title="修改科目名称">✎</button></span><span class="scPct">' + pct + '%</span></div>'
         + '<div class="scBar"><i style="width:' + pct + '%;background:' + c + '"></i></div>'
@@ -1859,7 +1874,7 @@ function downloadFile(name, text, type){
 }
 function exportJSON(){
   const d = subjDef(cur);
-  const payload = {subject: cur, color: d.color, display: d.display, items: d.items, state: state[cur] || {}, today: todayD[cur] || {}, goal: goal[cur] || 100, best: best[cur] || 0, exportedAt: new Date().toISOString()};
+  const payload = {subject: cur, color: d.color, display: d.display, items: d.items, state: state[cur] || {}, today: todayD[cur] || {}, goal: goal[cur] || 300, best: best[cur] || 0, exportedAt: new Date().toISOString()};
   downloadFile(`记忆卡_${cur}_${today()}.json`, JSON.stringify(payload, null, 2), 'application/json');
   toast('已导出 JSON');
 }
@@ -2451,7 +2466,7 @@ function pushStartTraining(){
   items().forEach(it => { const v = st[it.id]; if(v === 1) pass++; else if(v === 2) fail++; else if(v === 3) half++; });
   const td = todayD[cur] || {};
   const cnt = td.date === today() ? td.count : 0;
-  const g = goal[cur] || 100;
+  const g = goal[cur] || 300;
   const lines = [
     personName() + ' 开始打卡学习 ' + ALL_SUBJECTS[cur].display + ' · ' + N() + ' 条',
     '今日进度：' + cnt + '/' + g + ' 题 · 连续打卡 ' + calcStreak() + ' 天',
@@ -3137,8 +3152,8 @@ $('resetBtn').addEventListener('click', () => {
     schedulePush();
   }
 });
-$('goalMinus').addEventListener('click', () => { const g = Math.max(5, (goal[cur]||100) - 5); goal[cur] = g; savePerson(); refreshToday(); schedulePush(); });
-$('goalPlus').addEventListener('click', () => { const g = (goal[cur]||100) + 5; goal[cur] = g; savePerson(); refreshToday(); schedulePush(); });
+$('goalMinus').addEventListener('click', () => { const g = Math.max(5, (goal[cur]||300) - 5); goal[cur] = g; savePerson(); refreshToday(); schedulePush(); });
+$('goalPlus').addEventListener('click', () => { const g = (goal[cur]||300) + 5; goal[cur] = g; savePerson(); refreshToday(); schedulePush(); });
 $('soundBtn').addEventListener('click', () => { SOUND = !SOUND; localStorage.setItem(K.sound, SOUND ? 'on' : 'off'); $('soundBtn').textContent = SOUND ? '🔊 音效' : '🔇 静音'; if(SOUND) beep(660,.1,'sine',.12); });
 /* 管理页 */
 $('mSearch').addEventListener('input', renderManage);
