@@ -416,7 +416,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button class="exit" id="browseExit">退审核</button>
   </div>
   <div class="topicTrainBar" id="topicTrainBar" style="display:none">
-    <b>🎯 专题练</b> · 不计入整体进度
+    <b>🎯 专题练</b>
     <span id="topicTrainPos" style="color:#0C447C"></span>
   </div>
   <div class="actions" id="markActions">
@@ -1343,7 +1343,7 @@ function show(){
   markBusy = false;
   $('comboBar').classList.remove('show');
   if(browseMode){ $('browsePos').textContent = '当前 ' + (pos + 1) + ' / ' + queue.length + ' 张'; }
-  if(isTopicTrain && queue.length){ $('topicTrainPos').textContent = '当前 ' + (pos + 1) + ' / ' + queue.length + ' 张'; }
+  if(isTopicTrain && queue.length){ $('topicTrainPos').textContent = '本次第 ' + (pos + 1) + ' / ' + queue.length + ' 张'; }
   $('browseBar').style.display = browseMode ? 'flex' : 'none';
   $('topicTrainBar').style.display = isTopicTrain ? 'flex' : 'none';
   savePos();
@@ -2774,7 +2774,7 @@ function startBhPractice(){
     browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
     $('browseBar').style.display = 'none';
     $('topicTrainBar').style.display = 'flex';
-    $('topicTrainPos').textContent = '当前 1 / ' + queue.length + ' 张';
+    $('topicTrainPos').textContent = '本次第 1 / ' + queue.length + ' 张';
     $('browseHistoryModal').classList.remove('show');
     showView('train');
     show();
@@ -2837,7 +2837,7 @@ function startTopicTrain(){
   isTopicTrain = true;
   $('browseBar').style.display = 'none';
   $('topicTrainBar').style.display = 'flex';
-  $('topicTrainPos').textContent = '当前 0 / ' + queue.length + ' 张';
+  $('topicTrainPos').textContent = '本次第 0 / ' + queue.length + ' 张';
   $('topicModal').classList.remove('show');
   showView('train');
   show();
