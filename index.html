@@ -695,11 +695,31 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <input id="pushKeyword" placeholder="如：打卡">
     <label>Cloudflare 代理地址（钉钉跨域转发）</label>
     <input id="pushProxy" placeholder="https://xxx.workers.dev/">
-    <div class="modalHint">钉钉消息需包含安全关键字「打卡」；同一执行人+科目 10 分钟内只推一次</div>
+    <div class="modalHint">钉钉消息需包含安全关键字「打卡」；同一执行人+科目+模式 10 分钟内只推一次</div>
+    <div style="font-size:14px;font-weight:500;margin:14px 0 8px">⏱ 推送频率设置</div>
+    <label>训练成果推送间隔（分钟）</label>
+    <input id="pushInterval" type="number" min="1" max="120" placeholder="10">
+    <label>停留超时弹窗（分钟）</label>
+    <input id="idleTimeout" type="number" min="1" max="120" placeholder="10">
+    <div class="modalHint">进入训练/审核满 N 分钟，自动推送一次训练成果（时长/看过张数/答对张数）；页面无操作满 M 分钟，弹窗提示已停止。</div>
     <div class="row2">
       <button id="pushTestBtn">发送测试</button>
       <button id="pushSaveBtn" class="ok">保存设置</button>
     </div>
+  </div>
+</div>
+
+<!-- 进入科目模式选择弹窗（训练 / 审核 / 返回） -->
+<div class="modalMask" id="modeModal">
+  <div class="modalBox" style="max-width:420px">
+    <h2><span id="modeModalTitle">选择进入方式</span><span class="x" id="modeModalClose">×</span></h2>
+    <div id="modeModalHint" style="font-size:14px;color:#1f2329;margin:2px 0 14px;line-height:1.6"></div>
+    <div class="row2" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+      <button id="modeTrainBtn" class="ok">▶ 开始训练</button>
+      <button id="modeBrowseBtn">🔍 开始审核</button>
+    </div>
+    <button id="modeReturnBtn" class="del" style="width:100%">← 返回上一页</button>
+    <div class="modalHint">进入训练/审核时会推送「开始」消息到微信和钉钉；返回上一页不推送。</div>
   </div>
 </div>
 
@@ -880,6 +900,10 @@ function subjDef(name){ return CUSTOM[name] || IMPORTED[name] || SUBJECTS[name];
 let ALL_SUBJECTS = {};   /* 由 rebuildSubjects 合并填充 */
 let SUBJ_NAMES = [];
 let cur = null;
+/* 进入科目模式弹窗 / 会话统计 / 停留超时 相关状态 */
+let pendingSubject = null, pendingResumeId = null, modeModalPurpose = 'enter';
+let sessionMode = 'train', sessionSeen = 0, sessionCorrect = 0, sessionTimeBase = 0, sessionStartTs = 0, lastResultPushTs = 0;
+let idleTimer = null, idlePaused = false;
 
 const $ = id => document.getElementById(id);
 const RING_C = 207.3;
@@ -1481,6 +1505,8 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
     else { combo = 0; sWrong(); toast('已加入待重练'); }
     if(!retryOrder.includes(id)) retryOrder.push(id);
   }
+  sessionSeen++;
+  if(level === 3) sessionCorrect++;
   markLearned(sName);
   schedulePush();
   const card = $('card');
@@ -1615,7 +1641,7 @@ function renderDash(){
         + '<div class="scGo" style="color:' + c + '">进入训练 ↗</div>';
       card.addEventListener('click', e => {
         if(e.target.closest('.scEdit')) return;   /* 点 ✎ 不进入训练 */
-        switchSubject(name); showView('train');
+        enterTrain(name);
       });
       const editBtn = card.querySelector('.scEdit');
       if(editBtn) editBtn.addEventListener('click', e => { e.stopPropagation(); renameSubject(name); });
@@ -1685,7 +1711,7 @@ function renderTabs(){
     const remembered = Object.values(st).filter(v => v === 1).length;
     b.textContent = ALL_SUBJECTS[name].display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '');
     if(name === cur) b.style.background = ALL_SUBJECTS[name].color;
-    b.addEventListener('click', () => switchSubject(name));
+    b.addEventListener('click', () => enterTrain(name));
     box.appendChild(b);
   });
 }
@@ -1728,7 +1754,6 @@ function switchSubject(name){
   if(!restoreSubjectPos(name)) buildQueue();
   refreshToday(); updateStats(); show();
   showView('train');
-  pushStartTraining();
 }
 
 /* ---------- 音效 ---------- */
@@ -2421,7 +2446,8 @@ const DEFAULT_PUSH = {
   topic: 'chen-study',
   webhook: 'https://oapi.dingtalk.com/robot/send?access_token=f18b56e9a884bdd2c9a933e1994ad7856ba0e1fce2404d366589a218c1683f1e',
   keyword: '打卡',
-  proxy: 'https://young-hat-353c.mcjc4.workers.dev/'
+  proxy: 'https://young-hat-353c.mcjc4.workers.dev/',
+  pushInterval: 10, idleTimeout: 10
 };
 function loadPushCfg(){
   try{ const c = JSON.parse(localStorage.getItem(PUSH_CFG_KEY) || 'null'); if(c && typeof c === 'object') return Object.assign({}, DEFAULT_PUSH, c); }catch(e){}
@@ -2463,12 +2489,12 @@ async function sendPush(title, content){
   const [wok, dok] = await Promise.all([w, d]);
   return wok || dok;
 }
-/* 开始训练推送：同一执行人+科目 10 分钟内只推一次 */
-function pushStartTraining(){
+/* 开始训练/审核推送：同一执行人+科目+模式 10 分钟内只推一次 */
+function pushStartTraining(mode){
   if(!pushCfg.enabled) return;
   const last = loadJ(PUSH_LAST_KEY, {});
   const now = Date.now();
-  const key = personKey + ':' + cur;
+  const key = personKey + ':' + cur + ':' + (mode || 'train');
   if(last[key] && now - last[key] < 600000) return;
   last[key] = now; saveJ(PUSH_LAST_KEY, last);
   const st = state[cur] || {};
@@ -2477,15 +2503,93 @@ function pushStartTraining(){
   const td = todayD[cur] || {};
   const cnt = td.date === today() ? td.count : 0;
   const g = goal[cur] || 300;
+  const verb = mode === 'browse' ? '开始审核' : '开始训练';
   const lines = [
-    personName() + ' 开始打卡学习 ' + ALL_SUBJECTS[cur].display + ' · ' + N() + ' 条',
+    personName() + ' ' + verb + ' ' + ALL_SUBJECTS[cur].display + ' · ' + N() + ' 条',
     '今日进度：' + cnt + '/' + g + ' 题 · 连续打卡 ' + calcStreak() + ' 天',
     '已掌握 ' + pass + ' · 待重练 ' + fail + ' · 模糊 ' + half,
-    '打卡开始，保持节奏！'
+    verb + '开始，保持节奏！'
   ];
   const content = lines.join('\n');
-  sendWechat('📚 ' + personName() + ' 开始打卡学习 ' + ALL_SUBJECTS[cur].display, content);
+  sendWechat('📚 ' + personName() + ' ' + verb + ' ' + ALL_SUBJECTS[cur].display, content);
   sendDingtalk(content);
+}
+/* ---------- 进入科目模式弹窗（训练 / 审核 / 返回） ---------- */
+function isTrainView(){ return $('viewTrain') && $('viewTrain').style.display !== 'none'; }
+function openModeModal(purpose){
+  modeModalPurpose = purpose;
+  const subj = pendingSubject && ALL_SUBJECTS[pendingSubject] ? ALL_SUBJECTS[pendingSubject].display : pendingSubject;
+  if(purpose === 'idle'){
+    $('modeModalTitle').textContent = '⏸ 已停止';
+    $('modeModalHint').textContent = '页面已停止操作 ' + (pushCfg.idleTimeout || 10) + ' 分钟，是否继续学习？';
+  } else {
+    $('modeModalTitle').textContent = '进入 ' + subj;
+    $('modeModalHint').textContent = '请选择进入「' + subj + '」的方式：';
+  }
+  $('modeModal').classList.add('show');
+}
+function enterTrain(name){ pendingSubject = name; pendingResumeId = null; openModeModal('enter'); }
+function handleModeChoice(mode){
+  if(modeModalPurpose === 'enter'){
+    if(mode === 'return'){ $('modeModal').classList.remove('show'); showView('dash'); return; }
+    doEnterSubject(mode);
+  } else {
+    resumeFromIdle(mode);
+  }
+}
+function doEnterSubject(mode){
+  const name = pendingSubject;
+  $('modeModal').classList.remove('show');
+  if(!name || !ALL_SUBJECTS[name]){ showView('dash'); return; }
+  switchSubject(name);                 /* 进入并默认训练模式、重建队列 */
+  if(mode === 'browse'){
+    browseMode = true; isTopicTrain = false;
+    $('browseBar').style.display = ''; $('browseActions').style.display = ''; $('markActions').style.display = 'none';
+    $('browseBtn').classList.add('active');
+  } else {
+    browseMode = false; isTopicTrain = false;
+    $('browseBar').style.display = 'none'; $('browseActions').style.display = 'none'; $('markActions').style.display = '';
+    $('browseBtn').classList.remove('active');
+  }
+  show();                              /* 按最终模式渲染 */
+  showView('train');
+  /* 会话统计重置 */
+  sessionMode = mode; sessionSeen = 0; sessionCorrect = 0;
+  sessionTimeBase = (subjectTime[cur] || 0);
+  sessionStartTs = Date.now(); lastResultPushTs = sessionStartTs;
+  idlePaused = false; resetIdle();
+  pushStartTraining(mode);             /* 推送开始训练/审核 */
+  if(pendingResumeId){                 /* 刷新恢复：定位到上次浏览的卡片 */
+    const idx = queue.indexOf(pendingResumeId);
+    if(idx >= 0){ pos = idx; shown = false; show(); }
+    pendingResumeId = null;
+  }
+}
+function resumeFromIdle(mode){
+  $('modeModal').classList.remove('show');
+  if(mode === 'return'){ idlePaused = false; showView('dash'); return; }
+  browseMode = (mode === 'browse'); isTopicTrain = false;
+  if(browseMode){ $('browseBar').style.display = ''; $('browseActions').style.display = ''; $('markActions').style.display = 'none'; $('browseBtn').classList.add('active'); }
+  else { $('browseBar').style.display = 'none'; $('browseActions').style.display = 'none'; $('markActions').style.display = ''; $('browseBtn').classList.remove('active'); }
+  show();
+  sessionMode = mode; sessionSeen = 0; sessionCorrect = 0;
+  sessionTimeBase = (subjectTime[cur] || 0);
+  sessionStartTs = Date.now(); lastResultPushTs = sessionStartTs;
+  idlePaused = false; resetIdle();
+}
+async function pushTrainResult(){
+  const durMin = Math.round(((subjectTime[cur] || 0) - sessionTimeBase) / 600) / 100;  /* 分钟，2位小数 */
+  const td = todayD[cur] || {};
+  const cnt = td.date === today() ? td.count : 0;
+  const lines = [
+    personName() + ' 训练 ' + ALL_SUBJECTS[cur].display + ' 进行中',
+    '本次已训练 ' + (durMin > 0 ? durMin : 0) + ' 分钟',
+    '本次看过 ' + sessionSeen + ' 张 · 答对 ' + sessionCorrect + ' 张',
+    '今日累计 ' + cnt + ' 题 · 连续打卡 ' + calcStreak() + ' 天',
+    '继续加油！'
+  ];
+  const content = lines.join('\n');
+  sendPush('📊 ' + personName() + ' 训练成果 ' + ALL_SUBJECTS[cur].display, content);
 }
 /* ---------- 执行人切换 ---------- */
 function renderPersonList(){
@@ -2921,6 +3025,8 @@ function openSettings(){
     $('pushWebhook').value = pushCfg.webhook || '';
     $('pushKeyword').value = pushCfg.keyword || '';
     $('pushProxy').value = pushCfg.proxy || '';
+    $('pushInterval').value = pushCfg.pushInterval || 10;
+    $('idleTimeout').value = pushCfg.idleTimeout || 10;
     $('ttsEnabled').checked = !!ttsCfg.enabled;
     $('ttsAutoEn').checked = !!ttsCfg.autoEn;
     $('ttsAutoOther').checked = !!ttsCfg.autoOther;
@@ -2955,6 +3061,8 @@ function savePushCfg(){
   pushCfg.webhook = $('pushWebhook').value.trim();
   pushCfg.keyword = $('pushKeyword').value.trim() || '打卡';
   pushCfg.proxy = $('pushProxy').value.trim();
+  const pi = parseInt($('pushInterval').value, 10); pushCfg.pushInterval = (pi >= 1 && pi <= 120) ? pi : 10;
+  const it = parseInt($('idleTimeout').value, 10); pushCfg.idleTimeout = (it >= 1 && it <= 120) ? it : 10;
   saveJ(PUSH_CFG_KEY, pushCfg);
   toast('设置已保存');
 }
@@ -3064,6 +3172,14 @@ $('fSpeakBtn').addEventListener('click', e => { e.stopPropagation(); toggleSpeak
 $('fSpeakBtn').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleSpeak(); }, {passive:false});
 /* 专题练 */
 $('topicTrainBtn').addEventListener('click', openTopicTrain);
+/* 进入科目模式弹窗按钮 */
+$('modeTrainBtn').addEventListener('click', () => handleModeChoice('train'));
+$('modeBrowseBtn').addEventListener('click', () => handleModeChoice('browse'));
+$('modeReturnBtn').addEventListener('click', () => handleModeChoice('return'));
+$('modeModalClose').addEventListener('click', () => {
+  $('modeModal').classList.remove('show');
+  if(modeModalPurpose === 'idle'){ idlePaused = false; resetIdle(); }   /* 关闭=继续当前模式（不重置进度） */
+});
 $('topicModalClose').addEventListener('click', () => $('topicModal').classList.remove('show'));
 $('tqSubj').addEventListener('change', () => { refreshTqTopic(); tqSrcSel.clear(); updateTqSrcBtn(); refreshSrcFilterList(); refreshTqCount(); });
 $('tqTopicBtn').addEventListener('click', e => { e.stopPropagation(); openTqTopicPop(); });
@@ -3192,6 +3308,7 @@ let viewingCard = false;        /* 是否正在训练页看卡（用于是否计
 let lastTick = Date.now();
 function flushTime(){
   if(!viewingCard) { lastTick = Date.now(); return; }
+  if(idlePaused){ lastTick = Date.now(); return; }   /* 停留超时期间不计入训练时长 */
   const now = Date.now();
   const dt = now - lastTick;
   lastTick = now;
@@ -3203,6 +3320,30 @@ function flushTime(){
   }
 }
 setInterval(flushTime, 5000);
+/* ===== 停留超时检测 + 周期成果推送 ===== */
+function resetIdle(){
+  if(idlePaused) return;                 /* 已弹窗则等待用户选择，不重启计时 */
+  if(idleTimer) clearTimeout(idleTimer);
+  const ms = Math.max(1, (pushCfg.idleTimeout || 10)) * 60000;
+  idleTimer = setTimeout(onIdleTimeout, ms);
+}
+function onIdleTimeout(){
+  if(!isTrainView()){ resetIdle(); return; }   /* 不在训练页则忽略并重新计时 */
+  idlePaused = true;                            /* 暂停时长累加，弹窗提示已停止 */
+  openModeModal('idle');
+}
+/* 任意交互都重置停留计时 */
+['mousemove','mousedown','keydown','touchstart','wheel'].forEach(ev => document.addEventListener(ev, resetIdle, {passive:true}));
+/* 周期性推送训练成果（每 pushInterval 分钟一次，仅训练模式） */
+setInterval(() => {
+  if(!isTrainView() || idlePaused || sessionMode !== 'train' || !pushCfg.enabled) return;
+  const interval = Math.max(1, (pushCfg.pushInterval || 10)) * 60000;
+  const now = Date.now();
+  if(now - lastResultPushTs >= interval){
+    lastResultPushTs = now;
+    pushTrainResult();
+  }
+}, 30000);
 window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, PERSON_STORE); });
 
 (function init(){
@@ -3220,7 +3361,7 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
       /* 优先恢复最近浏览过的卡片（任意模式：训练/审核/专题练，只要停留过就算） */
       if(!resumeLastBrowsed()){
         if(lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
-          switchSubject(lastView.subject);
+          enterTrain(lastView.subject);
         } else {
           showView('dash');
         }
@@ -3242,13 +3383,9 @@ function resumeLastBrowsed(){
   if(!ALL_SUBJECTS[entry.subject]) return false;
   const subj = subjDef(entry.subject);
   if(!subj || !subj.items.some(it => it.id === entry.id)) return false;
-  lastBrowseId = entry.id;   /* 预置，防 switchSubject 内的 show() 重复记入浏览历史 */
-  switchSubject(entry.subject);
-  setTimeout(() => {
-    const idx = queue.indexOf(entry.id);
-    if(idx >= 0){ pos = idx; shown = false; show(); }
-    toast('已恢复最近浏览：' + (ALL_SUBJECTS[entry.subject] ? ALL_SUBJECTS[entry.subject].display : entry.subject) + (entry.t ? ' · ' + entry.t : ''));
-  }, 60);
+  lastBrowseId = entry.id;   /* 预置，防 doEnterSubject 内 show() 重复记入浏览历史 */
+  pendingSubject = entry.subject; pendingResumeId = entry.id;
+  openModeModal('enter');    /* 刷新恢复也走模式选择弹窗 + 推送逻辑 */
   return true;
 }
 </script>
