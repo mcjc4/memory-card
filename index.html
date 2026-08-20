@@ -2500,7 +2500,7 @@ function renderPersonList(){
     Object.keys(d.imported || {}).forEach(n => names[n] = 1);
     Object.keys(d.custom || {}).forEach(n => names[n] = 1);
     Object.keys(names).forEach(name => {
-      const subj = d.custom[name] || d.imported[name] || SUBJECTS[name];
+      const subj = (d.custom || {})[name] || (d.imported || {})[name] || SUBJECTS[name];
       if(!subj) return;
       total += subj.items.length;
       const st = (d.state || {})[name] || {};
