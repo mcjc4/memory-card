@@ -2150,14 +2150,14 @@ function renderCloudBadge(){
   const cp = $('cloudPerson');
   if(cp) cp.textContent = personName();
   /* 同步控制按钮状态联动 */
-  const db = $('cloudDisconnectBtn');
-  if(db) {
+  const dbDisc = $('cloudDisconnectBtn');
+  if(dbDisc) {
     if(cloudStatus === 'off' && cloudCfg && cloudCfg.disabled){
-      db.textContent = '重新连接云端';
-      db.classList.remove('del');
+      dbDisc.textContent = '重新连接云端';
+      dbDisc.classList.remove('del');
     } else {
-      db.textContent = '断开云端';
-      db.classList.add('del');
+      dbDisc.textContent = '断开云端';
+      dbDisc.classList.add('del');
     }
   }
 }
@@ -3182,7 +3182,7 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
   try{
     rebuildSubjects();
     migrateStateToId();
-    if(!ALL_SUBJECTS[cur]){ toast('当前执行人暂无科目数据，请在设置页切换或导入'); }
+    if(!ALL_SUBJECTS[cur]){ toast('当前执行人暂无科目数据，请在设置页切换或导入'); showView('dash'); }
     else {
       const c = ALL_SUBJECTS[cur].color;
       document.documentElement.style.setProperty('--accent', c);
