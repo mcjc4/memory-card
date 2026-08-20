@@ -20,7 +20,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .tabs{display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
 .tab{padding:7px 18px;border-radius:999px;border:1.5px solid #d1d5db;background:#fff;font-size:14px;cursor:pointer;color:#374151;transition:all .2s}
 .tab.active{color:#fff;border-color:transparent}
-.todayRow{display:grid;grid-template-columns:96px 1fr;gap:12px;margin-bottom:14px}
+.todayRow{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px;align-items:start}
 .ringCard{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:10px;display:flex;align-items:center;justify-content:center}
 .ringWrap{position:relative;width:76px;height:76px}
 .ringWrap svg{width:76px;height:76px;transform:rotate(-90deg)}
@@ -30,6 +30,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .ringCenter b{font-size:18px;font-weight:500;line-height:1}
 .ringCenter span{font-size:10px;color:#9ca3af}
 .statGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.personStatCard{background:#f0f7ff;border:1px solid #b9d4f5;border-radius:14px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;gap:4px;justify-content:center}
+.personStatCard .k{font-size:12px;color:#6b7280}
+.personStatCard .v{color:#185FA5;font-weight:600;font-size:16px}
+.personStatCard .sub{font-size:11px;color:#6b7280}
 .statCard{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:10px 8px;text-align:center;display:flex;flex-direction:column;gap:4px;justify-content:center}
 .statCard .k{font-size:12px;color:#6b7280}
 .statCard .v{font-size:20px;font-weight:500;line-height:1.2}
@@ -336,7 +340,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
   <div class="trainHead">
     <button id="backBtn" class="backBtn">← 六科总览</button>
     <h1 id="trainTitle">记忆训练</h1>
-    <div class="trainPerson">👤 <b id="trainPersonName">-</b></div>
   </div>
   <div class="tabs" id="tabs"></div>
 
@@ -351,14 +354,18 @@ h1{font-size:21px;font-weight:500;text-align:center}
       </div>
       <div style="text-align:center;margin-top:4px"><span class="k" style="font-size:11px">连续 <b id="streakVSmall">0</b> 天</span></div>
     </div>
-    <div class="statGrid">
-      <div class="statCard goalCard">
-        <span class="k">今日打卡目标（本科目）</span>
-        <span class="ctl"><button id="goalMinus">−</button><span class="v" id="goalV" style="font-size:20px">300</span><button id="goalPlus">+</button></span>
-        <span class="sub" id="gapV">尚未打卡</span>
-      </div>
-      <div class="statCard pieCard">
-        <span class="k">4 种状态（本科目）</span>
+    <div class="statCard personStatCard">
+      <span class="k">当前执行人</span>
+      <span class="v" style="font-size:16px" id="trainPersonName">-</span>
+      <span class="sub" id="trainPersonSub">-</span>
+    </div>
+    <div class="statCard goalCard">
+      <span class="k">今日打卡目标（本科目）</span>
+      <span class="ctl"><button id="goalMinus">−</button><span class="v" id="goalV" style="font-size:20px">300</span><button id="goalPlus">+</button></span>
+      <span class="sub" id="gapV">尚未打卡</span>
+    </div>
+    <div class="statCard pieCard">
+      <span class="k">4 种状态（本科目）</span>
         <div class="pieWrap">
           <div class="pieRing" id="pieRing"></div>
           <div class="pieCenter">
@@ -367,7 +374,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
           </div>
         </div>
         <div class="pieLegend" id="pieLegend">未测 0 · 模糊 0 · 不记得 0</div>
-      </div>
     </div>
   </div>
 
@@ -1126,6 +1132,8 @@ function refreshToday(){
   const gv = $('gapV');
   gv.textContent = gp.text;
   gv.className = 'sub ' + gp.cls;
+  const ps = $('trainPersonSub');
+  if(ps) ps.textContent = '今日 ' + cnt + '/' + g + ' 题';
 }
 function updateStats(){
   const st = state[cur] || {};
@@ -1712,6 +1720,8 @@ function switchSubject(name){
   const remembered = Object.values(st).filter(v => v === 1).length;
   $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '') + ' 条';
   $('trainPersonName').textContent = personName();
+  const ps = $('trainPersonSub');
+  if(ps){ const td = todayD[cur]||{}, g = goal[cur]||300, cnt = (td.date===today())?td.count:0; ps.textContent = '今日 ' + cnt + '/' + g + ' 题'; }
   renderTabs();
   const sel = $('topicSel'); sel.innerHTML = '<option value="">全部专题</option>';
   topics().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
@@ -2902,22 +2912,24 @@ function previewTopicList(){
   alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
 }
 function openSettings(){
-  $('pushEnabled').checked = !!pushCfg.enabled;
-  $('pushWechatOn').checked = !!pushCfg.wechatOn;
-  $('pushDingOn').checked = !!pushCfg.dingOn;
-  $('pushToken').value = pushCfg.token || '';
-  $('pushTopic').value = pushCfg.topic || '';
-  $('pushWebhook').value = pushCfg.webhook || '';
-  $('pushKeyword').value = pushCfg.keyword || '';
-  $('pushProxy').value = pushCfg.proxy || '';
-  $('ttsEnabled').checked = !!ttsCfg.enabled;
-  $('ttsAutoEn').checked = !!ttsCfg.autoEn;
-  $('ttsAutoOther').checked = !!ttsCfg.autoOther;
-  $('ttsRate').value = ttsCfg.rate || 'normal';
-  $('ttsVoice').value = ttsCfg.voice || 'en-US-EmmaMultilingualNeural';
-  renderPersonList();
-  renderCloudBadge();
-  $('settingsModal').classList.add('show');
+  try {
+    $('pushEnabled').checked = !!pushCfg.enabled;
+    $('pushWechatOn').checked = !!pushCfg.wechatOn;
+    $('pushDingOn').checked = !!pushCfg.dingOn;
+    $('pushToken').value = pushCfg.token || '';
+    $('pushTopic').value = pushCfg.topic || '';
+    $('pushWebhook').value = pushCfg.webhook || '';
+    $('pushKeyword').value = pushCfg.keyword || '';
+    $('pushProxy').value = pushCfg.proxy || '';
+    $('ttsEnabled').checked = !!ttsCfg.enabled;
+    $('ttsAutoEn').checked = !!ttsCfg.autoEn;
+    $('ttsAutoOther').checked = !!ttsCfg.autoOther;
+    $('ttsRate').value = ttsCfg.rate || 'normal';
+    $('ttsVoice').value = ttsCfg.voice || 'en-US-EmmaMultilingualNeural';
+    renderPersonList();
+    renderCloudBadge();
+    $('settingsModal').classList.add('show');
+  } catch(e) { console.error('openSettings:', e); toast('设置打开失败: ' + e.message); }
 }
 function saveTtsCfg(){
   ttsCfg.enabled = $('ttsEnabled').checked;
