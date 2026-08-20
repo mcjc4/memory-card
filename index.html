@@ -189,10 +189,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .dashStats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 /* 顶部：各科投入时间分布环 */
 .timeRingWrap{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin-bottom:14px}
-.timeRingOuter{position:relative;width:124px;height:124px;flex-shrink:0}
-.timeRing{width:124px;height:124px;border-radius:50%;background:#eef0f3;transition:background .4s}
-.timeRingInner{position:absolute;inset:0;margin:auto;width:72px;height:72px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
-.timeRingInner b{font-size:20px;font-weight:600;color:#185FA5;line-height:1}
+.timeRingOuter{position:relative;width:96px;height:96px;flex-shrink:0}
+.timeRing{width:96px;height:96px;border-radius:50%;background:#eef0f3;transition:background .4s}
+.timeRingInner{position:absolute;inset:0;margin:auto;width:56px;height:56px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.timeRingInner b{font-size:17px;font-weight:600;color:#185FA5;line-height:1}
 .timeRingInner span{font-size:10px;color:#9ca3af;margin-top:3px;letter-spacing:.5px}
 .timeLegend{flex:1;font-size:12px;color:#374151;line-height:1.9;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
 .timeLegend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
@@ -303,14 +303,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 <body>
 <div class="wrap">
   <div id="viewDash">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px">
-      <div>
-        <h1 style="margin-bottom:4px">各科</h1>
-        <p class="sub" style="margin-bottom:0"><b id="dashPerson" style="color:#185FA5;font-size:18px">-</b></p>
-      </div>
-      <div style="display:flex;gap:8px;flex-shrink:0;padding-top:4px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px">
+      <h1 style="margin:0">各科记忆卡片库</h1>
+      <div style="display:flex;gap:8px;flex-shrink:0">
         <button id="dashSettingsBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">⚙ 设置</button>
-        <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">☁ 同步状态</button>
+        <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;min-width:80px;text-align:left">☁ 同步状态</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
       </div>
     </div>
@@ -318,6 +315,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="timeRingOuter">
         <div class="timeRing" id="timeRing"></div>
         <div class="timeRingInner"><b id="timeTotal">0</b><span>今日分钟</span></div>
+      </div>
+      <div style="flex:0 0 auto;min-width:140px;padding-left:16px;border-left:1px solid #e5e7eb;display:flex;flex-direction:column;justify-content:center;gap:2px">
+        <div style="font-size:15px;font-weight:600;color:#185FA5" id="dashPerson">-</div>
+        <div style="font-size:11px;color:#9ca3af" id="dashPersonSub">-</div>
       </div>
       <div class="timeLegend" id="timeLegend"></div>
     </div>
@@ -1537,6 +1538,17 @@ function renderTimeRing(){
 }
 function renderDash(){
   $('dashPerson').textContent = personName();
+  const sub = $('dashPersonSub');
+  if(sub){
+    const td = todayD[cur] || {};
+    const cnt = (td.date === today()) ? td.count : 0;
+    const goalN = goal[cur] || 100;
+    const st = state[cur] || {};
+    let pass = 0, total = 0;
+    const def = subjDef(cur);
+    if(def){ total = def.items.length; def.items.forEach(it => { if(st[it.id] === 1) pass++; }); }
+    sub.textContent = '今日 ' + cnt + '/' + goalN + ' 题 · 掌握 ' + (total ? Math.round(pass/total*100) : 0) + '%';
+  }
   dashStats();
   renderTimeRing();   /* 顶部：各科投入时间分布 */
   const grid = $('dashGrid');
@@ -2121,6 +2133,14 @@ function renderCloudBadge(){
   const map = {off:'☁ 仅本机', connecting:'☁ 连接中…', online:'☁ 已同步', error:'☁ 同步失败'};
   b.textContent = map[cloudStatus] || '☁ 同步';
   b.classList.toggle('active', cloudStatus === 'online' || cloudStatus === 'connecting');
+  /* 仪表盘同步按钮也同步更新文案 */
+  const db = $('dashCloudBtn');
+  if(db){
+    const dmap = {off:'☁ 未连接', connecting:'☁ 连接中…', online:'☁ 已同步', error:'☁ 同步失败'};
+    db.textContent = (dmap[cloudStatus] || cloudStatus || '☁ 同步状态');
+    db.style.color = cloudStatus === 'online' ? '#3B6D11' : (cloudStatus === 'error' ? '#A32D2D' : '#374151');
+    db.style.borderColor = cloudStatus === 'online' ? '#97C459' : (cloudStatus === 'error' ? '#F09595' : '#d1d5db');
+  }
   const st = $('cloudStatusTxt'), sub = $('cloudStatusSub');
   if(st){
     const txt = {off:'未启用（仅本机）', connecting:'连接中…', online:'已连接 · 云端同步中', error:'连接失败（网络或配置）'}[cloudStatus] || cloudStatus;
@@ -2491,6 +2511,9 @@ function switchPerson(pkey){
   renderTabs();
   toast('已切换到 ' + personName());
   renderPersonList();
+  /* 关闭设置弹窗并刷新仪表盘（解决切人后回首页未更新的 bug） */
+  $('settingsModal').classList.remove('show');
+  renderDash();
   /* 云端文档 id 随执行人变化 → 重新连接拉取该执行人自己的数据 */
   initCloud();
 }
@@ -2998,7 +3021,7 @@ $('settingsBtn').addEventListener('click', openSettings);
 $('dashSettingsBtn').addEventListener('click', openSettings);
 $('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(b) b.click(); });
 $('dashImportBtn').addEventListener('click', () => $('fileInput').click());
-$('settingsModalClose').addEventListener('click', () => $('settingsModal').classList.remove('show'));
+$('settingsModalClose').addEventListener('click', () => { $('settingsModal').classList.remove('show'); renderDash(); });
 $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('pushTestBtn').addEventListener('click', testPush);
 /* 卡片朗读 */
