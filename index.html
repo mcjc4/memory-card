@@ -724,6 +724,25 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="fxSaveBtn" class="ok">保存动效设置</button>
     </div>
 
+    <div style="font-size:14px;font-weight:500;margin:16px 0 8px">🛡 专注保护（切走检测 · 手机切应用/切标签也生效）</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="guardEnabled" style="width:16px;height:16px"> 启用专注保护
+    </label>
+    <label>离开阈值（分钟，达到即中断训练并推送家长）</label>
+    <input id="guardThreshold" type="number" min="1" max="30" placeholder="1">
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:8px 0 4px;cursor:pointer">
+      <input type="checkbox" id="guardInterrupt" style="width:16px;height:16px"> 超阈值中断训练（回总览，需重新进入）
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:8px 0 4px;cursor:pointer">
+      <input type="checkbox" id="guardPush" style="width:16px;height:16px"> 推送家长（微信/钉钉，复用推送设置）
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:8px 0 4px;cursor:pointer">
+      <input type="checkbox" id="guardToast" style="width:16px;height:16px"> 回来提示离开时长
+    </label>
+    <div class="row2">
+      <button id="guardSaveBtn" class="ok">保存专注保护</button>
+    </div>
+
     <div style="font-size:14px;font-weight:500;margin:16px 0 8px">消息推送（开始训练时推送）</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
       <input type="checkbox" id="pushEnabled" style="width:16px;height:16px"> 启用消息推送
@@ -898,9 +917,9 @@ const CARDS_IMPORTED_KEY = 'wulun_cards_imported';   /* 卡片库全局共享（
 const CARDS_CUSTOM_KEY = 'wulun_cards_custom';
 const PERSON_STORE = loadJ(PERSON_KEY, {});
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
-let state, todayD, goal, best, streakD, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount, subjectTime;   /* 当前执行人的数据（bindPerson 绑定） */
+let state, todayD, goal, best, streakD, guard, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount, subjectTime;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}, guard:{date:'', count:0, minutes:0}};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -908,6 +927,8 @@ function bindPerson(key){
   personKey = pkey;
   const d = PERSON_STORE[pkey] || (PERSON_STORE[pkey] = emptyPerson());
   state = d.state; todayD = d.today; goal = d.goal; best = d.best; streakD = d.streak;
+  if(!d.guard) d.guard = {date:'', count:0, minutes:0};
+  guard = d.guard;
   /* 卡片库从全局存储加载（跨执行人共享） */
   IMPORTED = loadJ(CARDS_IMPORTED_KEY, {});
   CUSTOM = loadJ(CARDS_CUSTOM_KEY, {});
@@ -2557,6 +2578,21 @@ function loadFxCfg(){
 
 let pushCfg = loadPushCfg();
 let fxCfg = loadFxCfg();
+/* ---------- 专注保护配置（切走检测，设置页可调） ---------- */
+const GUARD_CFG_KEY = 'wulun_guard_cfg';
+const DEFAULT_GUARD = {
+  enabled: true,          /* 总开关 */
+  threshold: 1,           /* 离开阈值（分钟），达到即中断+推送 */
+  interrupt: true,        /* 超阈值中断训练回仪表盘 */
+  pushParent: true,       /* 超阈值推送家长微信/钉钉 */
+  toast: true             /* 回来提示离开时长 */
+};
+function loadGuardCfg(){
+  try{ const c = JSON.parse(localStorage.getItem(GUARD_CFG_KEY) || 'null'); if(c && typeof c === 'object') return Object.assign({}, DEFAULT_GUARD, c); }catch(e){}
+  return Object.assign({}, DEFAULT_GUARD);
+}
+let guardCfg = loadGuardCfg();
+let guardAway = false, guardAwayStart = 0;
 /* 微信（PushPlus）：直连 send 接口，支持 topic 群组 */
 async function sendWechat(title, content){
   if(!pushCfg.enabled || !pushCfg.wechatOn || !pushCfg.token) return false;
@@ -3141,6 +3177,11 @@ function openSettings(){
     $('fxWrongShake').checked = !!fxCfg.wrongShake;
     $('fxComboBurst').checked = !!fxCfg.comboBurst;
     $('fxCountRoll').checked = !!fxCfg.countRoll;
+    $('guardEnabled').checked = !!guardCfg.enabled;
+    $('guardThreshold').value = guardCfg.threshold || 1;
+    $('guardInterrupt').checked = !!guardCfg.interrupt;
+    $('guardPush').checked = !!guardCfg.pushParent;
+    $('guardToast').checked = !!guardCfg.toast;
     $('ttsEnabled').checked = !!ttsCfg.enabled;
     $('ttsAutoEn').checked = !!ttsCfg.autoEn;
     $('ttsAutoOther').checked = !!ttsCfg.autoOther;
@@ -3200,6 +3241,15 @@ function resetFxCfg(){
   saveJ(FX_CFG_KEY, fxCfg);
   openSettings();
   toast('已恢复默认动效');
+}
+function saveGuardCfg(){
+  guardCfg.enabled = $('guardEnabled').checked;
+  const gt = parseInt($('guardThreshold').value, 10); guardCfg.threshold = (gt >= 1 && gt <= 30) ? gt : 1;
+  guardCfg.interrupt = $('guardInterrupt').checked;
+  guardCfg.pushParent = $('guardPush').checked;
+  guardCfg.toast = $('guardToast').checked;
+  saveJ(GUARD_CFG_KEY, guardCfg);
+  toast('专注保护已保存');
 }
 
 async function testPush(){
@@ -3296,6 +3346,7 @@ $('settingsModalClose').addEventListener('click', () => { $('settingsModal').cla
 $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('fxSaveBtn').addEventListener('click', saveFxCfg);
 $('fxResetBtn').addEventListener('click', resetFxCfg);
+$('guardSaveBtn').addEventListener('click', saveGuardCfg);
 $('pushTestBtn').addEventListener('click', testPush);
 /* 卡片朗读 */
 $('ttsSaveBtn').addEventListener('click', saveTtsCfg);
@@ -3446,7 +3497,7 @@ let viewingCard = false;        /* 是否正在训练页看卡（用于是否计
 let lastTick = Date.now();
 function flushTime(){
   if(!viewingCard) { lastTick = Date.now(); return; }
-  if(idlePaused){ lastTick = Date.now(); return; }   /* 停留超时期间不计入训练时长 */
+  if(idlePaused || document.hidden || guardAway){ lastTick = Date.now(); return; }   /* 停留超时/切走期间不计入训练时长 */
   const now = Date.now();
   const dt = now - lastTick;
   lastTick = now;
@@ -3459,6 +3510,50 @@ function flushTime(){
 }
 setInterval(flushTime, 5000);
 /* ===== 停留超时检测 + 周期成果推送 ===== */
+/* ===== 专注保护：切走检测（切标签页/切应用/最小化/切窗口） ===== */
+function guardFmtMin(m){
+  if(m < 1) return Math.max(1, Math.round(m * 60)) + ' 秒';
+  return (Math.round(m * 10) / 10) + ' 分钟';
+}
+function onGuardLeave(){
+  if(!guardCfg.enabled || !isTrainView()) return;   /* 仅训练页启用 */
+  if(guardAway) return;
+  guardAway = true; guardAwayStart = Date.now();
+  if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }   /* 离开期间暂停空闲计时 */
+}
+function onGuardBack(){
+  if(!guardAway) return;
+  guardAway = false;
+  const durMin = (Date.now() - guardAwayStart) / 60000;
+  if(durMin <= 0){ resetIdle(); return; }
+  const ts = today();
+  if(guard.date !== ts){ guard.date = ts; guard.count = 0; guard.minutes = 0; }
+  guard.count++; guard.minutes += Math.round(durMin);
+  savePerson();
+  const th = Math.max(1, (guardCfg.threshold || 1));
+  if(durMin >= th){
+    if(guardCfg.interrupt && isTrainView()){
+      showView('dash');
+      if(guardCfg.toast) toast('⚠ 离开 ' + guardFmtMin(durMin) + '，已中断本次训练');
+    } else if(guardCfg.toast){
+      toast('⚠ 离开 ' + guardFmtMin(durMin) + ' 分钟');
+    }
+    if(guardCfg.pushParent){
+      const content = personName() + ' 离开训练页 ' + guardFmtMin(durMin)
+        + '\n今日已离开 ' + guard.count + ' 次，累计 ' + guard.minutes + ' 分钟'
+        + (guardCfg.interrupt ? '\n已中断本次训练' : '');
+      sendWechat('⚠️ ' + personName() + ' 离开训练页', content);
+      sendDingtalk(content);
+    }
+  } else if(guardCfg.toast){
+    toast('刚离开 ' + guardFmtMin(durMin) + '，继续加油');
+  }
+  resetIdle();
+}
+document.addEventListener('visibilitychange', () => { if(document.hidden) onGuardLeave(); else onGuardBack(); });
+window.addEventListener('blur', onGuardLeave);
+window.addEventListener('focus', onGuardBack);
+
 function resetIdle(){
   if(idlePaused) return;                 /* 已弹窗则等待用户选择，不重启计时 */
   if(idleTimer) clearTimeout(idleTimer);
