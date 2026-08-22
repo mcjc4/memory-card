@@ -2540,13 +2540,23 @@ const DEFAULT_PUSH = {
   enabled: true, wechatOn: true, dingOn: true,
   token: '445f103035b642bf9063688feea05c2b',
   topic: 'chen-study',
-  webhook: 'https://oapi.dingtalk.com/robot/send?access_token=f18b56e9a884bdd2c9a933e1994ad7856ba0e1fce2404d366589a218c1683f1e',
+  webhook: 'https://oapi.dingtalk.com/robot/send?access_token=20b2c845ee30d22e35c3435302645bb6bc68fa3d8d025de31df458d2883bf528',
   keyword: '打卡',
   proxy: 'https://young-hat-353c.mcjc4.workers.dev/',
   pushInterval: 10, idleTimeout: 10
 };
 function loadPushCfg(){
-  try{ const c = JSON.parse(localStorage.getItem(PUSH_CFG_KEY) || 'null'); if(c && typeof c === 'object') return Object.assign({}, DEFAULT_PUSH, c); }catch(e){}
+  try{
+    const c = JSON.parse(localStorage.getItem(PUSH_CFG_KEY) || 'null');
+    if(c && typeof c === 'object'){
+      /* 一次性迁移：旧钉钉 webhook → 新 webhook（旧机器人已停用） */
+      if(c.webhook === 'https://oapi.dingtalk.com/robot/send?access_token=f18b56e9a884bdd2c9a933e1994ad7856ba0e1fce2404d366589a218c1683f1e'){
+        c.webhook = DEFAULT_PUSH.webhook;
+        saveJ(PUSH_CFG_KEY, c);
+      }
+      return Object.assign({}, DEFAULT_PUSH, c);
+    }
+  }catch(e){}
   return Object.assign({}, DEFAULT_PUSH);
 }
 
