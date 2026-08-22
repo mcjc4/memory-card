@@ -768,6 +768,13 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <label>备用代理地址（可选，多个用逗号/换行分隔）</label>
     <input id="pushProxyBackup" placeholder="https://xxx.workers.dev/, https://push.your-domain.com">
     <div class="modalHint">主代理失败时自动按顺序尝试备用代理；建议放不同网络来源的地址（如绑了自定义域名的 Worker）。</div>
+    <div style="font-size:14px;font-weight:500;margin:12px 0 6px;color:#0F6E56">💼 飞书机器人（国内直连，无需代理）</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="pushFeishuOn" style="width:16px;height:16px"> 启用飞书推送
+    </label>
+    <label>飞书 Webhook</label>
+    <input id="pushFeishuHook" placeholder="open.feishu.cn/open-apis/bot/v2/hook/...">
+    <div class="modalHint">浏览器直连飞书（支持跨域），比钉钉更稳定；飞书群 → 设置 → 群机器人 → 自定义机器人获取。</div>
     <div class="modalHint">钉钉消息需包含安全关键字「打卡」；同一执行人+科目+模式 10 分钟内只推一次</div>
     <div style="font-size:14px;font-weight:500;margin:14px 0 8px">⏱ 推送频率设置</div>
     <label>训练成果推送间隔（分钟）</label>
@@ -2548,6 +2555,7 @@ const DEFAULT_PUSH = {
   keyword: '打卡',
   proxy: 'https://young-hat-353c.mcjc4.workers.dev/',
   proxyBackup: '',
+  feishuOn: false, feishuHook: '',
   pushInterval: 10, idleTimeout: 10
 };
 function loadPushCfg(){
@@ -2649,12 +2657,24 @@ async function sendDingtalk(content){
   }
   return false;
 }
-/* 双通道发送 */
+/* 飞书：浏览器直连（飞书支持 CORS，无需代理，国内稳定） */
+async function sendFeishu(content){
+  if(!pushCfg.enabled || !pushCfg.feishuOn || !pushCfg.feishuHook) return false;
+  try{
+    const res = await fetchTimeout(pushCfg.feishuHook, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({msg_type:'text', content:{text: content}})}, 8000);
+    if(!res.ok) return false;
+    const j = await res.json().catch(() => null);
+    if(j && j.code !== undefined && j.code !== 0){ console.warn('feishu:', j); return false; }
+    return true;
+  }catch(e){ console.warn('feishu push failed:', e); return false; }
+}
+/* 多通道发送（微信 + 钉钉 + 飞书） */
 async function sendPush(title, content){
   const w = sendWechat(title, content);
   const d = sendDingtalk(content);
-  const [wok, dok] = await Promise.all([w, d]);
-  return wok || dok;
+  const f = sendFeishu(content);
+  const [wok, dok, fok] = await Promise.all([w, d, f]);
+  return wok || dok || fok;
 }
 /* 开始训练/审核推送：同一执行人+科目+模式 10 分钟内只推一次 */
 function pushStartTraining(mode){
@@ -2680,6 +2700,7 @@ function pushStartTraining(mode){
   const content = lines.join('\n');
   sendWechat('📚 ' + personName() + ' ' + verb + ' ' + ALL_SUBJECTS[cur].display, content);
   sendDingtalk(content);
+  sendFeishu(content);
 }
 /* ---------- 进入科目模式弹窗（训练 / 审核 / 返回） ---------- */
 function isTrainView(){ return $('viewTrain') && $('viewTrain').style.display !== 'none'; }
@@ -3193,6 +3214,8 @@ function openSettings(){
     $('pushKeyword').value = pushCfg.keyword || '';
     $('pushProxy').value = pushCfg.proxy || '';
     $('pushProxyBackup').value = pushCfg.proxyBackup || '';
+    $('pushFeishuOn').checked = !!pushCfg.feishuOn;
+    $('pushFeishuHook').value = pushCfg.feishuHook || '';
     $('pushInterval').value = pushCfg.pushInterval || 10;
     $('idleTimeout').value = pushCfg.idleTimeout || 10;
     $('fxConfetti').checked = !!fxCfg.confetti;
@@ -3246,6 +3269,8 @@ function savePushCfg(){
   pushCfg.keyword = $('pushKeyword').value.trim() || '打卡';
   pushCfg.proxy = $('pushProxy').value.trim();
   pushCfg.proxyBackup = $('pushProxyBackup').value.trim();
+  pushCfg.feishuOn = $('pushFeishuOn').checked;
+  pushCfg.feishuHook = $('pushFeishuHook').value.trim();
   const pi = parseInt($('pushInterval').value, 10); pushCfg.pushInterval = (pi >= 1 && pi <= 120) ? pi : 10;
   const it = parseInt($('idleTimeout').value, 10); pushCfg.idleTimeout = (it >= 1 && it <= 120) ? it : 10;
   saveJ(PUSH_CFG_KEY, pushCfg);
@@ -3289,10 +3314,12 @@ async function testPush(){
   const content = '记忆卡测试消息：推送配置成功，收到请忽略。' + (pushCfg.keyword || '打卡');
   const w = sendWechat('📚 记忆卡 · 测试消息', content);
   const d = sendDingtalk(content);
-  const [wok, dok] = await Promise.all([w, d]);
+  const f = sendFeishu(content);
+  const [wok, dok, fok] = await Promise.all([w, d, f]);
   const parts = [];
   if(wok) parts.push('微信✓');
   if(dok) parts.push('钉钉✓');
+  if(fok) parts.push('飞书✓');
   toast(parts.length ? '已发送（' + parts.join(' ') + '），请查收' : '发送失败：检查配置或网络');
 }
 
@@ -3574,6 +3601,7 @@ function onGuardBack(){
         + (guardCfg.interrupt ? '\n已中断本次训练' : '');
       sendWechat('⚠️ ' + personName() + ' 离开训练页', content);
       sendDingtalk(content);
+      sendFeishu(content);
     }
   } else if(guardCfg.toast){
     toast('刚离开 ' + guardFmtMin(durMin) + '，继续加油');
