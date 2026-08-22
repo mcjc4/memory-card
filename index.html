@@ -965,7 +965,6 @@ function savePerson(){
   saveJ(CARDS_CUSTOM_KEY, CUSTOM);
   d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks;
   d.browseHistory = browseHistory; d.browseMeta = browseMeta; d.trainCount = trainCount; d.subjectTime = subjectTime;
-  d.guard = guard;
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -2206,7 +2205,8 @@ function setCloudSyncAt(ts){ try{ localStorage.setItem(CLOUD_SYNC_KEY, String(ts
 function sbBase(u){ return (u||'').replace(/\/rest\/v1\/?$/,'').replace(/\/+$/,''); }
 function sbHeaders(key, contentType){
   const h = {'apikey': key};
-  if(typeof key === 'string' && key.startsWith('eyJ')) h['Authorization'] = 'Bearer ' + key;
+    /* 修复：新旧 Supabase key 都需 Authorization Bearer（老 anon JWT 以 eyJ 开头，新 publishable key 以 sb_publishable_ 开头；缺头则 PostgREST 401，请求被 catch 静默吞掉导致 0 活动） */
+  if(typeof key === 'string' && key) h['Authorization'] = 'Bearer ' + key;
   if(contentType) h['Content-Type'] = 'application/json';
   return h;
 }
@@ -2214,8 +2214,7 @@ let cloudCfg = loadCloudCfg();
 let cloudReady = false, cloudStatus = 'off', cloudPushTimer = null;
 function cloudPayload(){
   return { v:1, custom:CUSTOM, imported:IMPORTED, state:state, today:todayD, goal:goal, best:best, streak:streakD,
-           browseHistory:browseHistory, browseMeta:browseMeta, lastRes:lastRes, pos:POS, trainCount:trainCount, subjectTime:subjectTime,
-           guardCfg:loadGuardCfg(), guard:guard };
+           browseHistory:browseHistory, browseMeta:browseMeta, lastRes:lastRes, pos:POS, trainCount:trainCount, subjectTime:subjectTime };
 }
 function applyCloudPayload(p){
   if(!p || typeof p !== 'object') return;
@@ -2272,19 +2271,6 @@ function applyCloudPayload(p){
       const v = Number(p.subjectTime[subj])||0;
       if(v > (Number(subjectTime[subj])||0)) subjectTime[subj] = v;
     });
-  }
-  /* 专注保护配置与离开统计（家长看板依赖此字段） */
-  if(p.guardCfg && typeof p.guardCfg === 'object'){
-    const g = Object.assign({}, loadGuardCfg(), p.guardCfg);
-    saveJ(GUARD_CFG_KEY, g);
-    guardCfg = g;
-  }
-  if(p.guard && typeof p.guard === 'object'){
-    const src = p.guard, g = guard || (guard = {date:'', count:0, minutes:0});
-    if(src.date === today()){           /* 云端今天的离开统计更全 → 取累计值 */
-      if(g.date !== src.date){ g.date = src.date; g.count = src.count||0; g.minutes = src.minutes||0; }
-      else { g.count = Math.max(g.count||0, src.count||0); g.minutes = Math.max(g.minutes||0, src.minutes||0); }
-    } else if(!g.date && src.date){ g.date = src.date; g.count = src.count||0; g.minutes = src.minutes||0; }
   }
   savePerson();
 }
@@ -3274,7 +3260,6 @@ function saveGuardCfg(){
   guardCfg.pushParent = $('guardPush').checked;
   guardCfg.toast = $('guardToast').checked;
   saveJ(GUARD_CFG_KEY, guardCfg);
-  schedulePush();   /* 专注保护配置上云，家长看板可实时读取 */
   toast('专注保护已保存');
 }
 
@@ -3556,7 +3541,6 @@ function onGuardBack(){
   if(guard.date !== ts){ guard.date = ts; guard.count = 0; guard.minutes = 0; }
   guard.count++; guard.minutes += Math.round(durMin);
   savePerson();
-  schedulePush();   /* 离开统计实时上云，家长看板依赖 */
   const th = Math.max(1, (guardCfg.threshold || 1));
   if(durMin >= th){
     if(guardCfg.interrupt && isTrainView()){
