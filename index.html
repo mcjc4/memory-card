@@ -765,6 +765,9 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <input id="pushKeyword" placeholder="如：打卡">
     <label>Cloudflare 代理地址（钉钉跨域转发）</label>
     <input id="pushProxy" placeholder="https://xxx.workers.dev/">
+    <label>备用代理地址（可选，多个用逗号/换行分隔）</label>
+    <input id="pushProxyBackup" placeholder="https://xxx.workers.dev/, https://push.your-domain.com">
+    <div class="modalHint">主代理失败时自动按顺序尝试备用代理；建议放不同网络来源的地址（如绑了自定义域名的 Worker）。</div>
     <div class="modalHint">钉钉消息需包含安全关键字「打卡」；同一执行人+科目+模式 10 分钟内只推一次</div>
     <div style="font-size:14px;font-weight:500;margin:14px 0 8px">⏱ 推送频率设置</div>
     <label>训练成果推送间隔（分钟）</label>
@@ -2544,6 +2547,7 @@ const DEFAULT_PUSH = {
   webhook: 'https://oapi.dingtalk.com/robot/send?access_token=20b2c845ee30d22e35c3435302645bb6bc68fa3d8d025de31df458d2883bf528',
   keyword: '打卡',
   proxy: 'https://young-hat-353c.mcjc4.workers.dev/',
+  proxyBackup: '',
   pushInterval: 10, idleTimeout: 10
 };
 function loadPushCfg(){
@@ -2618,19 +2622,32 @@ async function sendWechat(title, content){
   }catch(e){ console.warn('wechat push failed:', e); return false; }
 }
 /* 钉钉：经 Cloudflare 代理转发 {url, payload}（参考学习工作台）；无代理则直连 */
-async function sendDingtalk(content){
-  if(!pushCfg.enabled || !pushCfg.dingOn || !pushCfg.webhook) return false;
+/* 单次钉钉发送尝试（供多代理依次 fallback） */
+async function tryDingSend(url, data, timeoutMs){
   try{
-    const payload = {msgtype:'text', text:{content: content}};
-    const viaProxy = pushCfg.proxy && pushCfg.proxy.trim();
-    const url = viaProxy ? pushCfg.proxy.trim() : pushCfg.webhook;
-    const body = viaProxy ? JSON.stringify({url: pushCfg.webhook, payload: payload}) : JSON.stringify(payload);
-    const res = await fetchTimeout(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: body}, 8000);
-    if(!res.ok) throw new Error('http ' + res.status);
+    const res = await fetchTimeout(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)}, timeoutMs || 8000);
+    if(!res.ok) return false;
     const j = await res.json().catch(() => null);
     if(j && j.errcode !== undefined && j.errcode !== 0){ console.warn('dingtalk:', j); return false; }
     return true;
   }catch(e){ console.warn('ding push failed:', e); return false; }
+}
+async function sendDingtalk(content){
+  if(!pushCfg.enabled || !pushCfg.dingOn || !pushCfg.webhook) return false;
+  const payload = {msgtype:'text', text:{content: content}};
+  /* 主代理 + 备用代理列表（逗号/空格/换行分隔，自动去重） */
+  const proxies = [];
+  if(pushCfg.proxy && pushCfg.proxy.trim()) proxies.push(pushCfg.proxy.trim());
+  String(pushCfg.proxyBackup || '').split(/[,，\s\n]+/).forEach(p => {
+    p = (p || '').trim();
+    if(p && proxies.indexOf(p) < 0) proxies.push(p);
+  });
+  if(!proxies.length) return tryDingSend(pushCfg.webhook, payload, 6000);   /* 无代理则直连（CORS 允许时可用） */
+  for(const p of proxies){
+    const ok = await tryDingSend(p, {url: pushCfg.webhook, payload: payload}, 6000);
+    if(ok) return true;
+  }
+  return false;
 }
 /* 双通道发送 */
 async function sendPush(title, content){
@@ -3175,6 +3192,7 @@ function openSettings(){
     $('pushWebhook').value = pushCfg.webhook || '';
     $('pushKeyword').value = pushCfg.keyword || '';
     $('pushProxy').value = pushCfg.proxy || '';
+    $('pushProxyBackup').value = pushCfg.proxyBackup || '';
     $('pushInterval').value = pushCfg.pushInterval || 10;
     $('idleTimeout').value = pushCfg.idleTimeout || 10;
     $('fxConfetti').checked = !!fxCfg.confetti;
@@ -3227,6 +3245,7 @@ function savePushCfg(){
   pushCfg.webhook = $('pushWebhook').value.trim();
   pushCfg.keyword = $('pushKeyword').value.trim() || '打卡';
   pushCfg.proxy = $('pushProxy').value.trim();
+  pushCfg.proxyBackup = $('pushProxyBackup').value.trim();
   const pi = parseInt($('pushInterval').value, 10); pushCfg.pushInterval = (pi >= 1 && pi <= 120) ? pi : 10;
   const it = parseInt($('idleTimeout').value, 10); pushCfg.idleTimeout = (it >= 1 && it <= 120) ? it : 10;
   saveJ(PUSH_CFG_KEY, pushCfg);
