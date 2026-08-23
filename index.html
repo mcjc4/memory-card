@@ -669,6 +669,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <option value="normal">正常</option>
       <option value="fast">快</option>
     </select>
+    <label>朗读引擎优先级</label>
+    <select id="ttsEngine">
+      <option value="edge">Edge 在线音色（音质好，失败自动降级系统）</option>
+      <option value="system">仅系统语音（离线稳定，配合讯飞等系统引擎）</option>
+    </select>
     <label>朗读音色（Edge 神经音色）</label>
     <select id="ttsVoice">
       <option value="en-US-EmmaMultilingualNeural">Emma 多语言（英语为主，中文也能读）</option>
@@ -2391,7 +2396,7 @@ async function initCloud(){
 
 /* ===================== 卡片朗读（Edge TTS 在线神经音色 + Web Speech 离线降级） ===================== */
 const TTS_CFG_KEY = 'wulun_tts_cfg';
-const DEFAULT_TTS = { enabled: true, autoEn: true, autoOther: false, rate: 'normal', voice: 'en-US-EmmaMultilingualNeural' };
+const DEFAULT_TTS = { enabled: true, autoEn: true, autoOther: false, rate: 'normal', voice: 'en-US-EmmaMultilingualNeural', engine: 'edge' };
 const TTS_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
 const TTS_GEC_VERSION = '1-143.0.3650.75';
 function loadTtsCfg(){
@@ -2501,6 +2506,7 @@ async function getOrFetchAudio(text){
 }
 /* 预加载当前卡背面 + 下一卡正面，让翻牌/切卡的朗读零延迟 */
 function prefetchAdjacentAudio(){
+  if(ttsCfg.engine === 'system') return;   /* 仅系统语音不预取在线音频 */
   const its = items();
   const next = pos + 1;   /* 只预取下一卡正面（答案区不朗读） */
   if(next < its.length && its[next] && its[next].s){ const t = (its[next].s||'').trim(); if(t) getOrFetchAudio(t).catch(()=>{}); }
@@ -2510,6 +2516,7 @@ async function speakText(text){
   if(!text || !ttsCfg.enabled) return;
   stopSpeak();
   ttsCancel = false;
+  if(ttsCfg.engine === 'system'){ fallbackSpeak(text); return; }   /* 仅系统语音：离线稳定（讯飞等系统引擎） */
   try{
     const blob = await getOrFetchAudio(text);
     if(ttsCancel) return;
@@ -3245,6 +3252,7 @@ function openSettings(){
     $('ttsAutoOther').checked = !!ttsCfg.autoOther;
     $('ttsRate').value = ttsCfg.rate || 'normal';
     $('ttsVoice').value = ttsCfg.voice || 'en-US-EmmaMultilingualNeural';
+    $('ttsEngine').value = ttsCfg.engine || 'edge';
     renderPersonList();
     renderCloudBadge();
     $('settingsModal').classList.add('show');
@@ -3256,6 +3264,7 @@ function saveTtsCfg(){
   ttsCfg.autoOther = $('ttsAutoOther').checked;
   ttsCfg.rate = $('ttsRate').value || 'normal';
   ttsCfg.voice = $('ttsVoice').value || 'en-US-EmmaMultilingualNeural';
+  ttsCfg.engine = $('ttsEngine').value || 'edge';
   saveJ(TTS_CFG_KEY, ttsCfg);
   toast('朗读设置已保存');
 }
