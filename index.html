@@ -215,6 +215,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .dashStat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;text-align:center;display:flex;flex-direction:column;gap:2px}
 .dashStat .k{font-size:12px;color:#6b7280}
 .dashStat .v{font-size:22px;font-weight:500}
+.crossBanner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:12px;margin-bottom:14px;cursor:pointer;background:#FDEBE7;border:1px solid #F0997B;color:#A32D2D;font-weight:500;transition:box-shadow .15s}
+.crossBanner:hover{box-shadow:0 2px 10px rgba(163,45,45,.18)}
+.crossBanner.done{background:#F1EFE8;border-color:#D3D1C7;color:#6b7280;cursor:default}
+.crossBanner .bannerArrow{font-size:18px;color:#A32D2D}
 .dashGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .subjCard{background:#fff;border:1px solid #e5e7eb;border-top:3px solid #185FA5;border-radius:12px;padding:14px;cursor:pointer;transition:transform .15s;position:relative}
 .subjCard:hover{transform:translateY(-2px)}
@@ -343,6 +347,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="dashStat"><span class="k">总掌握率</span><span class="v" id="dRate">0%</span></div>
       <div class="dashStat"><span class="k">待重练</span><span class="v" id="dWeak" style="color:#A32D2D">0</span></div>
     </div>
+    <div id="crossRetryBanner"></div>
     <div class="dashGrid" id="dashGrid"></div>
     <div class="foot">完全离线单文件 · 六科进度保存在本机浏览器<br>未导入科目：点卡片直接选 Excel（列：章节|信号|结论|出处）</div>
   </div>
@@ -354,7 +359,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
   </div>
   <div class="tabs" id="tabs"></div>
 
-  <div class="todayRow">
+  <div class="todayRow" id="todayRow">
     <div class="ringCard">
       <div class="ringWrap">
         <svg viewBox="0 0 76 76">
@@ -388,7 +393,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     </div>
   </div>
 
-  <div class="toolbar">
+  <div class="toolbar" id="toolbar">
     <select id="topicSel"><option value="">全部专题</option></select>
     <button id="srcFilterBtn" class="browse">📄 出处</button>
     <select id="modeSel">
@@ -1096,6 +1101,7 @@ let queue = [], pos = 0, shown = false, combo = 0, markBusy = false;
 let retryOrder = [];   /* 本次会话，存 id */
 let browseMode = false;
 let isTopicTrain = false;   /* 专题练模式（自定义 queue），与审核模式互斥 */
+let isCrossRetry = false;   /* 跨科重练模式（首页入口，全局 FIFO 队列） */
 let lastBrowseId = null;   /* 记录浏览历史用，避免重复记录同一卡片 */
 let savePersonTimer = null;   /* 节流 savePerson */
 
@@ -1428,14 +1434,26 @@ function show(){
   $('trainPos').textContent = '第 ' + (pos + 1) + ' / ' + queue.length + ' 张';
   const d = itemById(queue[pos]);
   if(!d){ pos++; show(); return; }
-  $('fBadge').textContent = d.t || '未分类';
-  $('bBadge').textContent = d.t || '未分类';
+  if(isCrossRetry){
+    const sName = subjectOfId(d.id) || cur;
+    const sc = ALL_SUBJECTS[sName];
+    const col = (sc && sc.color) || SUBJ_COLORS[sName] || '#185FA5';
+    document.documentElement.style.setProperty('--accent', col);
+    document.documentElement.style.setProperty('--badge-bg', col + '26');
+    document.documentElement.style.setProperty('--badge-fg', col);
+    $('trainTitle').textContent = '🔁 跨科重练 · 剩余 ' + (queue.length - pos) + ' 张';
+    $('fBadge').textContent = (sc ? sc.display : sName) + ' · ' + (d.t || '未分类');
+    $('bBadge').textContent = (sc ? sc.display : sName) + ' · ' + (d.t || '未分类');
+  } else {
+    $('fBadge').textContent = d.t || '未分类';
+    $('bBadge').textContent = d.t || '未分类';
+  }
   /* 记录浏览历史（防重复，同卡连续翻牌只记一次） + 更新 browseMeta */
   if(d.id !== lastBrowseId){
     lastBrowseId = d.id;
     const tsNow = Date.now();
     const sForMeta = subjectOfId(d.id) || cur;
-    const curMode = isTopicTrain ? '专题练' : (browseMode ? '审核' : '训练');
+    const curMode = isCrossRetry ? '跨科重练' : (isTopicTrain ? '专题练' : (browseMode ? '审核' : '训练'));
     browseHistory.unshift({ts: tsNow, id: d.id, mode: curMode, subject: sForMeta, src: d.src || '', t: d.t || ''});
     if(browseHistory.length > 500) browseHistory.length = 500;
     /* 持久化：每张卡的浏览时间和审核标记（训练/审核/专题练都更新 lastBrowse；只有审核模式设 browsed） */
@@ -1597,7 +1615,7 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
     if(level === 2){ sHalf(); toast('已标记模糊，稍后重练'); }
     else { combo = 0; sWrong(); toast('已加入待重练'); }
     if(fxCfg.wrongShake){ const cd = $('card'); cd.classList.remove('shake'); void cd.offsetWidth; cd.classList.add('shake'); setTimeout(() => cd.classList.remove('shake'), 500); }
-    if(!retryOrder.includes(id)) retryOrder.push(id);
+    if(!isCrossRetry && !retryOrder.includes(id)) retryOrder.push(id);
   }
   sessionSeen++;
   if(level === 3) sessionCorrect++;
@@ -1608,6 +1626,10 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
   card.classList.add('hide');
   setTimeout(() => {
     if(pos + 1 >= queue.length){
+      if(isCrossRetry){
+        isCrossRetry = false; restoreTrainUI(); showView('dash'); toast('跨科重练完成 🎉');
+        return;
+      }
       if(jumpToNextTopic()) return;
     }
     pos++; updateStats(); show();   /* 注：不再 stopSpeak——mark() 顶部已停，且不能打断刚播出的下一卡语音 */
@@ -1706,6 +1728,7 @@ function renderDash(){
     sub.textContent = '今日 ' + cnt + '/' + goalN + ' 题 · 掌握 ' + (total ? Math.round(pass/total*100) : 0) + '%';
   }
   dashStats();
+  renderCrossBanner();
   renderTimeRing();   /* 顶部：各科投入时间分布 */
   const grid = $('dashGrid');
   grid.innerHTML = '';
@@ -1773,7 +1796,7 @@ function renderDash(){
 function showView(v){
   $('viewDash').style.display = v === 'dash' ? '' : 'none';
   $('viewTrain').style.display = v === 'train' ? '' : 'none';
-  if(v === 'dash'){ viewingCard = false; flushTime(); lastView = {view:'dash'}; savePerson(); renderDash(); }
+  if(v === 'dash'){ if(isCrossRetry){ isCrossRetry = false; restoreTrainUI(); } viewingCard = false; flushTime(); lastView = {view:'dash'}; savePerson(); renderDash(); }
 }
 function openManage(){ $('viewManage').style.display = 'block'; renderManage(); }
 function closeManage(){ $('viewManage').style.display = 'none'; }
@@ -1844,13 +1867,14 @@ function seedRetryOrderFor(name){
   retryOrder = ids;
 }
 function switchSubject(name){
+  isCrossRetry = false;   /* 普通进入科目时退出跨科模式 */
   cur = name;
   const c = ALL_SUBJECTS[name].color;
   document.documentElement.style.setProperty('--accent', c);
   document.documentElement.style.setProperty('--badge-bg', c + '26');
   document.documentElement.style.setProperty('--badge-fg', c);
   topic = ''; onlyWeak = false; combo = 0; seedRetryOrderFor(name);
-  browseMode = false; isTopicTrain = false;   /* 从仪表盘进入始终默认训练模式 */
+  browseMode = false; isTopicTrain = false; isCrossRetry = false;   /* 从仪表盘进入始终默认训练模式 */
   $('browseBar').style.display = 'none';
   $('browseActions').style.display = 'none';
   $('markActions').style.display = '';
@@ -2741,6 +2765,55 @@ function openModeModal(purpose){
   }
   $('modeModal').classList.add('show');
 }
+/* ---------- 跨科重练（首页入口：全部科目 答错/模糊 卡片 FIFO） ---------- */
+function crossRetryCount(){
+  let n = 0;
+  SUBJ_NAMES.forEach(nm => { const st = state[nm] || {}; Object.keys(st).forEach(id => { if(st[id] === 2 || st[id] === 3) n++; }); });
+  return n;
+}
+function renderCrossBanner(){
+  const b = $('crossRetryBanner'); if(!b) return;
+  const n = crossRetryCount();
+  if(n > 0){
+    b.className = 'crossBanner';
+    b.innerHTML = '<span>🔁 跨科重练 · <b style="font-size:16px">' + n + '</b> 张待重练（答错+模糊）</span><span class="bannerArrow">›</span>';
+  } else {
+    b.className = 'crossBanner done';
+    b.innerHTML = '<span>✅ 暂无待重练，全部已掌握</span>';
+  }
+}
+function enterCrossRetry(){
+  const ids = [];
+  SUBJ_NAMES.forEach(nm => {
+    const st = state[nm] || {}; const lr = lastRes[nm] || {};
+    Object.keys(st).forEach(id => { if(st[id] === 2 || st[id] === 3) ids.push({id: id, ts: (lr[id] && lr[id].ts) || 0}); });
+  });
+  if(!ids.length){ toast('暂无待重练的卡片'); return; }
+  ids.sort((a, b) => a.ts - b.ts);   /* 全局 FIFO：最先标记的优先 */
+  queue = ids.map(x => x.id);
+  pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
+  isCrossRetry = true; isTopicTrain = false; browseMode = false;
+  $('browseBar').style.display = 'none'; $('topicTrainBar').style.display = 'none';
+  $('markActions').style.display = ''; $('browseActions').style.display = 'none';
+  $('browseBtn').classList.remove('active');
+  $('todayRow').style.display = 'none';
+  $('tabs').style.display = 'none';
+  $('toolbar').style.display = 'none';
+  $('backBtn').textContent = '← 返回总览';
+  cur = subjectOfId(queue[0]) || cur;
+  refreshToday(); show(); showView('train');
+  sessionMode = 'train'; sessionSeen = 0; sessionCorrect = 0;
+  sessionTimeBase = (subjectTime[cur] || 0);
+  sessionStartTs = Date.now(); lastResultPushTs = sessionStartTs;
+  idlePaused = false; resetIdle();
+}
+function restoreTrainUI(){
+  $('todayRow').style.display = '';
+  $('tabs').style.display = '';
+  $('toolbar').style.display = '';
+  $('backBtn').textContent = '← 六科总览';
+}
+
 function enterTrain(name){ pendingSubject = name; pendingResumeId = null; openModeModal('enter'); }
 function handleModeChoice(mode){
   if(modeModalPurpose === 'enter'){
@@ -2756,11 +2829,11 @@ function doEnterSubject(mode){
   if(!name || !ALL_SUBJECTS[name]){ showView('dash'); return; }
   switchSubject(name);                 /* 进入并默认训练模式、重建队列 */
   if(mode === 'browse'){
-    browseMode = true; isTopicTrain = false;
+    browseMode = true; isTopicTrain = false; isCrossRetry = false;
     $('browseBar').style.display = ''; $('browseActions').style.display = ''; $('markActions').style.display = 'none';
     $('browseBtn').classList.add('active');
   } else {
-    browseMode = false; isTopicTrain = false;
+    browseMode = false; isTopicTrain = false; isCrossRetry = false;
     $('browseBar').style.display = 'none'; $('browseActions').style.display = 'none'; $('markActions').style.display = '';
     $('browseBtn').classList.remove('active');
   }
@@ -3351,7 +3424,8 @@ async function testPush(){
 }
 
 /* ---------- 事件绑定 ---------- */
-$('backBtn').addEventListener('click', () => showView('dash'));
+$('backBtn').addEventListener('click', () => { if(isCrossRetry){ isCrossRetry = false; restoreTrainUI(); } showView('dash'); });
+$('crossRetryBanner').addEventListener('click', () => { if(!isCrossRetry) enterCrossRetry(); });
 $('manageBackBtn').addEventListener('click', closeManage);
 $('card').addEventListener('click', flip);
 $('btnPass').addEventListener('click', () => mark(3));
