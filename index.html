@@ -1737,6 +1737,17 @@ function renderDash(){
       let pass = 0, fail = 0, half = 0;
       subj.items.forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2) fail++; else if(v===3) half++; });
       const pct = Math.round(pass / subj.items.length * 100);
+      /* 最近练习时间（取 lastRes 最大 ts） */
+      const lr = lastRes[name] || {};
+      let maxTs = 0; for(const k in lr){ const t = lr[k] && lr[k].ts; if(t > maxTs) maxTs = t; }
+      const lastTxt = !maxTs ? '<span style="color:#9ca3af">尚未练习</span>'
+        : (() => {
+            const d = Math.floor((Date.now() - maxTs) / 86400000);
+            if(d <= 0) return '<span style="color:#3B6D11;font-weight:500">今天</span>';
+            if(d === 1) return '<span>昨天</span>';
+            if(d <= 3) return d + ' 天前';
+            return '<span style="color:#A32D2D;font-weight:500">' + d + ' 天前</span>';
+          })();
       const td = todayD[name] || {};
       const cnt = td.date === today() ? td.count : 0;
       const goalN = goal[name] || 300;
@@ -1745,6 +1756,7 @@ function renderDash(){
         + '<div class="scBar"><i style="width:' + pct + '%;background:' + c + '"></i></div>'
         + '<div class="scRow">已掌握 ' + pass + ' / ' + subj.items.length + ' 条</div>'
         + '<div class="scRow">薄弱 <span style="color:#A32D2D">' + fail + '</span> · 模糊 <span style="color:#854F0B">' + half + '</span> · 今日 ' + cnt + '/' + goalN + '</div>'
+        + '<div class="scRow" style="color:#6b7280">最近练习：' + lastTxt + '</div>'
         + '<div class="scGo" style="color:' + c + '">进入训练 ↗</div>';
       card.addEventListener('click', e => {
         if(e.target.closest('.scEdit')) return;   /* 点 ✎ 不进入训练 */
