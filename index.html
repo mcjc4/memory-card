@@ -657,6 +657,9 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="cloudPushBtn">从本地同步到云端</button>
       <button id="cloudDisconnectBtn" class="del">断开云端</button>
     </div>
+    <div class="row2" style="grid-template-columns:1fr;margin-top:8px">
+      <button id="cloudRestoreBtn" class="del">♻ 恢复本地备份（拉取前自动备份，覆盖本地并上传云端）</button>
+    </div>
 
     <div style="font-size:14px;font-weight:500;margin:16px 0 8px">📢 卡片朗读（Edge 神经音色 · 在线优先，离线自动降级系统语音）</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
@@ -935,11 +938,11 @@ const PERSON_KEY = 'wulun_person_v2';
 const ACTIVE_KEY = 'wulun_active_person';
 const CARDS_IMPORTED_KEY = 'wulun_cards_imported';   /* 卡片库全局共享（不按执行人隔离） */
 const CARDS_CUSTOM_KEY = 'wulun_cards_custom';
-const PERSON_STORE = loadJ(PERSON_KEY, {});
+let PERSON_STORE = loadJ(PERSON_KEY, {});   /* let：恢复备份时重新赋值 */
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
 let state, todayD, goal, best, streakD, guard, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount, subjectTime;   /* 当前执行人的数据（bindPerson 绑定） */
 function emptyPerson(){
-  return {state:{}, today:{}, goal:{}, best:{}, streak:[], pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}, guard:{date:'', count:0, minutes:0}};
+  return {state:{}, today:{}, goal:{}, best:{}, streak:[], pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}, guard:{date:'', count:0, minutes:0}, updatedAt:0};
 }
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
@@ -949,6 +952,7 @@ function bindPerson(key){
   state = d.state; todayD = d.today; goal = d.goal; best = d.best; streakD = d.streak;
   if(!d.guard) d.guard = {date:'', count:0, minutes:0};
   guard = d.guard;
+  setBaseUp(d.updatedAt || 0);   /* 防覆盖 v2：记录本执行人加载/同步时的基准版本 */
   /* 卡片库从全局存储加载（跨执行人共享） */
   IMPORTED = loadJ(CARDS_IMPORTED_KEY, {});
   CUSTOM = loadJ(CARDS_CUSTOM_KEY, {});
@@ -985,6 +989,7 @@ function savePerson(){
   saveJ(CARDS_CUSTOM_KEY, CUSTOM);
   d.pos = POS; d.lastView = lastView; d.lastRes = lastRes; d.tasks = tasks;
   d.browseHistory = browseHistory; d.browseMeta = browseMeta; d.trainCount = trainCount; d.subjectTime = subjectTime;
+  d.updatedAt = Date.now();   /* 防覆盖 v2：保存时刻即本地版本 */
   saveJ(PERSON_KEY, PERSON_STORE);
 }
 function personName(){ const p = PERSONS.find(x => x.key === personKey); return p ? p.name : personKey; }
@@ -2251,8 +2256,51 @@ function loadCloudCfg(){
   return defaultCloudCfg();
 }
 function saveCloudCfg(c){ try{ localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(c)); }catch(e){} }
-function cloudSyncAt(){ return Number(localStorage.getItem(CLOUD_SYNC_KEY))||0; }
-function setCloudSyncAt(ts){ try{ localStorage.setItem(CLOUD_SYNC_KEY, String(ts)); }catch(e){} }
+function cloudSyncAt(){ return Number(localStorage.getItem(CLOUD_SYNC_KEY + '_' + personKey))||0; }
+function setCloudSyncAt(ts){ try{ localStorage.setItem(CLOUD_SYNC_KEY + '_' + personKey, String(ts)); }catch(e){} }
+/* ===== 云同步防覆盖 v2（参照学习工作台 SOP）===== */
+const SYNCBASE_KEY = 'wulun_syncbase_v1';
+function baseUpKey(){ return SYNCBASE_KEY + '_' + personKey; }
+function getBaseUp(){ return Number(localStorage.getItem(baseUpKey())) || 0; }
+function setBaseUp(v){ try{ localStorage.setItem(baseUpKey(), String(v)); }catch(e){} }
+function curUpdatedAt(){ const d = PERSON_STORE[personKey]; return (d && d.updatedAt) || 0; }
+/* 只查云端 updated_at（网络失败返回 null → 保护降级为直接 push，不影响可用性） */
+async function fetchCloudMeta(){
+  try{
+    const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + cloudDocId() + '&select=updated_at';
+    const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 6000);
+    if(!res.ok) throw new Error('http ' + res.status);
+    const rows = await res.json();
+    if(Array.isArray(rows) && rows.length && rows[0] && rows[0].updated_at) return new Date(rows[0].updated_at).getTime() || 0;
+    return 0;
+  }catch(e){ console.warn('fetchCloudMeta failed:', e); return null; }
+}
+/* 核心业务字段签名（跨执行人污染比对用，忽略 updatedAt 等） */
+function coreSig(o){
+  if(!o || typeof o !== 'object') return '';
+  const pick = ['state','today','goal','best','streak','lastRes','trainCount','subjectTime','browseHistory','browseMeta','pos'];
+  const c = {};
+  pick.forEach(k => { if(o[k] !== undefined) c[k] = o[k]; });
+  try{ return JSON.stringify(c); }catch(e){ return ''; }
+}
+/* 跨执行人污染检测：云端数据疑似与另一执行人本地相同 → 拒绝覆盖 */
+function hasRealData(d){
+  if(!d) return false;
+  if(d.state && Object.keys(d.state).some(k => Object.keys(d.state[k] || {}).length > 0)) return true;
+  if(d.today && Object.keys(d.today).length) return true;
+  return false;
+}
+function isPolluted(p){
+  const other = PERSONS.find(x => x.key !== personKey);
+  if(!other) return false;
+  try{
+    const store = JSON.parse(localStorage.getItem(PERSON_KEY) || '{}');
+    const otherD = store[other.key];
+    if(!otherD || !hasRealData(otherD)) return false;   /* 另一执行人无实质数据 → 不判污染 */
+    const sig = coreSig(p);
+    return sig !== '' && sig === coreSig(otherD);
+  }catch(e){ return false; }
+}
 function sbBase(u){ return (u||'').replace(/\/rest\/v1\/?$/,'').replace(/\/+$/,''); }
 function sbHeaders(key, contentType){
   const h = {'apikey': key};
@@ -2265,7 +2313,8 @@ let cloudCfg = loadCloudCfg();
 let cloudReady = false, cloudStatus = 'off', cloudPushTimer = null;
 function cloudPayload(){
   return { v:1, custom:CUSTOM, imported:IMPORTED, state:state, today:todayD, goal:goal, best:best, streak:streakD,
-           browseHistory:browseHistory, browseMeta:browseMeta, lastRes:lastRes, pos:POS, trainCount:trainCount, subjectTime:subjectTime };
+           browseHistory:browseHistory, browseMeta:browseMeta, lastRes:lastRes, pos:POS, trainCount:trainCount, subjectTime:subjectTime,
+           updatedAt: curUpdatedAt() };
 }
 function applyCloudPayload(p){
   if(!p || typeof p !== 'object') return;
@@ -2369,15 +2418,27 @@ function fetchTimeout(url, opts, ms){
       .catch(e => { clearTimeout(timer); reject(e); });
   });
 }
-async function pushCloud(){
+async function pushCloud(force){
   if(!cloudReady || !cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
   try{
+    /* 防覆盖：云端比基准版本新 → 本地是旧数据 → 拒绝上传，改为拉取（云端优先） */
+    if(!force){
+      const meta = await fetchCloudMeta();
+      if(meta !== null && meta > Math.max(getBaseUp(), 0)){
+        console.warn('push guard: cloud newer than base, skip push');
+        if(cloudStatus !== 'online'){ cloudStatus = 'online'; renderCloudBadge(); }
+        toast('⚠️ 云端有更新，已自动拉取云端最新数据');
+        pullCloud(false).catch(()=>{});
+        return;
+      }
+    }
     const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
     const headers = Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'});
-    const body = JSON.stringify({id: cloudDocId(), data: cloudPayload(), updated_at: new Date().toISOString()});
+    const up = curUpdatedAt() || Date.now();
+    const body = JSON.stringify({id: cloudDocId(), data: cloudPayload(), updated_at: new Date(up).toISOString()});
     const res = await fetchTimeout(url, {method:'POST', headers, body}, 8000);
     if(!res.ok) throw new Error('http ' + res.status);
-    setCloudSyncAt(Date.now());
+    setCloudSyncAt(up); setBaseUp(up);
     if(cloudStatus !== 'online'){ cloudStatus = 'online'; renderCloudBadge(); }
   }catch(e){ console.warn('push failed:', e); }
 }
@@ -2393,13 +2454,30 @@ async function pullCloud(silent, force){
       const remoteUp = new Date(row.updated_at || 0).getTime() || 0;
       if(force || remoteUp > cloudSyncAt()){
         const p = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+        /* 跨执行人污染检测：云端数据疑似写成了另一执行人 → 拒绝覆盖 */
+        if(!force && isPolluted(p)){
+          if(!silent) toast('⚠️ 云端数据疑似与另一执行人相同（可能被错误覆盖），已拒绝拉取');
+          return;
+        }
+        /* 本地有未同步修改且云端更新 → 先备份本地再合并（云端优先） */
+        const localDirty = curUpdatedAt() > cloudSyncAt();
+        if(localDirty && !force){
+          try{
+            const raw = localStorage.getItem(PERSON_KEY);
+            if(raw) localStorage.setItem(PERSON_KEY + '_prepull_backup', raw);
+            console.warn('pull guard: local dirty, backup then merge cloud');
+          }catch(e){}
+        }
         applyCloudPayload(p);
-        setCloudSyncAt(remoteUp);
+        /* 版本对齐云端 */
+        if(PERSON_STORE[personKey]) PERSON_STORE[personKey].updatedAt = remoteUp;
+        saveJ(PERSON_KEY, PERSON_STORE);
+        setCloudSyncAt(remoteUp); setBaseUp(remoteUp);
         rebuildSubjects(); refreshToday(); updateStats(); show();
         if(!silent) toast('已同步云端数据');
       }
     } else if(force){
-      await pushCloud();
+      await pushCloud(true);
     }
   }catch(e){ console.warn('pull failed:', e); if(!silent) throw e; }
 }
@@ -3473,9 +3551,29 @@ $('cloudPushBtn').addEventListener('click', async () => {
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法同步'); return; }
   $('cloudPushBtn').textContent = '上传中…';
   $('cloudPushBtn').disabled = true;
-  try{ await pushCloud(); toast('✅ 已从本地同步到云端'); }
+  try{ await pushCloud(true); toast('✅ 已从本地同步到云端'); }
   catch(e){ toast('❌ 上传失败：' + e.message); }
   finally{ $('cloudPushBtn').textContent = '从本地同步到云端'; $('cloudPushBtn').disabled = false; }
+});
+$('cloudRestoreBtn').addEventListener('click', () => {
+  const raw = localStorage.getItem(PERSON_KEY + '_prepull_backup');
+  if(!raw){ toast('没有可恢复的备份（本地从未在拉取时被自动备份）'); return; }
+  if(!confirm('将用备份数据覆盖当前本地数据并上传云端，确定？')) return;
+  try{
+    const store = JSON.parse(raw);
+    if(!store || typeof store !== 'object') throw new Error('bad backup');
+    PERSON_STORE = store;
+    if(PERSON_STORE[personKey]) PERSON_STORE[personKey].updatedAt = Date.now();
+    bindPerson(personKey);
+    rebuildSubjects(); migrateStateToId();
+    const c = ALL_SUBJECTS[cur] ? ALL_SUBJECTS[cur].color : '#185FA5';
+    document.documentElement.style.setProperty('--accent', c);
+    document.documentElement.style.setProperty('--badge-bg', c + '26');
+    document.documentElement.style.setProperty('--badge-fg', c);
+    refreshToday(); updateStats(); show(); renderDash();
+    savePerson();
+    pushCloud(true).then(() => toast('✅ 已恢复本地备份并上传云端')).catch(() => toast('已恢复本地，云端上传失败'));
+  }catch(e){ toast('备份数据损坏，无法恢复'); }
 });
 $('cloudDisconnectBtn').addEventListener('click', async () => {
   if(cloudStatus === 'off' && cloudCfg && cloudCfg.disabled){
