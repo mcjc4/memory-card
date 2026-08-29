@@ -2200,7 +2200,14 @@ function buildSubject(rows, fileName){
   }
   if(!items.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
   let name = subjSet.size === 1 ? [...subjSet][0] : (fileName.replace(/\.(xlsx|xls|csv)$/i, '').trim() || '新科目');
-  if(ALL_SUBJECTS[name]) name = name + '（' + new Date().toLocaleDateString('zh-CN') + '）';
+  /* 防同名遮挡：空壳（被删空的 CUSTOM）算不存在，先清掉再继续 */
+  while(ALL_SUBJECTS[name]){
+    if(CUSTOM[name] && (!CUSTOM[name].items || CUSTOM[name].items.length === 0)){
+      delete CUSTOM[name];
+      break;
+    }
+    name = name + '_' + Date.now().toString(36).slice(-4);   /* 真正的冲突（如同日期重导）→ 加短后缀 */
+  }
   /* 给导入项生成稳定 id */
   items.forEach((it, idx) => { it.id = name + '-imp' + idx + '-' + Date.now().toString(36); });
   return {name, items};
@@ -2253,6 +2260,8 @@ async function importFile(file){
       rows = XL.parseSheet(await get(target), shared);
     }
     const {name, items} = buildSubject(rows, file.name);
+    /* 双保险：彻底清除同名空壳（无论 IMPORTED/CUSTOM），避免后续 rebuildSubjects 误用空数据 */
+    ['CUSTOM','IMPORTED'].forEach(K => { if(window[K][name] && (!window[K][name].items || window[K][name].items.length === 0)) delete window[K][name]; });
     const color = SUBJ_COLORS[name] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length];
     IMPORTED[name] = {color: color, display: name, items};
     savePerson();
