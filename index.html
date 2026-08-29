@@ -1826,6 +1826,9 @@ function closeManage(){ $('viewManage').style.display = 'none'; }
 
 /* ---------- 科目合并 & 切换 ---------- */
 function rebuildSubjects(){
+  /* 启动时清理所有空壳（被删空的 CUSTOM）—— 避免 subjDef 优先取到空数据 */
+  Object.keys(CUSTOM).forEach(n => { if(!CUSTOM[n] || !CUSTOM[n].items || !CUSTOM[n].items.length) delete CUSTOM[n]; });
+  Object.keys(IMPORTED).forEach(n => { if(!IMPORTED[n] || !IMPORTED[n].items || !IMPORTED[n].items.length) delete IMPORTED[n]; });
   ALL_SUBJECTS = {};
   Object.keys(SUBJECTS).forEach(n => ALL_SUBJECTS[n] = subjDef(n));
   Object.keys(IMPORTED).forEach(n => { if(!ALL_SUBJECTS[n]) ALL_SUBJECTS[n] = subjDef(n); });
