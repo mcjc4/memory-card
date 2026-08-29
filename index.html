@@ -73,6 +73,9 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .card.show .concl{font-size:16px;line-height:1.85}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
+  .linkBadge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;cursor:pointer;text-decoration:none;transition:filter .15s}
+  .linkBadge:hover{filter:brightness(.92)}
+  .orig-preview{font-size:12px;color:#9ca3af;line-height:1.5;align-self:flex-start;max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:10px;word-break:break-all}
 .lastRes{font-size:11px;font-weight:500;margin-bottom:6px;align-self:flex-start}
 .browsedTag{display:inline-block;background:#E6F1FB;color:#185FA5;font-size:11px;font-weight:500;padding:2px 10px;border-radius:999px;align-self:flex-start;margin-bottom:6px}
 .speakBtn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:#F1EFE8;border:1px solid #d1d5db;border-radius:50%;cursor:pointer;font-size:15px;margin:0 6px 6px 0;align-self:flex-start;transition:background .2s,transform .15s;line-height:1;flex-shrink:0}
@@ -427,8 +430,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="browsedTag" id="fBrowsed" style="display:none"></div>
       <div class="lastRes" id="fLast" style="display:none"></div>
       <div class="src-front" id="fSrc" style="display:none"></div>
+      <div class="src-front" id="fLink" style="display:none"></div>
       <span class="badge" id="fBadge"></span>
       <div class="sig" id="fSig"></div>
+      <div class="orig-preview" id="fOrig" style="display:none"></div>
       <div class="hint">点卡片展开答案 <span class="kbd">空格</span> · 或用 <span class="kbd">1</span> 没记住 <span class="kbd">2</span> 模糊 <span class="kbd">3</span> 记住了</div>
     </div>
     <div class="answer-zone">
@@ -436,6 +441,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
         <span class="badge" id="bBadge"></span>
         <div class="concl" id="bConcl"></div>
         <div class="src" id="bSrc"></div>
+        <div class="src" id="bLink" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -492,6 +498,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <textarea id="mConcl" placeholder="必填，想到什么结论/警惕什么"></textarea>
     <label>出处</label>
     <input id="mSrc" placeholder="可选，PDF 文件名或页码">
+    <label>原题题干（可选，卡片上小字预览）</label>
+    <textarea id="mOrig" placeholder="可选，原题题干（显示前若干字）"></textarea>
+    <label>题目链接（可选，徽章点击跳转）</label>
+    <input id="mLink" placeholder="可选，https://…">
     <div class="modalHint" id="modalErr"></div>
     <div class="row2">
       <button id="modalCancel">取消</button>
@@ -1498,11 +1508,19 @@ function show(){
   } else { $('fLast').textContent = ''; $('fLast').style.display = 'none'; }
   if(d.src){ $('fSrc').textContent = '📄 ' + d.src; $('fSrc').style.display = ''; }
   else { $('fSrc').textContent = ''; $('fSrc').style.display = 'none'; }
+  const fLinkEl = $('fLink'), fOrigEl = $('fOrig');
+  if(d.link){ fLinkEl.innerHTML = '<a class="linkBadge" href="' + escHtml(d.link).replace(/"/g,'&quot;') + '" target="_blank" rel="noopener">🔗 原题链接</a>'; fLinkEl.style.display = ''; }
+  else { fLinkEl.innerHTML = ''; fLinkEl.style.display = 'none'; }
+  if(d.orig){ fOrigEl.textContent = d.orig; fOrigEl.style.display = ''; }
+  else { fOrigEl.textContent = ''; fOrigEl.style.display = 'none'; }
   $('fSig').innerHTML = renderMath(d.s);
   fitSigText();   /* 题干字号自适应：宽度 95% 且高度不超屏幕 */
   prefetchAdjacentAudio();   /* 后台预加载：当前卡背面 + 下一卡正面，切卡翻牌零等待 */
   $('bConcl').innerHTML = renderMath(d.c);
   $('bSrc').textContent = d.src ? '出处：' + d.src : '';
+  const bLinkEl = $('bLink');
+  if(d.link){ bLinkEl.innerHTML = '<a class="linkBadge" href="' + escHtml(d.link).replace(/"/g,'&quot;') + '" target="_blank" rel="noopener">🔗 原题链接</a>'; bLinkEl.style.display = ''; }
+  else { bLinkEl.innerHTML = ''; bLinkEl.style.display = 'none'; }
   $('card').classList.remove('show', 'hide', 'collapsing');
   shown = false;
   markBusy = false;
@@ -1962,6 +1980,8 @@ function openCardModal(editId){
   $('mSig').value = it ? it.s : '';
   $('mConcl').value = it ? it.c : '';
   $('mSrc').value = it ? it.src : '';
+  $('mOrig').value = it ? (it.orig || '') : '';
+  $('mLink').value = it ? (it.link || '') : '';
   $('modalErr').textContent = '';
   $('cardModal').classList.add('show');
   setTimeout(() => $('mSig').focus(), 80);
@@ -1972,12 +1992,14 @@ function submitCard(){
   const s = $('mSig').value.trim();
   const c = $('mConcl').value.trim();
   const src = $('mSrc').value.trim();
+  const orig = $('mOrig').value.trim();
+  const link = $('mLink').value.trim();
   if(!s || !c){ $('modalErr').textContent = '题干信号与结论为必填项'; return; }
   if(modalEditId){
-    updateCard(cur, modalEditId, {t, s, c, src});
+    updateCard(cur, modalEditId, {t, s, c, src, orig, link});
     toast('已更新');
   } else {
-    addCard(cur, {t, s, c, src});
+    addCard(cur, {t, s, c, src, orig, link});
     toast('已添加，开始训练时会出现');
   }
   closeCardModal();
@@ -2067,8 +2089,8 @@ function exportJSON(){
 }
 function exportCSV(){
   const esc = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-  const rows = [['章节知识点','题干信号','结论/易错点','出处']];
-  items().forEach(it => rows.push([it.t||'', it.s||'', it.c||'', it.src||'']));
+  const rows = [['章节知识点','题干信号','结论/易错点','出处','原题题干','题目链接']];
+  items().forEach(it => rows.push([it.t||'', it.s||'', it.c||'', it.src||'', it.orig||'', it.link||'']));
   const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n');
   downloadFile(`记忆卡_${cur}_${today()}.csv`, csv, 'text/csv;charset=utf-8');
   toast('已导出 CSV');
@@ -2155,9 +2177,11 @@ function buildSubject(rows, fileName){
   let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
   if(headIdx === -1) headIdx = 0;
   const head = rows[headIdx].map(v => String(v || ''));
-  const ci = {s: undefined, c: undefined, t: undefined, src: undefined};
+  const ci = {s: undefined, c: undefined, t: undefined, src: undefined, orig: undefined, link: undefined};
   head.forEach((c, i) => {
     if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
+    else if(c.includes('原题')) ci.orig = i;          /* 原题题干列（卡片小字预览） */
+    else if(c.includes('链接')) ci.link = i;          /* 题目链接列（徽章点击跳转） */
     else if(c.includes('结论') || c.includes('易错') || c.includes('想到')) ci.c = i;
     else if(c.includes('章节') || c.includes('知识点') || c.includes('专题')) ci.t = i;
     else if(c.includes('出处') || c.includes('来源')) ci.src = i;
@@ -2172,7 +2196,7 @@ function buildSubject(rows, fileName){
     if(!s || !c) continue;
     const v0 = g(0);
     if(v0 && !v0.includes('科目')) subjSet.add(v0);
-    items.push({t: g(ci.t), s, c, src: g(ci.src)});
+    items.push({t: g(ci.t), s, c, src: g(ci.src), orig: g(ci.orig), link: g(ci.link)});
   }
   if(!items.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
   let name = subjSet.size === 1 ? [...subjSet][0] : (fileName.replace(/\.(xlsx|xls|csv)$/i, '').trim() || '新科目');
