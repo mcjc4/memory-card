@@ -511,6 +511,45 @@ h1{font-size:21px;font-weight:500;text-align:center}
   </div>
 </div>
 
+<!-- 导入科目弹窗（方案B：显式选择「新建科目 / 并入已浏览科目」+ 追加或覆盖） -->
+<div class="modalMask" id="importModal">
+  <div class="modalBox" style="max-width:540px">
+    <h2><span>📥 导入题目</span><span class="x" id="impClose">×</span></h2>
+    <div class="modalHint" id="impErr" style="color:#A32D2D;min-height:14px;margin:0 0 4px"></div>
+    <div style="font-size:13px;color:#374151;margin:6px 0 4px">① 选择文件（xlsx / xls / csv）</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="impFileBtn" class="ok" style="background:#185FA5;border-color:#185FA5;padding:7px 14px;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;white-space:nowrap">📁 选择文件</button>
+      <span id="impFileName" style="flex:1;font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未选择</span>
+    </div>
+    <input type="file" id="impFilePick" accept=".xlsx,.xls,.csv" style="display:none">
+    <div id="impParsed" style="display:none;font-size:13px;color:#0C447C;background:#E6F1FB;border-radius:8px;padding:7px 10px;margin:8px 0 2px">识别科目：<b id="impDetectedName"></b> · <b id="impDetectedCnt"></b> 条</div>
+    <div style="font-size:13px;color:#374151;margin:10px 0 4px">② 导入到 <span style="color:#9ca3af;font-weight:normal">（当前浏览：<b id="impCurName" style="color:#374151"></b>）</span></div>
+    <div style="margin:3px 0">
+      <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-weight:500"><input type="radio" name="impMode" id="impModeNew" checked style="width:auto"> 新建一个科目</label>
+      <div id="impNewWrap" style="padding-left:22px;margin-top:6px">
+        <input id="impNewName" placeholder="科目名称（留空自动取识别名）" style="width:100%;font-size:14px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;font-family:inherit">
+      </div>
+    </div>
+    <div style="margin:6px 0 3px">
+      <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-weight:500"><input type="radio" name="impMode" id="impModeMerge" style="width:auto"> 导入到已浏览科目</label>
+      <div id="impMergeWrap" style="display:none;padding-left:22px;margin-top:6px;font-size:13px;color:#374151">
+        目标科目：
+        <select id="impMergeSel" style="font-size:13px;padding:5px 6px;border:1px solid #d1d5db;border-radius:6px;max-width:150px"></select>
+        &nbsp;&nbsp;处理方式：
+        <select id="impStrategy" style="font-size:13px;padding:5px 6px;border:1px solid #d1d5db;border-radius:6px">
+          <option value="append">追加到现有卡片</option>
+          <option value="replace">整体替换（覆盖）</option>
+        </select>
+        <div class="modalHint" id="impBuiltinHint" style="display:none;color:#A32D2D;font-weight:normal">⚠️ 内置科目不可整体替换，已锁定为「追加」</div>
+      </div>
+    </div>
+    <div class="row2">
+      <button id="impCancel">取消</button>
+      <button id="impOk" class="ok">确认导入</button>
+    </div>
+  </div>
+</div>
+
 <!-- 管理页 -->
 <div class="manageWrap" id="viewManage" style="display:none">
   <div class="manageBox">
@@ -1843,6 +1882,7 @@ function rebuildSubjects(){
 function afterCardChange(){
   rebuildSubjects();
   renderTabs();
+  if(!ALL_SUBJECTS[cur]) return;       /* 防御：当前科目被删空/丢失时不访问 undefined */
   $('trainTitle').textContent = ALL_SUBJECTS[cur].display + ' · ' + ALL_SUBJECTS[cur].items.length + ' 条';
   if($('viewManage').style.display === 'block') renderManage();
   else show();
@@ -1872,13 +1912,15 @@ function renderTabs(){
   const box = $('tabs');
   box.innerHTML = '';
   SUBJ_NAMES.forEach(name => {
+    const s = ALL_SUBJECTS[name];
+    if(!s) return;                     /* 防御：科目定义缺失（导入中途被云同步/空壳清理）时跳过该 tab */
     const b = document.createElement('button');
     b.className = 'tab' + (name === cur ? ' active' : '');
-    const total = ALL_SUBJECTS[name].items.length;
+    const total = s.items.length;
     const st = state[name] || {};
     const remembered = Object.values(st).filter(v => v === 1).length;
-    b.textContent = ALL_SUBJECTS[name].display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '');
-    if(name === cur) b.style.background = ALL_SUBJECTS[name].color;
+    b.textContent = s.display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '');
+    if(name === cur) b.style.background = s.color;
     b.addEventListener('click', () => enterTrain(name));
     box.appendChild(b);
   });
@@ -1895,7 +1937,9 @@ function seedRetryOrderFor(name){
 function switchSubject(name){
   isCrossRetry = false;   /* 普通进入科目时退出跨科模式 */
   cur = name;
-  const c = ALL_SUBJECTS[name].color;
+  const def = ALL_SUBJECTS[name];
+  if(!def){ showView('dash'); toast('科目不存在或已被删除'); return; }   /* 防御：避免 undefined 连锁报错 */
+  const c = def.color;
   document.documentElement.style.setProperty('--accent', c);
   document.documentElement.style.setProperty('--badge-bg', c + '26');
   document.documentElement.style.setProperty('--badge-fg', c);
@@ -2202,77 +2246,182 @@ function buildSubject(rows, fileName){
     items.push({t: g(ci.t), s, c, src: g(ci.src), orig: g(ci.orig), link: g(ci.link)});
   }
   if(!items.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
-  let name = subjSet.size === 1 ? [...subjSet][0] : (fileName.replace(/\.(xlsx|xls|csv)$/i, '').trim() || '新科目');
-  /* 防同名遮挡：空壳（被删空的 CUSTOM）算不存在，先清掉再继续 */
-  while(ALL_SUBJECTS[name]){
-    if(CUSTOM[name] && (!CUSTOM[name].items || CUSTOM[name].items.length === 0)){
-      delete CUSTOM[name];
-      break;
-    }
-    name = name + '_' + Date.now().toString(36).slice(-4);   /* 真正的冲突（如同日期重导）→ 加短后缀 */
-  }
-  /* 给导入项生成稳定 id */
-  items.forEach((it, idx) => { it.id = name + '-imp' + idx + '-' + Date.now().toString(36); });
+  /* 仅做「识别名」推断，不做冲突改名——目标科目与处理方式由导入弹窗显式决策 */
+  const name = subjSet.size === 1 ? [...subjSet][0] : (fileName.replace(/\.(xlsx|xls|csv)$/i, '').trim() || '新科目');
   return {name, items};
 }
-async function importFile(file){
-  try{
-    let rows;
-    if(/\.csv$/i.test(file.name)){
-      rows = parseCSV((await file.text()).replace(/^\uFEFF/, ''));
-    } else {
-      const buf = new Uint8Array(await file.arrayBuffer());
-      if(!(buf[0] === 0x50 && buf[1] === 0x4b)) throw new Error('请使用 xlsx（Excel 2007+）格式，或另存为 csv');
-      const entries = XL.findEntries(buf);
-      /* 大小写不敏感索引（部分工具生成的 xlsx 大小写不统一） */
-      const lowerKeys = {};
-      Object.keys(entries).forEach(k => { lowerKeys[k.toLowerCase()] = k; });
-      const get = async n => {
-        const realKey = entries[n] ? n : lowerKeys[n.toLowerCase()];
-        if(!realKey) throw new Error('文件结构不兼容（缺少 ' + n + '）；请用 Excel/WPS 打开后「另存为 .xlsx」再试，或转 CSV 导入');
-        return XL.txt(await XL.readEntry(buf, entries[realKey]));
-      };
-      const wbdoc = new DOMParser().parseFromString(await get('xl/workbook.xml'), 'text/xml');
-      const sheets = wbdoc.getElementsByTagName('sheet');
-      if(!sheets.length) throw new Error('文件中没有工作表');
-      const first = sheets[0];
-      /* rid 多种方式取（命名空间属性在不同浏览器/解析器下行为不一） */
-      let rid = first.getAttribute('r:id');
-      if(!rid){
-        for(const a of first.attributes){
-          if(a.localName === 'id' && a.namespaceURI && a.namespaceURI.indexOf('relationships') !== -1){ rid = a.value; break; }
-        }
+async function parseImportFile(file){
+  let rows;
+  if(/\.csv$/i.test(file.name)){
+    rows = parseCSV((await file.text()).replace(/^\uFEFF/, ''));
+  } else {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    if(!(buf[0] === 0x50 && buf[1] === 0x4b)) throw new Error('请使用 xlsx（Excel 2007+）格式，或另存为 csv');
+    const entries = XL.findEntries(buf);
+    /* 大小写不敏感索引（部分工具生成的 xlsx 大小写不统一） */
+    const lowerKeys = {};
+    Object.keys(entries).forEach(k => { lowerKeys[k.toLowerCase()] = k; });
+    const get = async n => {
+      const realKey = entries[n] ? n : lowerKeys[n.toLowerCase()];
+      if(!realKey) throw new Error('文件结构不兼容（缺少 ' + n + '）；请用 Excel/WPS 打开后「另存为 .xlsx」再试，或转 CSV 导入');
+      return XL.txt(await XL.readEntry(buf, entries[realKey]));
+    };
+    const wbdoc = new DOMParser().parseFromString(await get('xl/workbook.xml'), 'text/xml');
+    const sheets = wbdoc.getElementsByTagName('sheet');
+    if(!sheets.length) throw new Error('文件中没有工作表');
+    const first = sheets[0];
+    /* rid 多种方式取（命名空间属性在不同浏览器/解析器下行为不一） */
+    let rid = first.getAttribute('r:id');
+    if(!rid){
+      for(const a of first.attributes){
+        if(a.localName === 'id' && a.namespaceURI && a.namespaceURI.indexOf('relationships') !== -1){ rid = a.value; break; }
       }
-      if(!rid){
-        for(const a of first.attributes){ if(/^r:id$/.test(a.name)){ rid = a.value; break; } }
-      }
-      let target = 'xl/worksheets/sheet1.xml';
-      if(rid){
-        const reldoc = new DOMParser().parseFromString(await get('xl/_rels/workbook.xml.rels'), 'text/xml');
-        for(const r of reldoc.getElementsByTagName('Relationship')){
-          if((r.getAttribute('Id') || '') === rid){ target = r.getAttribute('Target') || target; break; }
-        }
-      }
-      if(target.startsWith('/')) target = target.slice(1);
-      if(!target.startsWith('xl/')) target = 'xl/' + target;
-      /* sharedStrings 可选（缺失时所有 string 走 inlineStr） */
-      let shared = [];
-      if(lowerKeys['xl/sharedstrings.xml']){
-        try{ shared = XL.parseShared(await get('xl/sharedStrings.xml')); }catch(e){ shared = []; }
-      }
-      rows = XL.parseSheet(await get(target), shared);
     }
-    const {name, items} = buildSubject(rows, file.name);
-    /* 双保险：彻底清除同名空壳（无论 IMPORTED/CUSTOM），避免后续 rebuildSubjects 误用空数据 */
-    ['CUSTOM','IMPORTED'].forEach(K => { if(window[K][name] && (!window[K][name].items || window[K][name].items.length === 0)) delete window[K][name]; });
-    const color = SUBJ_COLORS[name] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length];
-    IMPORTED[name] = {color: color, display: name, items};
+    if(!rid){
+      for(const a of first.attributes){ if(/^r:id$/.test(a.name)){ rid = a.value; break; } }
+    }
+    let target = 'xl/worksheets/sheet1.xml';
+    if(rid){
+      const reldoc = new DOMParser().parseFromString(await get('xl/_rels/workbook.xml.rels'), 'text/xml');
+      for(const r of reldoc.getElementsByTagName('Relationship')){
+        if((r.getAttribute('Id') || '') === rid){ target = r.getAttribute('Target') || target; break; }
+      }
+    }
+    if(target.startsWith('/')) target = target.slice(1);
+    if(!target.startsWith('xl/')) target = 'xl/' + target;
+    /* sharedStrings 可选（缺失时所有 string 走 inlineStr） */
+    let shared = [];
+    if(lowerKeys['xl/sharedstrings.xml']){
+      try{ shared = XL.parseShared(await get('xl/sharedStrings.xml')); }catch(e){ shared = []; }
+    }
+    rows = XL.parseSheet(await get(target), shared);
+  }
+  return buildSubject(rows, file.name);
+}
+
+/* ============ 导入科目（方案 B：弹窗显式选择「新建 / 并入已浏览科目」+ 追加或覆盖） ============ */
+let impParsed = null;                /* 已解析文件 {name, items} */
+function subjExists(n){ return !!(SUBJECTS[n] || IMPORTED[n] || CUSTOM[n]); }
+function subjIsBuiltinOnly(n){ return !!SUBJECTS[n] && !IMPORTED[n] && !CUSTOM[n]; }
+function openImportModal(file){
+  rebuildSubjects();                 /* 先刷新科目列表，保证目标下拉与 ALL_SUBJECTS 一致 */
+  impParsed = null;
+  $('impErr').textContent = '';
+  $('impFileName').textContent = '未选择';
+  $('impParsed').style.display = 'none';
+  $('impNewName').value = '';
+  $('impCurName').textContent = (cur && ALL_SUBJECTS[cur]) ? ALL_SUBJECTS[cur].display : '—';
+  const sel = $('impMergeSel'); sel.innerHTML = '';
+  SUBJ_NAMES.forEach(n => {
+    const o = document.createElement('option');
+    o.value = n;
+    o.textContent = ALL_SUBJECTS[n].display + (subjIsBuiltinOnly(n) ? '（内置）' : '');
+    sel.appendChild(o);
+  });
+  if(cur && SUBJ_NAMES.indexOf(cur) >= 0) sel.value = cur;
+  $('impStrategy').value = 'append';
+  $('impModeNew').checked = true; $('impModeMerge').checked = false;
+  syncImpUI(); refreshImpStrategy();
+  $('importModal').classList.add('show');
+  if(file) parseImportAndShow(file);
+}
+function closeImportModal(){ $('importModal').classList.remove('show'); }
+function syncImpUI(){
+  const isNew = $('impModeNew').checked;
+  $('impNewWrap').style.display = isNew ? '' : 'none';
+  $('impMergeWrap').style.display = isNew ? 'none' : '';
+  if(isNew && impParsed && !$('impNewName').value) $('impNewName').value = impParsed.name;
+}
+function refreshImpStrategy(){
+  const merging = $('impModeMerge').checked;
+  const strat = $('impStrategy');
+  const builtin = merging && subjIsBuiltinOnly($('impMergeSel').value);
+  if(builtin){ strat.value = 'append'; strat.disabled = true; $('impBuiltinHint').style.display = ''; }
+  else { strat.disabled = false; $('impBuiltinHint').style.display = 'none'; }
+}
+/* 根据识别科目名智能预选：同名已存在 → 默认并入该科目；全新 → 默认新建 */
+function autoImpMode(){
+  if(!impParsed) return;
+  const n = impParsed.name;
+  if(subjExists(n)){
+    $('impModeMerge').checked = true; $('impModeNew').checked = false;
+    if(SUBJ_NAMES.indexOf(n) >= 0) $('impMergeSel').value = n;
+    $('impStrategy').value = 'append';
+  } else {
+    $('impModeNew').checked = true; $('impModeMerge').checked = false;
+    $('impNewName').value = n;
+  }
+  syncImpUI(); refreshImpStrategy();
+}
+async function parseImportAndShow(file){
+  try{
+    const r = await parseImportFile(file);   /* {name, items} */
+    impParsed = r;
+    $('impFileName').textContent = file.name;
+    $('impFileName').title = file.name;
+    $('impDetectedName').textContent = r.name;
+    $('impDetectedCnt').textContent = r.items.length;
+    $('impParsed').style.display = '';
+    $('impErr').textContent = '';
+    autoImpMode();
+  }catch(e){
+    impParsed = null;
+    $('impFileName').textContent = file.name;
+    $('impErr').textContent = '解析失败：' + (e.message || e);
+    $('impParsed').style.display = 'none';
+  }
+}
+function doImport(){
+  try{
+    if(!impParsed || !impParsed.items || !impParsed.items.length) throw new Error('请先选择并解析文件');
+    const isNew = $('impModeNew').checked;
+    let target, strategy;
+    if(isNew){
+      target = $('impNewName').value.trim() || (impParsed ? impParsed.name : '');
+      if(!target) throw new Error('请输入新科目名称');
+      if(subjExists(target)) throw new Error('「' + target + '」已存在：请改名，或改选「导入到已浏览科目」');
+      strategy = 'new';
+    } else {
+      target = $('impMergeSel').value;
+      if(!target) throw new Error('请选择目标科目');
+      strategy = $('impStrategy').value;
+      if(strategy === 'replace' && subjIsBuiltinOnly(target)) strategy = 'append';   /* 内置科目强制追加 */
+    }
+    /* 生成稳定 id（并入已有科目时统一用目标 key 前缀） */
+    const stamp = Date.now().toString(36);
+    const items = impParsed.items.map((it, idx) => Object.assign({}, it, {id: target + '-imp' + idx + '-' + stamp}));
+    const isBuiltin = !!SUBJECTS[target];
+    const box = CUSTOM[target] ? CUSTOM : (IMPORTED[target] ? IMPORTED : (isBuiltin ? CUSTOM : IMPORTED));   /* let 变量不可经 window 访问 */
+    const oldDef = CUSTOM[target] || IMPORTED[target] || SUBJECTS[target];
+    let finalItems;
+    if(strategy === 'replace') finalItems = items;
+    else if(oldDef && oldDef.items && oldDef.items.length){
+      /* 内置科目：源数据在 SUBJECTS，覆盖层未生成前 items 取内置题库，避免重复叠加 */
+      const baseItems = (box === CUSTOM && !CUSTOM[target] && isBuiltin) ? (SUBJECTS[target].items || []) : oldDef.items;
+      finalItems = baseItems.concat(items);
+    }
+    else finalItems = items;   /* 空壳 / 全新 */
+    /* 清掉「整体替换」后已不存在卡片的记忆状态（防止记住数虚高、浏览历史指向废卡） */
+    if(strategy === 'replace'){
+      const idSet = {}; finalItems.forEach(x => idSet[x.id] = 1);
+      if(state[target]) Object.keys(state[target]).forEach(id => { if(!idSet[id]) delete state[target][id]; });
+      if(lastRes[target]) Object.keys(lastRes[target]).forEach(id => { if(!idSet[id]) delete lastRes[target][id]; });
+      if(browseMeta[target]) Object.keys(browseMeta[target]).forEach(id => { if(!idSet[id]) delete browseMeta[target][id]; });
+      if(browseHistory){ browseHistory = browseHistory.filter(e => !(e.subject === target && !idSet[e.id])); if(browseHistory.length > 500) browseHistory.length = 500; }
+    }
+    box[target] = {
+      color: (oldDef && oldDef.color) || SUBJ_COLORS[target] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length],
+      display: oldDef ? oldDef.display : target,
+      items: finalItems
+    };
     savePerson();
     rebuildSubjects();
-    switchSubject(name);
+    closeImportModal();
+    switchSubject(target);
     schedulePush();
-    toast('已导入「' + name + '」共 ' + items.length + ' 条');
-  }catch(e){ toast('导入失败：' + e.message); }
+    const verb = strategy === 'new' ? '新建并导入' : (strategy === 'replace' ? '整体替换为' : '追加到');
+    toast('已' + verb + '「' + (oldDef ? oldDef.display : target) + '」共 ' + items.length + ' 条');
+  }catch(e){ $('impErr').textContent = e.message || String(e); }
 }
 
 /* ===================== 云端同步（Supabase REST · 参考学习工作台） =====================
@@ -2354,8 +2503,18 @@ function cloudPayload(){
 }
 function applyCloudPayload(p){
   if(!p || typeof p !== 'object') return;
-  if(p.custom && typeof p.custom === 'object') Object.keys(p.custom).forEach(k => CUSTOM[k] = p.custom[k]);
-  if(p.imported && typeof p.imported === 'object') Object.keys(p.imported).forEach(k => IMPORTED[k] = p.imported[k]);
+  /* 空壳保护：云端同名科目为空壳（无卡片）且本地有实质内容时，跳过覆盖，避免导入内容被反向清空 */
+  if(p.custom && typeof p.custom === 'object') Object.keys(p.custom).forEach(k => {
+    const pc = p.custom[k];
+    if(pc && CUSTOM[k] && CUSTOM[k].items && CUSTOM[k].items.length && (!pc.items || !pc.items.length)) return;
+    CUSTOM[k] = pc;
+  });
+  if(p.imported && typeof p.imported === 'object') Object.keys(p.imported).forEach(k => {
+    const pi = p.imported[k];
+    const li = IMPORTED[k] || CUSTOM[k] || SUBJECTS[k];
+    if(pi && li && li.items && li.items.length && (!pi.items || !pi.items.length)) return;
+    IMPORTED[k] = pi;
+  });
   if(p.state && typeof p.state === 'object') Object.keys(p.state).forEach(k => state[k] = p.state[k]);
   if(p.today && typeof p.today === 'object') Object.keys(p.today).forEach(k => todayD[k] = p.today[k]);
   if(p.goal && typeof p.goal === 'object') Object.keys(p.goal).forEach(k => goal[k] = p.goal[k]);
@@ -3750,8 +3909,18 @@ $('modalDel').addEventListener('click', () => { if(modalEditId && confirm('确�
 $('topicSel').addEventListener('change', e => { topic = e.target.value; onlyWeak = false; $('onlyWeak').textContent = '专练没记住和模糊'; buildQueue(); show(); });
 $('modeSel').addEventListener('change', e => { mode = e.target.value; buildQueue(); show(); });
 $('onlyWeak').addEventListener('click', () => { onlyWeak = !onlyWeak; $('onlyWeak').textContent = onlyWeak ? '显示全部' : '专练没记住和模糊'; buildQueue(); show(); });
-$('importBtn').addEventListener('click', () => $('fileInput').click());
-$('fileInput').addEventListener('change', e => { if(e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; });
+$('importBtn').addEventListener('click', () => openImportModal());
+$('fileInput').addEventListener('change', e => { if(e.target.files[0]) openImportModal(e.target.files[0]); e.target.value = ''; });
+/* 导入弹窗（方案 B）内部交互 */
+$('impClose').addEventListener('click', closeImportModal);
+$('impCancel').addEventListener('click', closeImportModal);
+$('impFileBtn').addEventListener('click', () => $('impFilePick').click());
+$('impFilePick').addEventListener('change', e => { if(e.target.files[0]) parseImportAndShow(e.target.files[0]); e.target.value = ''; });
+$('impModeNew').addEventListener('change', () => { syncImpUI(); refreshImpStrategy(); });
+$('impModeMerge').addEventListener('change', () => { syncImpUI(); refreshImpStrategy(); });
+$('impMergeSel').addEventListener('change', refreshImpStrategy);
+$('impNewName').addEventListener('input', () => { $('impErr').textContent = ''; });
+$('impOk').addEventListener('click', doImport);
 $('resetBtn').addEventListener('click', () => {
   if(confirm('确定清除「' + ALL_SUBJECTS[cur].display + '」的所有进度吗？此操作不可恢复。')){
     delete state[cur]; delete todayD[cur]; delete best[cur];
@@ -3780,7 +3949,7 @@ document.addEventListener('keydown', e => {
   else if(e.key === '3') mark(3);
   else if(browseMode && e.code === 'ArrowLeft'){ e.preventDefault(); browseStep(-1); }
   else if(browseMode && e.code === 'ArrowRight'){ e.preventDefault(); browseStep(1); }
-  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('srcPopover').style.display === 'block') $('srcPopover').style.display = 'none'; else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('browseHistoryModal').classList.contains('show')) $('browseHistoryModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
+  else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('importModal').classList.contains('show')) closeImportModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('srcPopover').style.display === 'block') $('srcPopover').style.display = 'none'; else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('browseHistoryModal').classList.contains('show')) $('browseHistoryModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
 });
 
 /* ---------- 初始化 ---------- */
