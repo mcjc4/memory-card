@@ -1550,8 +1550,8 @@ function show(){
   const fLinkEl = $('fLink'), fOrigEl = $('fOrig');
   if(d.link){ fLinkEl.innerHTML = '<a class="linkBadge" href="' + escHtml(d.link).replace(/"/g,'&quot;') + '" target="_blank" rel="noopener">🔗 原题链接</a>'; fLinkEl.style.display = ''; }
   else { fLinkEl.innerHTML = ''; fLinkEl.style.display = 'none'; }
-  if(d.orig){ fOrigEl.textContent = d.orig; fOrigEl.style.display = ''; }
-  else { fOrigEl.textContent = ''; fOrigEl.style.display = 'none'; }
+if(d.orig){ fOrigEl.innerHTML = renderMath(d.orig); fOrigEl.style.display = ''; }
+else { fOrigEl.innerHTML = ''; fOrigEl.style.display = 'none'; }
   $('fSig').innerHTML = renderMath(d.s);
   fitSigText();   /* 题干字号自适应：宽度 95% 且高度不超屏幕 */
   prefetchAdjacentAudio();   /* 后台预加载：当前卡背面 + 下一卡正面，切卡翻牌零等待 */
