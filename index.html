@@ -330,6 +330,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button id="dashSettingsBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">⚙ 设置</button>
         <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;min-width:80px;text-align:left">☁ 同步状态</button>
+        <button id="dashCrossTopicBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#E6F1FB;color:#0C447C;cursor:pointer">🎯 跨科专题练</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
       </div>
     </div>
@@ -638,7 +639,8 @@ h1{font-size:21px;font-weight:500;text-align:center}
     </div>
     <div class="tqRow">
       <label>学科</label>
-      <select id="tqSubj"></select>
+      <div class="tqMultiBtn" id="tqSubjBtn">全部科目<span class="tqMultiHint">▼</span></div>
+      <div class="tqInlinePop" id="tqSubjPop"></div>
     </div>
     <div class="tqRow">
       <label>专题</label>
@@ -2220,6 +2222,138 @@ function parseCSV(t){
   if(cur !== '' || row.length) { row.push(cur); rows.push(row); }
   return rows.filter(r => r.some(v => String(v).trim() !== ''));
 }
+/* ============ 主页：智能跨科目导入（不弹方案 B 弹窗，按 A 列科目自动归类） ============ */
+let importCaller = 'manage';        /* 'manage' = 训练页方案 B 弹窗 | 'cross' = 主页跨科目智能导入 */
+async function importCross(file){
+  try{
+    /* 解析文件拿到 rows（与方案 B 共用列识别，但按 A 列分组） */
+    let rows;
+    if(/\.csv$/i.test(file.name)){
+      rows = parseCSV((await file.text()).replace(/^\uFEFF/, ''));
+    } else {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      if(!(buf[0] === 0x50 && buf[1] === 0x4b)) throw new Error('请使用 xlsx（Excel 2007+）格式，或另存为 csv');
+      const entries = XL.findEntries(buf);
+      const lowerKeys = {};
+      Object.keys(entries).forEach(k => { lowerKeys[k.toLowerCase()] = k; });
+      const get = async n => {
+        const realKey = entries[n] ? n : lowerKeys[n.toLowerCase()];
+        if(!realKey) throw new Error('文件结构不兼容（缺少 ' + n + '）；请用 Excel/WPS 打开后「另存为 .xlsx」再试，或转 CSV 导入');
+        return XL.txt(await XL.readEntry(buf, entries[realKey]));
+      };
+      const wbdoc = new DOMParser().parseFromString(await get('xl/workbook.xml'), 'text/xml');
+      const sheets = wbdoc.getElementsByTagName('sheet');
+      if(!sheets.length) throw new Error('文件中没有工作表');
+      const first = sheets[0];
+      let rid = first.getAttribute('r:id');
+      if(!rid){
+        for(const a of first.attributes){
+          if(a.localName === 'id' && a.namespaceURI && a.namespaceURI.indexOf('relationships') !== -1){ rid = a.value; break; }
+        }
+      }
+      if(!rid){ for(const a of first.attributes){ if(/^r:id$/.test(a.name)){ rid = a.value; break; } } }
+      let target = 'xl/worksheets/sheet1.xml';
+      if(rid){
+        const reldoc = new DOMParser().parseFromString(await get('xl/_rels/workbook.xml.rels'), 'text/xml');
+        for(const r of reldoc.getElementsByTagName('Relationship')){
+          if((r.getAttribute('Id') || '') === rid){ target = r.getAttribute('Target') || target; break; }
+        }
+      }
+      if(target.startsWith('/')) target = target.slice(1);
+      if(!target.startsWith('xl/')) target = 'xl/' + target;
+      let shared = [];
+      if(lowerKeys['xl/sharedstrings.xml']){ try{ shared = XL.parseShared(await get('xl/sharedStrings.xml')); }catch(e){ shared = []; } }
+      rows = XL.parseSheet(await get(target), shared);
+    }
+    /* 列识别（同 buildSubject 逻辑） */
+    let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
+    if(headIdx === -1) headIdx = 0;
+    const head = rows[headIdx].map(v => String(v || ''));
+    const ci = {s: undefined, c: undefined, t: undefined, src: undefined, orig: undefined, link: undefined};
+    head.forEach((c, i) => {
+      if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
+      else if(c.includes('原题')) ci.orig = i;
+      else if(c.includes('链接')) ci.link = i;
+      else if(c.includes('结论') || c.includes('易错') || c.includes('想到')) ci.c = i;
+      else if(c.includes('章节') || c.includes('知识点') || c.includes('专题')) ci.t = i;
+      else if(c.includes('出处') || c.includes('来源')) ci.src = i;
+    });
+    if(ci.s === undefined){ ci.t = 1; ci.s = 2; ci.c = 3; ci.src = 4; }
+    /* 按 A 列科目名分组 */
+    const groups = {};   /* {subjName: {items: []}} */
+    let emptySubjCnt = 0;   /* A 列无科目名的行数 */
+    for(let i = headIdx + 1; i < rows.length; i++){
+      const r = rows[i];
+      const g = idx => (idx !== undefined && idx !== null) ? String(r[idx] || '').trim() : '';
+      const s = g(ci.s), c = g(ci.c);
+      if(!s || !c) continue;
+      const v0 = g(0);
+      let subj = (v0 && !v0.includes('科目')) ? v0 : '';
+      if(!subj){
+        emptySubjCnt++;
+        subj = '__MISSING__';   /* 兜底分组，避免丢行 */
+      }
+      if(!groups[subj]) groups[subj] = {items: []};
+      groups[subj].items.push({t: g(ci.t), s, c, src: g(ci.src), orig: g(ci.orig), link: g(ci.link)});
+    }
+    const groupNames = Object.keys(groups);
+    if(!groupNames.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
+    /* 对每组：存在→追加到 IMPORTED，不存在→自动新建 */
+    const stamp = Date.now().toString(36);
+    const addedReport = [];   /* [{name, n, action: 'add'|'append'|'new'}] */
+    groupNames.forEach(subj => {
+      const grp = groups[subj];
+      if(subj === '__MISSING__'){
+        /* 兜底：归到一个一次性科目名，提醒用户改名 */
+        const fallbackName = '未分类_' + stamp.slice(-4);
+        IMPORTED[fallbackName] = {
+          color: SUBJ_COLORS[fallbackName] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length],
+          display: fallbackName,
+          items: grp.items.map((it, idx) => Object.assign({}, it, {id: fallbackName + '-imp' + idx + '-' + stamp}))
+        };
+        addedReport.push({name: fallbackName, n: grp.items.length, action: 'new-missing'});
+        return;
+      }
+      grp.items.forEach((it, idx) => it.id = subj + '-imp' + idx + '-' + stamp);
+      if(subjExists(subj)){
+        const oldDef = CUSTOM[subj] || IMPORTED[subj] || SUBJECTS[subj];
+        const isBuiltin = !!SUBJECTS[subj];
+        const box = CUSTOM[subj] ? CUSTOM : IMPORTED;
+        if(!CUSTOM[subj] && !IMPORTED[subj] && isBuiltin) box;   /* 内置科目的覆盖层 = CUSTOM（按方案 B 同款语义） */
+        /* 内置科目：base 取 SUBJECTS.items 避免重复叠加；非内置：base 取现有 items */
+        const baseItems = (!CUSTOM[subj] && !IMPORTED[subj] && isBuiltin) ? (SUBJECTS[subj].items || []) : (oldDef.items || []);
+        box[subj] = {
+          color: oldDef.color || SUBJ_COLORS[subj] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length],
+          display: oldDef.display || subj,
+          items: baseItems.concat(grp.items)
+        };
+        addedReport.push({name: oldDef.display || subj, n: grp.items.length, action: isBuiltin ? 'append-builtin' : 'append'});
+      } else {
+        IMPORTED[subj] = {
+          color: SUBJ_COLORS[subj] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length],
+          display: subj,
+          items: grp.items
+        };
+        addedReport.push({name: subj, n: grp.items.length, action: 'new'});
+      }
+    });
+    savePerson();
+    rebuildSubjects();
+    schedulePush();
+    /* 报告：跨科目汇总 */
+    const summary = addedReport.map(r => {
+      const verb = r.action === 'new' ? '新建' : (r.action === 'new-missing' ? '归入兜底' : '追加');
+      return r.name + ' ' + verb + ' ' + r.n + ' 条';
+    }).join('；');
+    let hint = '已跨科目导入 ' + addedReport.reduce((a,r) => a+r.n, 0) + ' 条卡片（' + addedReport.length + ' 个科目）：\n' + summary;
+    if(emptySubjCnt) hint += '\n⚠️ 有 ' + emptySubjCnt + ' 行 A 列无科目名，已归入兜底「未分类_xxxx」，可改名';
+    toast(hint, 6000);
+    renderDash();
+  }catch(e){
+    toast('跨科目导入失败：' + e.message, 5000);
+  }
+}
+
 function buildSubject(rows, fileName){
   let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
   if(headIdx === -1) headIdx = 0;
@@ -3225,44 +3359,95 @@ function updateSrcBtn(){
   $('srcFilterBtn').textContent = (n === 0 || allSelected) ? '📄 出处' : '📄 出处(' + n + ')';
 }
 
-/* ========== 专题练内嵌多选：专题 + 出处（勾选弹窗样式） ========== */
+/* ========== 专题练内嵌多选：科目 + 专题 + 出处（勾选弹窗样式） ========== */
+let tqSubjSel = new Set();     /* 专题练选中的科目集合，空=全部 */
 let tqTopicSel = new Set();   /* 专题练选中的专题集合，空=全部 */
 let tqSrcSel = new Set();     /* 专题练选中的出处集合，空=全部 */
+let tqSubjMode = 'single';    /* 'single' = 单科（训练页），'cross' = 跨科（主页），影响默认初始化 */
 
-/* 打开/关闭专题练的专题勾选弹窗 */
+/* 打开/关闭专题练的科目勾选弹窗 */
+function openTqSubjPop(){
+  const pop = $('tqSubjPop');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+  pop.innerHTML = '';
+  const names = SUBJ_NAMES.slice();
+  if(!names.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无科目</div>'; }
+  else {
+    const bar = document.createElement('div'); bar.className = 'tqIpBar';
+    const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
+    const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
+    bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
+    names.forEach(n => {
+      const lab = document.createElement('label');
+      lab.innerHTML = '<input type="checkbox" data-tqs="' + escHtml(n) + '"> ' + escHtml(ALL_SUBJECTS[n] ? ALL_SUBJECTS[n].display : n);
+      pop.appendChild(lab);
+    });
+    pop.querySelectorAll('input[data-tqs]').forEach(cb => {
+      const n = cb.getAttribute('data-tqs');
+      cb.checked = tqSubjSel.has(n);
+      cb.addEventListener('change', () => {
+        if(cb.checked) tqSubjSel.add(n); else tqSubjSel.delete(n);
+        updateTqSubjBtn();
+        refreshTqTopic(); refreshSrcFilterList(); refreshTqCount();   /* 联动：专题/出处列表随选科变化 */
+      });
+    });
+    aBtn.addEventListener('click', () => { names.forEach(n => tqSubjSel.add(n)); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = true); updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); });
+    cBtn.addEventListener('click', () => { tqSubjSel.clear(); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = false); updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); });
+  }
+  const btn = $('tqSubjBtn');
+  const rect = btn.getBoundingClientRect();
+  const box = btn.closest('.tqBox');
+  const boxRect = box.getBoundingClientRect();
+  pop.style.left = (rect.left - boxRect.left) + 'px';
+  pop.style.top = (rect.bottom - boxRect.top + 4) + 'px';
+  pop.style.display = 'block';
+}
+function updateTqSubjBtn(){
+  const btn = $('tqSubjBtn');
+  if(!btn) return;
+  if(tqSubjSel.size === 0) btn.innerHTML = '全部科目<span class="tqMultiHint">▼</span>';
+  else if(tqSubjSel.size === 1) btn.innerHTML = ALL_SUBJECTS[[...tqSubjSel][0]] ? ALL_SUBJECTS[[...tqSubjSel][0]].display : [...tqSubjSel][0] + '<span class="tqMultiHint">▼</span>';
+  else btn.innerHTML = '已选 ' + tqSubjSel.size + ' 个科目<span class="tqMultiHint">▼</span>';
+}
+function refreshTqTopic(){
+  /* 跨科模式下，重置已选专题（已选项可能已不合法），让用户重新选 */
+  tqTopicSel.clear();
+  updateTqTopicBtn();
+  const p = $('tqTopicPop'); if(p) p.style.display = 'none';
+  tqSrcSel.clear(); updateTqSrcBtn();
+  const ps = $('tqSrcPop'); if(ps) ps.style.display = 'none';
+}
+
+/* 打开/关闭专题练的专题勾选弹窗（跨多科目去重） */
 function openTqTopicPop(){
   const pop = $('tqTopicPop');
   if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
   pop.innerHTML = '';
-  const subj = $('tqSubj') ? $('tqSubj').value : '';
-  const def = subj ? subjDef(subj) : null;
-  if(!def){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">请先选择科目</div>'; }
+  const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
+  const seen = new Set();
+  subjNames.forEach(n => { const def = subjDef(n); if(def) def.items.forEach(it => { if(it.t) seen.add(it.t); }); });
+  const topics = [...seen].sort();
+  if(!topics.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无专题</div>'; }
   else {
-    const seen = new Set();
-    def.items.forEach(it => { if(it.t) seen.add(it.t); });
-    const topics = [...seen].sort();
-    if(!topics.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">该科目暂无专题</div>'; }
-    else {
-      const bar = document.createElement('div'); bar.className = 'tqIpBar';
-      const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
-      const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
-      bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
-      topics.forEach(t => {
-        const lab = document.createElement('label');
-        lab.innerHTML = '<input type="checkbox" data-tqt="' + escHtml(t) + '"> ' + escHtml(t);
-        pop.appendChild(lab);
+    const bar = document.createElement('div'); bar.className = 'tqIpBar';
+    const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
+    const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
+    bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
+    topics.forEach(t => {
+      const lab = document.createElement('label');
+      lab.innerHTML = '<input type="checkbox" data-tqt="' + escHtml(t) + '"> ' + escHtml(t);
+      pop.appendChild(lab);
+    });
+    pop.querySelectorAll('input[data-tqt]').forEach(cb => {
+      const t = cb.getAttribute('data-tqt');
+      cb.checked = tqTopicSel.has(t);
+      cb.addEventListener('change', () => {
+        if(cb.checked) tqTopicSel.add(t); else tqTopicSel.delete(t);
+        updateTqTopicBtn(); refreshTqCount();
       });
-      pop.querySelectorAll('input[data-tqt]').forEach(cb => {
-        const t = cb.getAttribute('data-tqt');
-        cb.checked = tqTopicSel.has(t);
-        cb.addEventListener('change', () => {
-          if(cb.checked) tqTopicSel.add(t); else tqTopicSel.delete(t);
-          updateTqTopicBtn(); refreshTqCount();
-        });
-      });
-      aBtn.addEventListener('click', () => { topics.forEach(t => tqTopicSel.add(t)); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = true); updateTqTopicBtn(); refreshTqCount(); });
-      cBtn.addEventListener('click', () => { tqTopicSel.clear(); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = false); updateTqTopicBtn(); refreshTqCount(); });
-    }
+    });
+    aBtn.addEventListener('click', () => { topics.forEach(t => tqTopicSel.add(t)); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = true); updateTqTopicBtn(); refreshTqCount(); });
+    cBtn.addEventListener('click', () => { tqTopicSel.clear(); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = false); updateTqTopicBtn(); refreshTqCount(); });
   }
   /* 定位到按钮下方 */
   const btn = $('tqTopicBtn');
@@ -3280,41 +3465,37 @@ function updateTqTopicBtn(){
   else btn.innerHTML = '已选 ' + tqTopicSel.size + ' 个专题<span class="tqMultiHint">▼</span>';
 }
 
-/* 打开/关闭专题练的出处勾选弹窗 */
+/* 打开/关闭专题练的出处勾选弹窗（跨多科目去重） */
 function openTqSrcPop(){
   const pop = $('tqSrcPop');
   if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
   pop.innerHTML = '';
-  const subj = $('tqSubj') ? $('tqSubj').value : '';
-  const def = subj ? subjDef(subj) : null;
-  if(!def){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">请先选择科目</div>'; }
+  const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
+  const seen = new Set();
+  subjNames.forEach(n => { const def = subjDef(n); if(def) def.items.forEach(it => { if(it.src) seen.add(it.src); }); });
+  const srcs = [...seen].sort();
+  if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无出处字段</div>'; }
   else {
-    const seen = new Set();
-    def.items.forEach(it => { if(it.src) seen.add(it.src); });
-    const srcs = [...seen].sort();
-    if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">该科目暂无出处字段</div>'; }
-    else {
-      const hint = document.createElement('div'); hint.className = 'tqIpHint'; hint.textContent = '不选 = 全部出处（显示所有卡片）'; pop.appendChild(hint);
-      const bar = document.createElement('div'); bar.className = 'tqIpBar';
-      const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
-      const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
-      bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
-      srcs.forEach(s => {
-        const lab = document.createElement('label');
-        lab.innerHTML = '<input type="checkbox" data-tqs="' + escHtml(s) + '"> ' + escHtml(s);
-        pop.appendChild(lab);
+    const hint = document.createElement('div'); hint.className = 'tqIpHint'; hint.textContent = '不选 = 全部出处（显示所有卡片）'; pop.appendChild(hint);
+    const bar = document.createElement('div'); bar.className = 'tqIpBar';
+    const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
+    const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
+    bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
+    srcs.forEach(s => {
+      const lab = document.createElement('label');
+      lab.innerHTML = '<input type="checkbox" data-tqs="' + escHtml(s) + '"> ' + escHtml(s);
+      pop.appendChild(lab);
+    });
+    pop.querySelectorAll('input[data-tqs]').forEach(cb => {
+      const s = cb.getAttribute('data-tqs');
+      cb.checked = tqSrcSel.has(s);
+      cb.addEventListener('change', () => {
+        if(cb.checked) tqSrcSel.add(s); else tqSrcSel.delete(s);
+        updateTqSrcBtn(); refreshTqCount();
       });
-      pop.querySelectorAll('input[data-tqs]').forEach(cb => {
-        const s = cb.getAttribute('data-tqs');
-        cb.checked = tqSrcSel.has(s);
-        cb.addEventListener('change', () => {
-          if(cb.checked) tqSrcSel.add(s); else tqSrcSel.delete(s);
-          updateTqSrcBtn(); refreshTqCount();
-        });
-      });
-      aBtn.addEventListener('click', () => { srcs.forEach(s => tqSrcSel.add(s)); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = true); updateTqSrcBtn(); refreshTqCount(); });
-      cBtn.addEventListener('click', () => { tqSrcSel.clear(); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = false); updateTqSrcBtn(); refreshTqCount(); });
-    }
+    });
+    aBtn.addEventListener('click', () => { srcs.forEach(s => tqSrcSel.add(s)); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = true); updateTqSrcBtn(); refreshTqCount(); });
+    cBtn.addEventListener('click', () => { tqSrcSel.clear(); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = false); updateTqSrcBtn(); refreshTqCount(); });
   }
   /* 定位到按钮下方 */
   const btn = $('tqSrcBtn');
@@ -3334,70 +3515,72 @@ function updateTqSrcBtn(){
 
 /* 点击弹窗外区域关闭 */
 document.addEventListener('click', e => {
-  ['tqTopicPop','tqSrcPop'].forEach(id => {
-    const p = $(id);
+  const popBtnPairs = [['tqSubjPop','tqSubjBtn'],['tqTopicPop','tqTopicBtn'],['tqSrcPop','tqSrcBtn']];
+  popBtnPairs.forEach(([popId, btnId]) => {
+    const p = $(popId);
     if(p && p.style.display === 'block' && !p.contains(e.target)){
-      const btnId = id === 'tqTopicPop' ? 'tqTopicBtn' : 'tqSrcBtn';
-      if(e.target !== $(btnId) && !$(btnId).contains(e.target)) p.style.display = 'none';
+      const btn = $(btnId);
+      if(btn && e.target !== btn && !btn.contains(e.target)) p.style.display = 'none';
     }
   });
 });
 
 function refreshSrcFilterList(){ /* 兼容旧调用入口，不再操作 select */ }
 function topicQuery(){
-  const subjName = $('tqSubj').value;
-  /* 专题筛选：tqTopicSel 非空则只保留选中专题，空=全部 */
+  /* 跨科：tqSubjSel 空=全部科目；非空=仅选中科目（去重汇总）。同一 ID 在不同科目也不会重复。 */
+  const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
   const topicFilter = tqTopicSel;
   const kw = $('tqKeyword').value.trim();
-  /* 拆词 OR：按「、」/空格/逗号 拆分 */
   const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()) : [];
-  const stF = $('tqStatus').value;   /* 'all' | 'unt' | 'fail' | 'half' | 'pass' */
+  const stF = $('tqStatus').value;
   const ds = $('tqDateStart').value;
   const de = $('tqDateEnd').value;
   const dsT = ds ? new Date(ds).getTime() : null;
   const deT = de ? new Date(de).getTime() + 86399999 : null;
-  /* 出处多选：tqSrcSel 空集合=全部出处（不过滤） */
   const srcChecked = tqSrcSel;
-  const subj = subjDef(subjName);
-  if(!subj) return [];
-  const st = state[subjName] || {};
-  const lr = lastRes[subjName] || {};
-  const bm = browseMeta[subjName] || {};
+  const seen = new Set();
   const res = [];
-  subj.items.forEach(it => {
-    if(topicFilter.size && !topicFilter.has(it.t)) return;
-    if(srcChecked.size && !srcChecked.has(it.src || '')) return;
-    if(kws.length){
-      const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
-      if(!kws.some(k => hay.includes(k))) return;
-    }
-    if(dsT || deT){
-      /* 上次浏览时间 = 训练时间 与 审核时间 的较新值 */
-      const tsTrain = lr[it.id] ? lr[it.id].ts : 0;
-      const tsBrowse = bm[it.id] ? bm[it.id].lastBrowse : 0;
-      const ts = Math.max(tsTrain, tsBrowse);
-      if(!ts) return;   /* 既无训练也无审核记录 → 排除 */
-      if(dsT && ts < dsT) return;
-      if(deT && ts > deT) return;
-    }
-    if(stF !== 'all'){
-      const v = st[it.id];
-      const isUnt = v === undefined || v === null;
-      if(stF === 'unt' && !isUnt) return;
-      if(stF === 'fail' && v !== 2) return;
-      if(stF === 'half' && v !== 3) return;
-      if(stF === 'pass' && v !== 1) return;
-    }
-    /* 审核状态筛选：从 browseMeta[subjName][it.id] 取 browsed 标记 */
-    const bsF = $('tqBrowseStatus').value;   /* 'all' | 'browsed' | 'unbrowsed' */
-    if(bsF !== 'all'){
-      const bmSubj = browseMeta[subjName] || {};
-      const bmItem = bmSubj[it.id];
-      const isBrowsed = bmItem ? bmItem.browsed : false;
-      if(bsF === 'browsed' && !isBrowsed) return;
-      if(bsF === 'unbrowsed' && isBrowsed) return;
-    }
-    res.push(it.id);
+  subjNames.forEach(subjName => {
+    const subj = subjDef(subjName);
+    if(!subj) return;
+    const st = state[subjName] || {};
+    const lr = lastRes[subjName] || {};
+    const bm = browseMeta[subjName] || {};
+    subj.items.forEach(it => {
+      if(seen.has(it.id)) return;   /* 跨科去重 */
+      if(topicFilter.size && !topicFilter.has(it.t)) return;
+      if(srcChecked.size && !srcChecked.has(it.src || '')) return;
+      if(kws.length){
+        const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
+        if(!kws.some(k => hay.includes(k))) return;
+      }
+      if(dsT || deT){
+        const tsTrain = lr[it.id] ? lr[it.id].ts : 0;
+        const tsBrowse = bm[it.id] ? bm[it.id].lastBrowse : 0;
+        const ts = Math.max(tsTrain, tsBrowse);
+        if(!ts) return;
+        if(dsT && ts < dsT) return;
+        if(deT && ts > deT) return;
+      }
+      if(stF !== 'all'){
+        const v = st[it.id];
+        const isUnt = v === undefined || v === null;
+        if(stF === 'unt' && !isUnt) return;
+        if(stF === 'fail' && v !== 2) return;
+        if(stF === 'half' && v !== 3) return;
+        if(stF === 'pass' && v !== 1) return;
+      }
+      const bsF = $('tqBrowseStatus').value;
+      if(bsF !== 'all'){
+        const bmSubj = browseMeta[subjName] || {};
+        const bmItem = bmSubj[it.id];
+        const isBrowsed = bmItem ? bmItem.browsed : false;
+        if(bsF === 'browsed' && !isBrowsed) return;
+        if(bsF === 'unbrowsed' && isBrowsed) return;
+      }
+      seen.add(it.id);
+      res.push(it.id);
+    });
   });
   return res;
 }
@@ -3539,16 +3722,32 @@ function openBrowseHistory(){
   }
 }
 function openTopicTrain(){
-  const sel = $('tqSubj');
-  sel.innerHTML = '';
-  SUBJ_NAMES.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
-  sel.value = cur;
+  tqSubjMode = 'single';
+  /* 训练页专题练：默认仅选当前科目 */
+  tqSubjSel.clear();
+  if(cur) tqSubjSel.add(cur);
   /* 重置专题练内嵌多选状态 */
   tqTopicSel.clear(); tqSrcSel.clear();
-  updateTqTopicBtn(); updateTqSrcBtn();
+  updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn();
   refreshTqTopic();
   refreshSrcFilterList();
   refreshTqCount();
+  const h2 = document.querySelector('#topicModal h2 span:first-child');
+  if(h2) h2.textContent = '🎯 专题练 · 综合查询';
+  $('topicModal').classList.add('show');
+}
+function openCrossTopicTrain(){
+  /* 主页跨科专题练：默认全选所有科目 */
+  tqSubjMode = 'cross';
+  tqSubjSel.clear();
+  SUBJ_NAMES.forEach(n => tqSubjSel.add(n));
+  tqTopicSel.clear(); tqSrcSel.clear();
+  updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn();
+  refreshTqTopic();
+  refreshSrcFilterList();
+  refreshTqCount();
+  const h2 = document.querySelector('#topicModal h2 span:first-child');
+  if(h2) h2.textContent = '🎯 跨科专题练 · 综合查询（默认全选）';
   $('topicModal').classList.add('show');
 }
 function startTopicTrain(){
@@ -3792,7 +3991,8 @@ $('settingsBtn').addEventListener('click', openSettings);
 /* 仪表盘快捷按钮（设置/同步/导入） */
 $('dashSettingsBtn').addEventListener('click', openSettings);
 $('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(b) b.click(); });
-$('dashImportBtn').addEventListener('click', () => $('fileInput').click());
+$('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('fileInput').click(); });
+$('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
 $('settingsModalClose').addEventListener('click', () => { $('settingsModal').classList.remove('show'); renderDash(); });
 $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('fxSaveBtn').addEventListener('click', saveFxCfg);
@@ -3909,8 +4109,14 @@ $('modalDel').addEventListener('click', () => { if(modalEditId && confirm('确�
 $('topicSel').addEventListener('change', e => { topic = e.target.value; onlyWeak = false; $('onlyWeak').textContent = '专练没记住和模糊'; buildQueue(); show(); });
 $('modeSel').addEventListener('change', e => { mode = e.target.value; buildQueue(); show(); });
 $('onlyWeak').addEventListener('click', () => { onlyWeak = !onlyWeak; $('onlyWeak').textContent = onlyWeak ? '显示全部' : '专练没记住和模糊'; buildQueue(); show(); });
-$('importBtn').addEventListener('click', () => openImportModal());
-$('fileInput').addEventListener('change', e => { if(e.target.files[0]) openImportModal(e.target.files[0]); e.target.value = ''; });
+$('importBtn').addEventListener('click', () => { importCaller = 'manage'; openImportModal(); });
+$('fileInput').addEventListener('change', e => {
+  if(e.target.files[0]){
+    if(importCaller === 'cross') importCross(e.target.files[0]);
+    else openImportModal(e.target.files[0]);
+  }
+  e.target.value = '';
+});
 /* 导入弹窗（方案 B）内部交互 */
 $('impClose').addEventListener('click', closeImportModal);
 $('impCancel').addEventListener('click', closeImportModal);
