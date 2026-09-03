@@ -991,7 +991,7 @@ const CARDS_IMPORTED_KEY = 'wulun_cards_imported';   /* 卡片库全局共享（
 const CARDS_CUSTOM_KEY = 'wulun_cards_custom';
 let PERSON_STORE = loadJ(PERSON_KEY, {});   /* let：恢复备份时重新赋值 */
 let personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
-let state, todayD, goal, best, streakD, guard, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount, subjectTime;   /* 当前执行人的数据（bindPerson 绑定） */
+let state, todayD, goal, best, streakD, guard, IMPORTED, CUSTOM, POS, lastView, lastRes, tasks, browseHistory, browseMeta, trainCount, subjectTime, viewingCard, lastTick, idleTimer, idlePaused, savePersonTimer, browseMode, isTopicTrain, isCrossRetry, topic, mode, onlyWeak, queue, pos, shown, combo, markBusy, retryOrder, lastBrowseId, sessionMode, sessionSeen, sessionCorrect, sessionTimeBase, sessionStartTs, lastResultPushTs, pendingSubject, pendingResumeId, modeModalPurpose;   /* 当前执行人数据 + 训练/审核/专题练模式状态；所有 let 提前声明到此处以避免被 flushTime/show/showView 等前置定义函数在异步初始化路径中触发 TDZ */
 function emptyPerson(){
   return {state:{}, today:{}, goal:{}, best:{}, streak:[], pos:{}, lastView:{view:'dash'}, lastRes:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}, guard:{date:'', count:0, minutes:0}, updatedAt:0};
 }
@@ -1049,9 +1049,10 @@ let ALL_SUBJECTS = {};   /* 由 rebuildSubjects 合并填充 */
 let SUBJ_NAMES = [];
 let cur = null;
 /* 进入科目模式弹窗 / 会话统计 / 停留超时 相关状态 */
-let pendingSubject = null, pendingResumeId = null, modeModalPurpose = 'enter';
-let sessionMode = 'train', sessionSeen = 0, sessionCorrect = 0, sessionTimeBase = 0, sessionStartTs = 0, lastResultPushTs = 0;
-let idleTimer = null, idlePaused = false;
+/* pendingSubject/sessionMode/idleTimer 等已在 994 行批量声明；此处仅赋默认值 */
+pendingSubject = null; pendingResumeId = null; modeModalPurpose = 'enter';
+sessionMode = 'train'; sessionSeen = 0; sessionCorrect = 0; sessionTimeBase = 0; sessionStartTs = 0; lastResultPushTs = 0;
+idleTimer = null; idlePaused = false;
 
 const $ = id => document.getElementById(id);
 const RING_C = 207.3;
@@ -1152,14 +1153,15 @@ migratePersonData();
 backfillLastRes();
 bindPerson(loadJ(ACTIVE_KEY, PERSONS[0].key));
 
-let topic = "", mode = "order", onlyWeak = false;
-let queue = [], pos = 0, shown = false, combo = 0, markBusy = false;
-let retryOrder = [];   /* 本次会话，存 id */
-let browseMode = false;
-let isTopicTrain = false;   /* 专题练模式（自定义 queue），与审核模式互斥 */
-let isCrossRetry = false;   /* 跨科重练模式（首页入口，全局 FIFO 队列） */
-let lastBrowseId = null;   /* 记录浏览历史用，避免重复记录同一卡片 */
-let savePersonTimer = null;   /* 节流 savePerson */
+/* topic/mode/queue/browseMode 等已在 994 行批量声明；此处仅赋默认值 */
+topic = ""; mode = "order"; onlyWeak = false;
+queue = []; pos = 0; shown = false; combo = 0; markBusy = false;
+retryOrder = [];   /* 本次会话，存 id */
+browseMode = false;
+isTopicTrain = false;   /* 专题练模式（自定义 queue），与审核模式互斥 */
+isCrossRetry = false;   /* 跨科重练模式（首页入口，全局 FIFO 队列） */
+lastBrowseId = null;   /* 记录浏览历史用，避免重复记录同一卡片 */
+savePersonTimer = null;   /* 节流 savePerson */
 
 /* ---------- 稳定 id 生成 ---------- */
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -4160,8 +4162,8 @@ document.addEventListener('keydown', e => {
 
 /* ---------- 初始化 ---------- */
 /* ===================== 各科投入时间自动累计 ===================== */
-let viewingCard = false;        /* 是否正在训练页看卡（用于是否计入投入时间） */
-let lastTick = Date.now();
+viewingCard = false;        /* 是否正在训练页看卡（let 声明已在 994 行批量声明中提前） */
+lastTick = Date.now();       /* 同上，let 声明已提前；此处仅赋初值 */
 function flushTime(){
   if(!viewingCard) { lastTick = Date.now(); return; }
   if(idlePaused || document.hidden || guardAway){ lastTick = Date.now(); return; }   /* 停留超时/切走期间不计入训练时长 */
