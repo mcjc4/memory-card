@@ -661,14 +661,9 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <input id="tqDateEnd" type="date">
     </div>
     <div class="tqRow tqFull">
-      <label>上次训练状态</label>
-      <select id="tqStatus">
-        <option value="all">全部状态</option>
-        <option value="unt">未测</option>
-        <option value="fail">没记住</option>
-        <option value="half">模糊</option>
-        <option value="pass">记住了</option>
-      </select>
+      <label>上次训练状态（可多选，不选 = 全部）</label>
+      <div class="tqMultiBtn" id="tqStatusBtn">全部状态<span class="tqMultiHint">▼</span></div>
+      <div class="tqInlinePop" id="tqStatusPop"></div>
     </div>
     <div class="tqRow tqFull">
       <label>审核状态</label>
@@ -849,6 +844,47 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div class="row2">
       <button id="pushTestBtn">发送测试</button>
       <button id="pushSaveBtn" class="ok">保存设置</button>
+    </div>
+
+    <div style="font-size:14px;font-weight:500;margin:16px 0 8px">🛟 备份与恢复（自动快照 · JSON 文件 · 云端每日）</div>
+    <div style="background:#EDF6F1;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:13px;color:#3B6D11;font-weight:500">☁️ 云端每日快照（全量 · 自动 · 保留最近 <b id="bakCloudKeepTxt">5</b> 天）</div>
+      <div class="modalHint">每天首次打开页面自动上传一份全量快照（含题库+进度）到云端独立文档；换设备、清缓存、题库误删都能找回。</div>
+      <div id="bakCloudList" style="max-height:120px;overflow:auto;margin:6px 0;font-size:12px"></div>
+      <div class="row2" style="grid-template-columns:1fr 1fr">
+        <button id="bakCloudBtn">⏫ 立即上传今日快照</button>
+        <button id="bakCloudRestore" class="del">♻ 恢复所选云端快照</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+        <label style="margin:0;white-space:nowrap;font-size:13px">云端保留天数</label>
+        <input id="bakCloudDays" type="number" min="1" max="30" value="5" style="width:64px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
+      </div>
+    </div>
+    <div style="background:#EFF4FB;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:13px;color:#0C447C;font-weight:500">💾 本地多版本快照（进度数据 · 自动 · 保留最近 <b id="bakLocalKeepTxt">7</b> 份）</div>
+      <div class="modalHint">每次重要操作（打卡/导入/云端同步）前自动留档，纯本地无需联网；可随时回滚到任一历史版本。</div>
+      <div id="bakLocalList" style="max-height:120px;overflow:auto;margin:6px 0;font-size:12px"></div>
+      <div class="row2" style="grid-template-columns:1fr 1fr">
+        <button id="bakLocalBtn">💾 立即备份</button>
+        <button id="bakLocalRestore" class="del">♻ 恢复所选本地快照</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+        <label style="margin:0;white-space:nowrap;font-size:13px">本地保留份数</label>
+        <input id="bakLocalCount" type="number" min="1" max="10" value="7" style="width:64px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
+      </div>
+    </div>
+    <div style="background:#F6F1E7;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:13px;color:#854F0B;font-weight:500">📄 JSON 文件备份（全量 · 手动 · 可存到任何地方）</div>
+      <div class="modalHint">一键下载全量数据到文件（所有执行人 + 全部题库），可存网盘/U盘；换设备、清缓存后用「从文件恢复」一键还原。</div>
+      <div class="row2" style="grid-template-columns:1fr 1fr;margin-top:8px">
+        <button id="bakFileDl">💾 下载完整备份</button>
+        <button id="bakFileUp">📂 从文件恢复</button>
+      </div>
+      <input type="file" id="bakFilePick" accept=".json,application/json" style="display:none">
+    </div>
+    <div class="row2" style="grid-template-columns:1fr 1fr">
+      <button id="bakCfgReset" class="del">恢复备份默认设置</button>
+      <button id="bakCfgSave" class="ok">保存备份设置</button>
     </div>
   </div>
 </div>
@@ -2806,6 +2842,7 @@ async function pullCloud(silent, force){
         setCloudSyncAt(remoteUp); setBaseUp(remoteUp);
         rebuildSubjects(); refreshToday(); updateStats(); show();
         if(!silent) toast('已同步云端数据');
+        maybeAutoCloudBackup();   /* 云端同步成功 → 若今日尚未上传云端快照则自动补一份 */
       }
     } else if(force){
       await pushCloud(true);
@@ -2821,6 +2858,221 @@ function startSyncLoop(){
   setInterval(() => { if(!document.hidden) pullCloud(true); }, 20000);
   document.addEventListener('visibilitychange', () => { if(!document.hidden) pullCloud(true); });
 }
+
+/* ===================== 🛟 备份与恢复（本地多版本快照 + JSON 文件 + 云端每日） ===================== */
+const BAK_CFG_KEY = 'wulun_bak_cfg';
+const BAK_LOCAL_KEY = 'wulun_bak_local';          /* {list:[{ts, at, data}]} */
+const BAK_CLOUD_DAY_KEY = 'wulun_bak_cloud_day';  /* 上次云端快照的日期字符串 YYYY-MM-DD */
+function loadBakCfg(){
+  try{ const c = JSON.parse(localStorage.getItem(BAK_CFG_KEY) || 'null'); if(c) return {localKeep: Math.max(1, Number(c.localKeep)||7), cloudDays: Math.max(1, Number(c.cloudDays)||5)}; }catch(e){}
+  return {localKeep: 7, cloudDays: 5};
+}
+function saveBakCfg(c){ try{ localStorage.setItem(BAK_CFG_KEY, JSON.stringify(c)); }catch(e){ toast('存储已满，备份设置保存失败'); } }
+/* 全量备份内容（所有执行人 + 题库卡片） */
+function fullBackup(){
+  return { app:'memory-card-backup', kind:'full', v:2, exportedAt: Date.now(),
+           personStore: PERSON_STORE, imported: IMPORTED, custom: CUSTOM,
+           cloudCfg: loadCloudCfg(), active: personKey };
+}
+function bakDayStr(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function bakTsLabel(ts){ const d = new Date(ts); return (d.getMonth()+1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+/* 把全量备份写回本地 + 云端（覆盖当前状态） */
+function applyBackup(b){
+  if(!b || !b.personStore || typeof b.personStore !== 'object') throw new Error('备份文件缺少 personStore，可能已损坏');
+  PERSON_STORE = b.personStore;
+  if(b.imported && typeof b.imported === 'object'){ IMPORTED = b.imported; saveJ(CARDS_IMPORTED_KEY, IMPORTED); }
+  if(b.custom && typeof b.custom === 'object'){ CUSTOM = b.custom; saveJ(CARDS_CUSTOM_KEY, CUSTOM); }
+  saveJ(PERSON_KEY, PERSON_STORE);
+  const target = (b.active && PERSONS.some(p => p.key === b.active)) ? b.active : personKey;
+  bindPerson(target);
+  rebuildSubjects(); migrateStateToId();
+  const c = ALL_SUBJECTS[cur] ? ALL_SUBJECTS[cur].color : '#185FA5';
+  document.documentElement.style.setProperty('--accent', c);
+  document.documentElement.style.setProperty('--badge-bg', c + '26');
+  document.documentElement.style.setProperty('--badge-fg', c);
+  refreshToday(); updateStats(); showView('dash'); renderDash();
+  savePerson();
+  try{ if(cloudReady) pushCloud(true); }catch(e){}
+}
+/* ---- A：本地多版本快照（进度/题库/全部，环形保留） ---- */
+function snapshotLocal(manual){
+  try{
+    const cfg = loadBakCfg();
+    const b = fullBackup();
+    const store = loadJ(BAK_LOCAL_KEY, {list:[]});
+    const today = bakDayStr();
+    /* 自动留档按天去重：同一天已有则跳过（手动按钮不受限） */
+    const hasToday = store.list.some(x => x.day === today);
+    if(!manual && hasToday){ renderBakLists(); return true; }
+    store.list.unshift({ts: Date.now(), day: today, at: bakTsLabel(Date.now()), data: b});
+    const keep = cfg.localKeep || 7;
+    store.list = store.list.slice(0, keep);
+    /* 容量保护：localStorage 约 5MB，超限时从最旧开始丢 */
+    while(store.list.length > 1 && JSON.stringify(store).length > 4600000) store.list.pop();
+    saveJ(BAK_LOCAL_KEY, store);
+    if(manual) toast('✅ 已保存本地快照（保留 ' + store.list.length + ' 份）');
+    renderBakLists();
+    return true;
+  }catch(e){ if(manual) toast('本地快照失败：' + e.message); return false; }
+}
+function restoreLocalByTs(ts){
+  const store = loadJ(BAK_LOCAL_KEY, {list:[]});
+  const hit = store.list.find(x => x.ts === ts);
+  if(!hit){ toast('未找到该快照'); return; }
+  if(!confirm('用 ' + hit.at + ' 的本地快照覆盖当前数据？（当前数据将被替换）')) return;
+  try{ applyBackup(hit.data); toast('✅ 已恢复本地快照（' + hit.at + '）'); renderBakLists(); }
+  catch(e){ toast('恢复失败：' + e.message); }
+}
+/* ---- C：云端每日快照（独立文档 jikaka-<personKey>-bak，保留 N 天） ---- */
+function cloudBakDocId(){ return cloudDocId() + '-bak'; }
+async function fetchCloudBak(){
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return null;
+  const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + encodeURIComponent(cloudBakDocId()) + '&select=*';
+  const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 8000);
+  if(!res.ok) throw new Error('http ' + res.status);
+  const rows = await res.json();
+  if(Array.isArray(rows) && rows.length){
+    const row = rows[0];
+    return typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+  }
+  return {v:1, list:[]};
+}
+async function uploadCloudBak(manual){
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key || cloudCfg.disabled){ if(manual) toast('云端未配置/已断开，无法上传快照'); return false; }
+  try{
+    const cfg = loadBakCfg();
+    const days = cfg.cloudDays || 5;
+    const today = bakDayStr();
+    const doc = await fetchCloudBak();
+    let list = (doc && Array.isArray(doc.list) ? doc.list : []).filter(x => x.ts > (Date.now() - days * 86400000) && x.day !== today);
+    list.unshift({ts: Date.now(), day: today, at: bakTsLabel(Date.now()), data: fullBackup()});
+    /* 超长截断保险 */
+    if(list.length > 60) list = list.slice(0, 60);
+    const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
+    const headers = Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'});
+    const body = JSON.stringify({id: cloudBakDocId(), data: {v:1, list}, updated_at: new Date().toISOString()});
+    const res = await fetchTimeout(url, {method:'POST', headers, body}, 9000);
+    if(!res.ok) throw new Error('http ' + res.status);
+    localStorage.setItem(BAK_CLOUD_DAY_KEY, today);
+    if(manual) toast('✅ 今日云端快照已上传（保留 ' + days + ' 天）');
+    renderBakLists();
+    return true;
+  }catch(e){ if(manual) toast('云端快照上传失败：' + e.message); return false; }
+}
+function restoreCloudByTs(ts){
+  if(!confirm('用云端快照覆盖当前数据？（当前数据会被替换，恢复前会先存一份本地快照）')) return;
+  try{
+    snapshotLocal(false);
+  }catch(e){}
+  fetchCloudBak().then(doc => {
+    const hit = (doc && Array.isArray(doc.list)) ? doc.list.find(x => x.ts === ts) : null;
+    if(!hit){ toast('云端快照不存在或已过期'); return; }
+    try{ applyBackup(hit.data); toast('✅ 已从云端快照恢复（' + hit.at + '）'); renderBakLists(); }
+    catch(e){ toast('恢复失败：' + e.message); }
+  }).catch(() => toast('拉取云端快照失败（网络或配置）'));
+}
+/* 自动触发：每天首次云端同步成功后自动上传一份今日快照 */
+function maybeAutoCloudBackup(){
+  try{
+    if(!cloudCfg || !cloudCfg.disabled && cloudReady){
+      const last = localStorage.getItem(BAK_CLOUD_DAY_KEY) || '';
+      if(last !== bakDayStr()) uploadCloudBak(false).catch(()=>{});
+    }
+  }catch(e){}
+}
+/* 渲染设置面板里的备份列表 */
+function renderBakLists(){
+  if(!document.getElementById('settingsModal')) return;
+  const cfg = loadBakCfg();
+  const ct = document.getElementById('bakCloudKeepTxt'); if(ct) ct.textContent = cfg.cloudDays;
+  const lt = document.getElementById('bakLocalKeepTxt'); if(lt) lt.textContent = cfg.localKeep;
+  const dd = document.getElementById('bakCloudDays'); if(dd) dd.value = cfg.cloudDays;
+  const ld = document.getElementById('bakLocalCount'); if(ld) ld.value = cfg.localKeep;
+  const localBox = document.getElementById('bakLocalList');
+  if(localBox){
+    const store = loadJ(BAK_LOCAL_KEY, {list:[]});
+    if(!store.list.length) localBox.innerHTML = '<div style="color:#9ca3af">暂无本地快照 · 点「💾 立即备份」或进行学习自动留档</div>';
+    else localBox.innerHTML = store.list.map(x =>
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px dashed #dbe4ee">'
+      + '<span>' + x.at + '</span>'
+      + '<button data-restore-local="' + x.ts + '" style="font-size:11px;padding:2px 8px;border:1px solid #97C459;background:#fff;color:#3B6D11;border-radius:6px;cursor:pointer">恢复</button></div>').join('');
+  }
+  const cloudBox = document.getElementById('bakCloudList');
+  if(cloudBox){
+    fetchCloudBak().then(doc => {
+      const list = (doc && Array.isArray(doc.list)) ? doc.list : [];
+      if(!list.length) cloudBox.innerHTML = '<div style="color:#9ca3af">暂无云端快照 · 联网后每天自动上传，也可手动「立即上传今日快照」</div>';
+      else cloudBox.innerHTML = list.map(x =>
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px dashed #cfe3d5">'
+        + '<span>' + x.day + ' ' + x.at + '</span>'
+        + '<button data-restore-cloud="' + x.ts + '" style="font-size:11px;padding:2px 8px;border:1px solid #93B5DB;background:#fff;color:#0C447C;border-radius:6px;cursor:pointer">恢复</button></div>').join('');
+    }).catch(() => { cloudBox.innerHTML = '<div style="color:#9ca3af">云端快照列表加载失败（未连接或网络受限）</div>'; });
+  }
+}
+/* ---- B：JSON 文件下载 / 上传恢复 ---- */
+function downloadBackupFile(){
+  try{
+    const b = fullBackup();
+    const blob = new Blob([JSON.stringify(b)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const d = new Date();
+    a.download = 'memory-card-backup-' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('✅ 已下载完整备份文件（所有执行人 + 全部题库）');
+  }catch(e){ toast('下载失败：' + e.message); }
+}
+function importBackupFile(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const b = JSON.parse(reader.result);
+      if(!confirm('用文件中的完整数据覆盖当前数据？（当前数据会先自动保存一份本地快照）')) return;
+      try{ snapshotLocal(false); }catch(e){}
+      applyBackup(b);
+      toast('✅ 已从文件恢复完整数据');
+    }catch(e){ toast('文件解析/恢复失败：' + e.message); }
+  };
+  reader.readAsText(file);
+}
+/* 保存备份设置 + 渲染列表初始化 */
+function saveBakCfgFromUI(){
+  const dd = document.getElementById('bakCloudDays'); if(!dd) return;
+  const ld = document.getElementById('bakLocalCount');
+  saveBakCfg({cloudDays: parseInt(dd.value, 10) || 5, localKeep: parseInt(ld.value, 10) || 7});
+  toast('已保存备份设置');
+  renderBakLists();
+}
+function bindBakUI(){
+  const b = (id) => document.getElementById(id);
+  const settingsModal = document.getElementById('settingsModal');
+  if(!settingsModal || settingsModal.dataset.bakBound) return;
+  settingsModal.dataset.bakBound = '1';
+  const dl = b('bakFileDl'); if(dl) dl.addEventListener('click', downloadBackupFile);
+  const up = b('bakFileUp'); if(up) up.addEventListener('click', () => b('bakFilePick').click());
+  const fp = b('bakFilePick'); if(fp) fp.addEventListener('change', e => { if(e.target.files[0]) importBackupFile(e.target.files[0]); e.target.value = ''; });
+  const lb = b('bakLocalBtn'); if(lb) lb.addEventListener('click', () => snapshotLocal(true));
+  const cb = b('bakCloudBtn'); if(cb) cb.addEventListener('click', () => uploadCloudBak(true));
+  const cs = b('bakCfgSave'); if(cs) cs.addEventListener('click', saveBakCfgFromUI);
+  const rs = b('bakCfgReset'); if(rs) rs.addEventListener('click', () => { saveBakCfg({cloudDays:5, localKeep:7}); renderBakLists(); toast('备份设置已恢复默认（云端 5 天 · 本地 7 份）'); });
+  const sc = b('settingsModalClose'); if(sc) sc.addEventListener('click', () => $('settingsModal').classList.remove('show'));
+  /* 设置面板打开时刷新列表（含云端列表拉取） */
+  const sb = b('settingsBtn'); if(sb) sb.addEventListener('click', () => { setTimeout(renderBakLists, 300); });
+  const dsc = b('dashSettingsBtn'); if(dsc) dsc.addEventListener('click', () => { setTimeout(renderBakLists, 300); });
+  /* 列表内「恢复」按钮委托 */
+  const localList = b('bakLocalList');
+  if(localList) localList.addEventListener('click', e => {
+    const t = e.target.getAttribute && e.target.getAttribute('data-restore-local');
+    if(t) restoreLocalByTs(Number(t));
+  });
+  const cloudList = b('bakCloudList');
+  if(cloudList) cloudList.addEventListener('click', e => {
+    const t = e.target.getAttribute && e.target.getAttribute('data-restore-cloud');
+    if(t) restoreCloudByTs(Number(t));
+  });
+}
+bindBakUI();
 async function initCloud(){
   cloudCfg = loadCloudCfg();
   if(!cloudCfg.url || !cloudCfg.key || cloudCfg.disabled){ cloudStatus = 'off'; renderCloudBadge(); return; }
@@ -3366,43 +3618,85 @@ let tqSubjSel = new Set();     /* 专题练选中的科目集合，空=全部 */
 let tqTopicSel = new Set();   /* 专题练选中的专题集合，空=全部 */
 let tqSrcSel = new Set();     /* 专题练选中的出处集合，空=全部 */
 let tqSubjMode = 'single';    /* 'single' = 单科（训练页），'cross' = 跨科（主页），影响默认初始化 */
+let tqStatusSel = new Set();  /* 上次训练状态多选：集合元素 ∈ {unt,fail,half,pass}，空=全部 */
 
-/* 打开/关闭专题练的科目勾选弹窗 */
-function openTqSubjPop(){
-  const pop = $('tqSubjPop');
-  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+/* 弹窗内关键字搜索过滤：根据 input 值返回匹配列表 */
+function tqPopSearchFilter(rows, kw){
+  if(!kw) return rows;
+  const k = kw.trim().toLowerCase();
+  if(!k) return rows;
+  return rows.filter(x => String(x).toLowerCase().includes(k));
+}
+/* 渲染带搜索框的勾选弹窗通用逻辑 */
+function renderTqCheckPop(pop, opts){
+  /* opts: {items, selected, keyPrefix, onChange, hint, searchable, labelOf} labelOf(v) 可选，默认原样显示 */
+  const labelOf = opts.labelOf || (v => v);
   pop.innerHTML = '';
-  const names = SUBJ_NAMES.slice();
-  if(!names.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无科目</div>'; }
-  else {
-    const bar = document.createElement('div'); bar.className = 'tqIpBar';
-    const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
-    const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
-    bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
-    names.forEach(n => {
-      const lab = document.createElement('label');
-      lab.innerHTML = '<input type="checkbox" data-tqs="' + escHtml(n) + '"> ' + escHtml(ALL_SUBJECTS[n] ? ALL_SUBJECTS[n].display : n);
-      pop.appendChild(lab);
+  if(opts.searchable !== false){
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.placeholder = '🔍 输入关键字过滤…';
+    search.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:6px';
+    pop.appendChild(search);
+    search.addEventListener('input', () => {
+      const kw = search.value.trim().toLowerCase();
+      const rows = opts.items.filter(x => String(labelOf(x)).toLowerCase().includes(kw));
+      renderTqPopList(pop, rows, opts, labelOf);
     });
-    pop.querySelectorAll('input[data-tqs]').forEach(cb => {
-      const n = cb.getAttribute('data-tqs');
-      cb.checked = tqSubjSel.has(n);
-      cb.addEventListener('change', () => {
-        if(cb.checked) tqSubjSel.add(n); else tqSubjSel.delete(n);
-        updateTqSubjBtn();
-        refreshTqTopic(); refreshSrcFilterList(); refreshTqCount();   /* 联动：专题/出处列表随选科变化 */
-      });
-    });
-    aBtn.addEventListener('click', () => { names.forEach(n => tqSubjSel.add(n)); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = true); updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); });
-    cBtn.addEventListener('click', () => { tqSubjSel.clear(); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = false); updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); });
   }
-  const btn = $('tqSubjBtn');
+  if(opts.hint){
+    const hint = document.createElement('div'); hint.className = 'tqIpHint'; hint.textContent = opts.hint; pop.appendChild(hint);
+  }
+  renderTqPopList(pop, opts.items.slice(), opts, labelOf);
+}
+/* 渲染勾选列表区（含全选/重置栏），供初始与搜索共用 */
+function renderTqPopList(pop, rows, opts, labelOf){
+  let listBox = pop.querySelector('.tqPopList');
+  if(!listBox){ listBox = document.createElement('div'); listBox.className = 'tqPopList'; pop.appendChild(listBox); }
+  listBox.innerHTML = '';
+  const bar = document.createElement('div'); bar.className = 'tqIpBar';
+  const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
+  const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
+  bar.appendChild(aBtn); bar.appendChild(cBtn); listBox.appendChild(bar);
+  rows.forEach(it => {
+    const lab = document.createElement('label');
+    lab.innerHTML = '<input type="checkbox" data-key="' + escHtml(it) + '"> ' + escHtml(labelOf(it));
+    listBox.appendChild(lab);
+  });
+  listBox.querySelectorAll('input[data-key]').forEach(cb => {
+    const k = cb.getAttribute('data-key');
+    cb.checked = opts.selected.has(k);
+    cb.addEventListener('change', () => { if(cb.checked) opts.selected.add(k); else opts.selected.delete(k); opts.onChange(); });
+  });
+  aBtn.addEventListener('click', () => { rows.forEach(x => opts.selected.add(x)); listBox.querySelectorAll('input[data-key]').forEach(cb => cb.checked = true); opts.onChange(); });
+  cBtn.addEventListener('click', () => { rows.forEach(x => opts.selected.delete(x)); listBox.querySelectorAll('input[data-key]').forEach(cb => cb.checked = false); opts.onChange(); });
+}
+/* 定位弹窗到按钮下方 */
+function positionTqPop(popId, btnId){
+  const pop = $(popId);
+  const btn = $(btnId);
+  if(!pop || !btn) return;
   const rect = btn.getBoundingClientRect();
   const box = btn.closest('.tqBox');
   const boxRect = box.getBoundingClientRect();
   pop.style.left = (rect.left - boxRect.left) + 'px';
   pop.style.top = (rect.bottom - boxRect.top + 4) + 'px';
   pop.style.display = 'block';
+}
+
+/* 打开/关闭专题练的科目勾选弹窗 */
+function openTqSubjPop(){
+  const pop = $('tqSubjPop');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+  const names = SUBJ_NAMES.slice();
+  if(!names.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">暂无科目</div>'; pop.style.display = 'block'; return; }
+  renderTqCheckPop(pop, {
+    items: names,
+    selected: tqSubjSel,
+    labelOf: n => ALL_SUBJECTS[n] ? ALL_SUBJECTS[n].display : n,
+    onChange: () => { updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); }
+  });
+  positionTqPop('tqSubjPop', 'tqSubjBtn');
 }
 function updateTqSubjBtn(){
   const btn = $('tqSubjBtn');
@@ -3420,45 +3714,21 @@ function refreshTqTopic(){
   const ps = $('tqSrcPop'); if(ps) ps.style.display = 'none';
 }
 
-/* 打开/关闭专题练的专题勾选弹窗（跨多科目去重） */
+/* 打开/关闭专题练的专题勾选弹窗（跨多科目去重，支持搜索） */
 function openTqTopicPop(){
   const pop = $('tqTopicPop');
   if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
-  pop.innerHTML = '';
   const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
   const seen = new Set();
   subjNames.forEach(n => { const def = subjDef(n); if(def) def.items.forEach(it => { if(it.t) seen.add(it.t); }); });
   const topics = [...seen].sort();
-  if(!topics.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无专题</div>'; }
-  else {
-    const bar = document.createElement('div'); bar.className = 'tqIpBar';
-    const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
-    const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
-    bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
-    topics.forEach(t => {
-      const lab = document.createElement('label');
-      lab.innerHTML = '<input type="checkbox" data-tqt="' + escHtml(t) + '"> ' + escHtml(t);
-      pop.appendChild(lab);
-    });
-    pop.querySelectorAll('input[data-tqt]').forEach(cb => {
-      const t = cb.getAttribute('data-tqt');
-      cb.checked = tqTopicSel.has(t);
-      cb.addEventListener('change', () => {
-        if(cb.checked) tqTopicSel.add(t); else tqTopicSel.delete(t);
-        updateTqTopicBtn(); refreshTqCount();
-      });
-    });
-    aBtn.addEventListener('click', () => { topics.forEach(t => tqTopicSel.add(t)); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = true); updateTqTopicBtn(); refreshTqCount(); });
-    cBtn.addEventListener('click', () => { tqTopicSel.clear(); pop.querySelectorAll('input[data-tqt]').forEach(cb => cb.checked = false); updateTqTopicBtn(); refreshTqCount(); });
-  }
-  /* 定位到按钮下方 */
-  const btn = $('tqTopicBtn');
-  const rect = btn.getBoundingClientRect();
-  const box = btn.closest('.tqBox');
-  const boxRect = box.getBoundingClientRect();
-  pop.style.left = (rect.left - boxRect.left) + 'px';
-  pop.style.top = (rect.bottom - boxRect.top + 4) + 'px';
-  pop.style.display = 'block';
+  if(!topics.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无专题</div>'; pop.style.display = 'block'; return; }
+  renderTqCheckPop(pop, {
+    items: topics,
+    selected: tqTopicSel,
+    onChange: () => { updateTqTopicBtn(); refreshTqCount(); }
+  });
+  positionTqPop('tqTopicPop', 'tqTopicBtn');
 }
 function updateTqTopicBtn(){
   const btn = $('tqTopicBtn');
@@ -3467,46 +3737,22 @@ function updateTqTopicBtn(){
   else btn.innerHTML = '已选 ' + tqTopicSel.size + ' 个专题<span class="tqMultiHint">▼</span>';
 }
 
-/* 打开/关闭专题练的出处勾选弹窗（跨多科目去重） */
+/* 打开/关闭专题练的出处勾选弹窗（跨多科目去重，支持搜索） */
 function openTqSrcPop(){
   const pop = $('tqSrcPop');
   if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
-  pop.innerHTML = '';
   const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
   const seen = new Set();
   subjNames.forEach(n => { const def = subjDef(n); if(def) def.items.forEach(it => { if(it.src) seen.add(it.src); }); });
   const srcs = [...seen].sort();
-  if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无出处字段</div>'; }
-  else {
-    const hint = document.createElement('div'); hint.className = 'tqIpHint'; hint.textContent = '不选 = 全部出处（显示所有卡片）'; pop.appendChild(hint);
-    const bar = document.createElement('div'); bar.className = 'tqIpBar';
-    const aBtn = document.createElement('button'); aBtn.textContent = '☑ 全选';
-    const cBtn = document.createElement('button'); cBtn.textContent = '☐ 重置为空';
-    bar.appendChild(aBtn); bar.appendChild(cBtn); pop.appendChild(bar);
-    srcs.forEach(s => {
-      const lab = document.createElement('label');
-      lab.innerHTML = '<input type="checkbox" data-tqs="' + escHtml(s) + '"> ' + escHtml(s);
-      pop.appendChild(lab);
-    });
-    pop.querySelectorAll('input[data-tqs]').forEach(cb => {
-      const s = cb.getAttribute('data-tqs');
-      cb.checked = tqSrcSel.has(s);
-      cb.addEventListener('change', () => {
-        if(cb.checked) tqSrcSel.add(s); else tqSrcSel.delete(s);
-        updateTqSrcBtn(); refreshTqCount();
-      });
-    });
-    aBtn.addEventListener('click', () => { srcs.forEach(s => tqSrcSel.add(s)); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = true); updateTqSrcBtn(); refreshTqCount(); });
-    cBtn.addEventListener('click', () => { tqSrcSel.clear(); pop.querySelectorAll('input[data-tqs]').forEach(cb => cb.checked = false); updateTqSrcBtn(); refreshTqCount(); });
-  }
-  /* 定位到按钮下方 */
-  const btn = $('tqSrcBtn');
-  const rect = btn.getBoundingClientRect();
-  const box = btn.closest('.tqBox');
-  const boxRect = box.getBoundingClientRect();
-  pop.style.left = (rect.left - boxRect.left) + 'px';
-  pop.style.top = (rect.bottom - boxRect.top + 4) + 'px';
-  pop.style.display = 'block';
+  if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无出处字段</div>'; pop.style.display = 'block'; return; }
+  renderTqCheckPop(pop, {
+    items: srcs,
+    selected: tqSrcSel,
+    hint: '不选 = 全部出处（显示所有卡片）',
+    onChange: () => { updateTqSrcBtn(); refreshTqCount(); }
+  });
+  positionTqPop('tqSrcPop', 'tqSrcBtn');
 }
 function updateTqSrcBtn(){
   const btn = $('tqSrcBtn');
@@ -3515,9 +3761,33 @@ function updateTqSrcBtn(){
   else btn.innerHTML = '已选 ' + tqSrcSel.size + ' 个出处<span class="tqMultiHint">▼</span>';
 }
 
+/* 打开/关闭训练状态多选弹窗 */
+function openTqStatusPop(){
+  const pop = $('tqStatusPop');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+  const entries = [['unt','未测'],['fail','没记住'],['half','模糊'],['pass','记住了']];
+  renderTqCheckPop(pop, {
+    items: entries.map(e => e[0]),
+    selected: tqStatusSel,
+    labelOf: v => { const it = entries.find(e => e[0] === v); return it ? it[1] : v; },
+    onChange: () => { updateTqStatusBtn(); refreshTqCount(); }
+  });
+  positionTqPop('tqStatusPop', 'tqStatusBtn');
+}
+function updateTqStatusBtn(){
+  const btn = $('tqStatusBtn');
+  if(!btn) return;
+  if(tqStatusSel.size === 0) btn.innerHTML = '全部状态<span class="tqMultiHint">▼</span>';
+  else {
+    const names = {unt:'未测', fail:'没记住', half:'模糊', pass:'记住了'};
+    const label = [...tqStatusSel].map(v => names[v] || v).join('、');
+    btn.innerHTML = escHtml(label) + '<span class="tqMultiHint">▼</span>';
+  }
+}
+
 /* 点击弹窗外区域关闭 */
 document.addEventListener('click', e => {
-  const popBtnPairs = [['tqSubjPop','tqSubjBtn'],['tqTopicPop','tqTopicBtn'],['tqSrcPop','tqSrcBtn']];
+  const popBtnPairs = [['tqSubjPop','tqSubjBtn'],['tqTopicPop','tqTopicBtn'],['tqSrcPop','tqSrcBtn'],['tqStatusPop','tqStatusBtn']];
   popBtnPairs.forEach(([popId, btnId]) => {
     const p = $(popId);
     if(p && p.style.display === 'block' && !p.contains(e.target)){
@@ -3534,7 +3804,7 @@ function topicQuery(){
   const topicFilter = tqTopicSel;
   const kw = $('tqKeyword').value.trim();
   const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()) : [];
-  const stF = $('tqStatus').value;
+  const stSet = tqStatusSel;   /* 空 = 全部状态；非空 = 多选（unt/fail/half/pass 任一命中即保留） */
   const ds = $('tqDateStart').value;
   const de = $('tqDateEnd').value;
   const dsT = ds ? new Date(ds).getTime() : null;
@@ -3564,13 +3834,15 @@ function topicQuery(){
         if(dsT && ts < dsT) return;
         if(deT && ts > deT) return;
       }
-      if(stF !== 'all'){
+      if(stSet.size){
         const v = st[it.id];
         const isUnt = v === undefined || v === null;
-        if(stF === 'unt' && !isUnt) return;
-        if(stF === 'fail' && v !== 2) return;
-        if(stF === 'half' && v !== 3) return;
-        if(stF === 'pass' && v !== 1) return;
+        let hit = false;
+        if(stSet.has('unt') && isUnt) hit = true;
+        if(stSet.has('fail') && v === 2) hit = true;
+        if(stSet.has('half') && v === 3) hit = true;
+        if(stSet.has('pass') && v === 1) hit = true;
+        if(!hit) return;
       }
       const bsF = $('tqBrowseStatus').value;
       if(bsF !== 'all'){
@@ -3585,13 +3857,6 @@ function topicQuery(){
     });
   });
   return res;
-}
-function refreshTqTopic(){
-  /* 切换科目时重置专题选择，更新按钮文案 */
-  tqTopicSel.clear();
-  updateTqTopicBtn();
-  /* 关闭可能打开的弹窗 */
-  const p = $('tqTopicPop'); if(p) p.style.display = 'none';
 }
 function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
 /* ---------- 浏览历史（今日已学点击） ---------- */
@@ -3729,8 +3994,8 @@ function openTopicTrain(){
   tqSubjSel.clear();
   if(cur) tqSubjSel.add(cur);
   /* 重置专题练内嵌多选状态 */
-  tqTopicSel.clear(); tqSrcSel.clear();
-  updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn();
+  tqTopicSel.clear(); tqSrcSel.clear(); tqStatusSel.clear();
+  updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn(); updateTqStatusBtn();
   refreshTqTopic();
   refreshSrcFilterList();
   refreshTqCount();
@@ -3743,8 +4008,8 @@ function openCrossTopicTrain(){
   tqSubjMode = 'cross';
   tqSubjSel.clear();
   SUBJ_NAMES.forEach(n => tqSubjSel.add(n));
-  tqTopicSel.clear(); tqSrcSel.clear();
-  updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn();
+  tqTopicSel.clear(); tqSrcSel.clear(); tqStatusSel.clear();
+  updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn(); updateTqStatusBtn();
   refreshTqTopic();
   refreshSrcFilterList();
   refreshTqCount();
@@ -4023,10 +4288,11 @@ $('modeModalClose').addEventListener('click', () => {
   if(modeModalPurpose === 'idle'){ idlePaused = false; resetIdle(); }   /* 关闭=继续当前模式（不重置进度） */
 });
 $('topicModalClose').addEventListener('click', () => $('topicModal').classList.remove('show'));
-$('tqSubj').addEventListener('change', () => { refreshTqTopic(); tqSrcSel.clear(); updateTqSrcBtn(); refreshSrcFilterList(); refreshTqCount(); });
+$('tqSubjBtn').addEventListener('click', e => { e.stopPropagation(); openTqSubjPop(); });
 $('tqTopicBtn').addEventListener('click', e => { e.stopPropagation(); openTqTopicPop(); });
 $('tqSrcBtn').addEventListener('click', e => { e.stopPropagation(); openTqSrcPop(); });
-['tqStatus','tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
+$('tqStatusBtn').addEventListener('click', e => { e.stopPropagation(); openTqStatusPop(); });
+['tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
 $('tqKeyword').addEventListener('input', refreshTqCount);
 $('tqBrowseStatus').addEventListener('change', refreshTqCount);
 $('tqStart').addEventListener('click', startTopicTrain);
@@ -4272,6 +4538,8 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
     }
     initCloud();
     ttsInitSkip = false;   /* 初始化完成，之后翻卡/展开可自动朗读 */
+    snapshotLocal(false);  /* 启动时自动留档（每日一次） */
+    bindBakUI();
   }catch(e){
     console.error('init failed:', e);
     toast('初始化异常：' + e.message);
