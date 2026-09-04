@@ -2605,11 +2605,18 @@ const CLOUD_CFG_KEY='wulun_cloud_cfg';
 const CLOUD_TABLE='gaokao_state';
 function cloudDocId(){ return 'jikaka-' + personKey; }   /* 每个执行人独立云端文档 */
 const CLOUD_SYNC_KEY='wulun_cloud_sync_at';
-const DEFAULT_CLOUD_URL='https://vajgltnfpdjpnsoknoma.supabase.co';
-const DEFAULT_CLOUD_KEY='sb_publishable_WkudOiZ5UwD0VhwquRsUBA_LkBhSyoN';
+const DEFAULT_CLOUD_URL='https://mixuqjognbdrafrrlivc.supabase.co';
+const DEFAULT_CLOUD_KEY='sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX';
 function defaultCloudCfg(){ return {url:DEFAULT_CLOUD_URL, key:DEFAULT_CLOUD_KEY, disabled:false}; }
 function loadCloudCfg(){
-  try{ const c = JSON.parse(localStorage.getItem(CLOUD_CFG_KEY)||'null'); if(c && c.url && c.key) return c; }catch(e){}
+  try{
+    const c = JSON.parse(localStorage.getItem(CLOUD_CFG_KEY)||'null');
+    /* 2026-09-04 Supabase 账号迁移：旧库 vajgltnfpdjpnsoknoma egress 超限封禁弃用 → 设备残留旧配置则丢弃，回落新默认（幂等，用户后续手动改配置不受影响） */
+    if(c && c.url && c.key){
+      if(c.url.indexOf('vajgltnfpdjpnsoknoma') >= 0){ localStorage.removeItem(CLOUD_CFG_KEY); return defaultCloudCfg(); }
+      return c;
+    }
+  }catch(e){}
   return defaultCloudCfg();
 }
 function saveCloudCfg(c){ try{ localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(c)); }catch(e){} }
