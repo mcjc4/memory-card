@@ -2599,7 +2599,7 @@ function doImport(){
 /* ===================== 云端同步（Supabase REST · 参考学习工作台） =====================
  * 复用学习工作台已建好的 Supabase 项目：表 gaokao_state（id text PK / data jsonb / updated_at timestamptz，RLS 关闭）
  * 记忆卡使用独立文档 id 'jikaka'，与学习工作台的 'main' 互不干扰。
- * 本地 localStorage 作为缓存与离线兜底；每 20 秒轮询 + 切回页面立即拉取；本地变更节流推送。
+ * 本地 localStorage 作为缓存与离线兜底；每 60 秒探针轮询（云端有更新才全量拉）+ 切回页面立即拉取；本地变更节流推送。
  */
 const CLOUD_CFG_KEY='wulun_cloud_cfg';
 const CLOUD_TABLE='gaokao_state';
@@ -2759,7 +2759,7 @@ function renderCloudBadge(){
   if(st){
     const txt = {off:'未启用（仅本机）', connecting:'连接中…', online:'已连接 · 云端同步中', error:'连接失败（网络或配置）'}[cloudStatus] || cloudStatus;
     st.textContent = txt;
-    sub.textContent = cloudStatus === 'online' ? '每 20 秒自动同步，断网时本地照常学习' : '云端数据：进度 / 打卡 / 自定义卡片 / 导入科目';
+    sub.textContent = cloudStatus === 'online' ? '每 60 秒自动同步，断网时本地照常学习' : '云端数据：进度 / 打卡 / 自定义卡片 / 导入科目';
   }
   const cp = $('cloudPerson');
   if(cp) cp.textContent = personName();
@@ -2812,6 +2812,13 @@ async function pushCloud(force){
 async function pullCloud(silent, force){
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
   try{
+    /* ⚡ egress 优化（2026-09-04）：非 force 轮询先查轻量 updated_at（≈150B），
+       云端无新版本（meta <= 本地已同步版本）直接跳过全量下载，避免每次轮询都白下载整份 2MB 文档；
+       meta===null（探针网络失败）时降级走原全量逻辑，保证可用性不受损。 */
+    if(!force){
+      const meta = await fetchCloudMeta();
+      if(meta !== null && meta <= cloudSyncAt()) return;   /* 云端不比本地新 → 跳过全量下载 */
+    }
     const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + cloudDocId() + '&select=*';
     const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 8000);
     if(!res.ok) throw new Error('http ' + res.status);
@@ -2855,7 +2862,7 @@ function schedulePush(){
   cloudPushTimer = setTimeout(() => pushCloud(), 1500);
 }
 function startSyncLoop(){
-  setInterval(() => { if(!document.hidden) pullCloud(true); }, 20000);
+  setInterval(() => { if(!document.hidden) pullCloud(true); }, 60000);   /* egress 优化：60s 轮询（配合 updated_at 探针，仅云端有更新才全量下载） */
   document.addEventListener('visibilitychange', () => { if(!document.hidden) pullCloud(true); });
 }
 
@@ -2925,6 +2932,7 @@ function restoreLocalByTs(ts){
 }
 /* ---- C：云端每日快照（独立文档 jikaka-<personKey>-bak，保留 N 天） ---- */
 function cloudBakDocId(){ return cloudDocId() + '-bak'; }
+function bakMetaId(){ return cloudBakDocId() + '-meta'; }   /* 轻量索引行：只存 {ts,day,at} 骨架，列表渲染用，避免全量下载 10MB+ 备份文档 */
 async function fetchCloudBak(){
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return null;
   const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + encodeURIComponent(cloudBakDocId()) + '&select=*';
@@ -2936,6 +2944,41 @@ async function fetchCloudBak(){
     return typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
   }
   return {v:1, list:[]};
+}
+/* ⚡ egress 优化：云端快照列表只读轻量索引行（几 KB）；无索引行（旧数据）→ 降级全量读并顺带补建索引 */
+async function fetchCloudBakMeta(){
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return [];
+  const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + encodeURIComponent(bakMetaId()) + '&select=*';
+  try{
+    const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 6000);
+    if(res.ok){
+      const rows = await res.json();
+      if(Array.isArray(rows) && rows.length){
+        const row = rows[0];
+        const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+        if(d && Array.isArray(d.list)) return d.list;
+      }
+    }
+  }catch(e){ console.warn('fetchCloudBakMeta failed:', e); }
+  try{
+    const doc = await fetchCloudBak();
+    const list = (doc && Array.isArray(doc.list)) ? doc.list : [];
+    const skel = list.map(x => ({ts:x.ts, day:x.day, at:x.at}));
+    try{
+      const u = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
+      await fetchTimeout(u, {method:'POST', headers: Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify({id: bakMetaId(), data: {v:1, list: skel}, updated_at: new Date().toISOString()})}, 6000);
+    }catch(e){}
+    return skel;
+  }catch(e){ return []; }
+}
+/* 上传完成后补写轻量索引行（仅骨架，不重复存全量） */
+function writeCloudBakMeta(list){
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key || !Array.isArray(list)) return;
+  try{
+    const skel = list.map(x => ({ts:x.ts, day:x.day, at:x.at}));
+    const u = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
+    fetchTimeout(u, {method:'POST', headers: Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify({id: bakMetaId(), data: {v:1, list: skel}, updated_at: new Date().toISOString()})}, 6000).catch(()=>{});
+  }catch(e){}
 }
 async function uploadCloudBak(manual){
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key || cloudCfg.disabled){ if(manual) toast('云端未配置/已断开，无法上传快照'); return false; }
@@ -2954,6 +2997,7 @@ async function uploadCloudBak(manual){
     const res = await fetchTimeout(url, {method:'POST', headers, body}, 9000);
     if(!res.ok) throw new Error('http ' + res.status);
     localStorage.setItem(BAK_CLOUD_DAY_KEY, today);
+    writeCloudBakMeta(list);   /* 补写轻量索引行（列表渲染免全量下载） */
     if(manual) toast('✅ 今日云端快照已上传（保留 ' + days + ' 天）');
     renderBakLists();
     return true;
@@ -2999,8 +3043,7 @@ function renderBakLists(){
   }
   const cloudBox = document.getElementById('bakCloudList');
   if(cloudBox){
-    fetchCloudBak().then(doc => {
-      const list = (doc && Array.isArray(doc.list)) ? doc.list : [];
+    fetchCloudBakMeta().then(list => {   /* ⚡ egress 优化：只读轻量索引行，不再全量下载备份文档 */
       if(!list.length) cloudBox.innerHTML = '<div style="color:#9ca3af">暂无云端快照 · 联网后每天自动上传，也可手动「立即上传今日快照」</div>';
       else cloudBox.innerHTML = list.map(x =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px dashed #cfe3d5">'
