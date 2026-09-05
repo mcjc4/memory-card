@@ -73,7 +73,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .answer-inner{min-height:0;overflow:hidden;padding:0 14px}
 .card.show .answer-zone{flex:2 1 67%;min-height:0;grid-template-rows:1fr;opacity:1;padding:14px}
 .card.show .answer-inner{padding:0 14px 6px;overflow-y:auto;overscroll-behavior:contain}
-.card.show .concl{font-size:16px;line-height:1.85}
+.card.show .concl{line-height:1.7}
 /* 新卡入场：切卡/打卡后题干柔和淡入上滑，消除内容硬替换闪切 */
 @keyframes zoneIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .card.enter .signal-zone{animation:zoneIn .38s ease both}
@@ -144,7 +144,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseTable .actBtn:hover{background:#E6F1FB;border-color:#185FA5}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
 .sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500;transition:font-size .45s cubic-bezier(.4,0,.2,1),line-height .45s cubic-bezier(.4,0,.2,1)}
-.concl{font-size:16px;line-height:2.0;color:#1f2329}
+.concl{font-size:var(--concl-fit,16px);line-height:2.0;color:#1f2329}
 .sig .katex,.concl .katex{font-size:1.05em}
 .card.show .sig{line-height:1.5}
 .hint{margin-top:20px;font-size:13px;color:#9ca3af;text-align:center;transition:opacity .25s,max-height .25s,margin .25s;overflow:hidden}
@@ -1531,11 +1531,41 @@ function fitSigText(maxHpx){
     _sigAnim.onfinish = function(){ _sigAnim = null; };
   }
 }
-let _fitSigTimer = null, _sigAnim = null;
+let _fitSigTimer = null, _sigAnim = null, _ansFitTimer = null, _ansAnim = null;
 window.addEventListener('resize', () => {
   clearTimeout(_fitSigTimer);
   _fitSigTimer = setTimeout(fitSigText, 160);
+  clearTimeout(_ansFitTimer);
+  _ansFitTimer = setTimeout(fitAnsText, 200);   /* 展开态下答案字号随宽度重算 */
 });
+/* 答案区（结论）字号自适应：与正面题干同款机制，结论文字尽量铺满答案区可视高而不触发滚动。
+   测量以 .answer-inner（滚动容器）为基准，badge+结论+出处整体纳入；字号 14-48px，超长结论缩至下限仍超高则保留内部滚动兜底 */
+function fitAnsText(){
+  const el = $('bConcl'); if(!el || !el.offsetParent) return;
+  const card = $('card'); if(!card || !card.classList.contains('show')) return;
+  const inner = card.querySelector('.answer-inner'); if(!inner) return;
+  const innerH = inner.clientHeight;
+  if(innerH < 40) return;
+  const oldPx = parseFloat(getComputedStyle(el).fontSize) || 0;
+  const hadTrans = el.style.transition;
+  el.style.transition = 'none';   /* 测量阶段禁过渡，防二分读到中间值失真 */
+  let lo = 14, hi = 48;
+  while(hi - lo > 1){
+    const mid = (lo + hi) >> 1;
+    el.style.setProperty('--concl-fit', mid + 'px');
+    if(inner.scrollHeight > innerH) hi = mid; else lo = mid;
+  }
+  el.style.setProperty('--concl-fit', lo + 'px');
+  el.style.transition = hadTrans;
+  if(_ansAnim){ try{ _ansAnim.cancel(); }catch(e){} _ansAnim = null; }
+  if(oldPx > 0 && Math.abs(oldPx - lo) > 1){
+    _ansAnim = el.animate(
+      [{ fontSize: oldPx + 'px' }, { fontSize: lo + 'px' }],
+      { duration: 450, easing: 'cubic-bezier(.4,0,.2,1)' }
+    );
+    _ansAnim.onfinish = function(){ _ansAnim = null; };
+  }
+}
 function show(){
   if(pos >= queue.length){
     const empty = $('empty');
@@ -1645,6 +1675,7 @@ function flip(){
   if(shown){
     card.classList.remove('show'); shown = false;
     stopSpeak();   /* 收起答案时停止朗读 */
+    clearTimeout(_ansFitTimer);   /* 收起后不再执行待定的答案区字号自适应 */
     fitSigText();  /* 收回：题干字号恢复全卡自适应（平滑放大回原位） */
   } else {
     card.classList.add('show'); shown = true;
@@ -1655,6 +1686,9 @@ function flip(){
     card.style.setProperty('--rv-h', rvH + 'px');
     /* 题干可用高 = 1/3 区(占 rvH 扣除卡内 padding 52) - zone 顶部徽章/朗读键约 84px - 内边距 12px */
     fitSigText(Math.round((rvH - 52) * 0.33) - 96);
+    /* 答案字号自适应：等 grid 抽屉动画(~500ms)完全展开、高度稳定后再测量，避免读到过渡中间高度 */
+    clearTimeout(_ansFitTimer);
+    _ansFitTimer = setTimeout(fitAnsText, 620);
     /* 按需求：答案区不朗读（只朗读题干） */
   }
 }
@@ -3617,7 +3651,7 @@ async function pushTrainResult(){
   const cnt = td.date === today() ? td.count : 0;
   const lines = [
     personName() + ' 训练 ' + ALL_SUBJECTS[cur].display + ' 进行中',
-    '本次已训练 ' + (durMin > 0 ? durMin : 0) + ' 分钟',
+    '本次已训练 ' + fmtDurMin(durMin > 0 ? durMin : 0),
     '本次看过 ' + sessionSeen + ' 张 · 答对 ' + sessionCorrect + ' 张',
     '今日累计 ' + cnt + ' 题 · 连续打卡 ' + calcStreak() + ' 天',
     '继续加油！'
@@ -4533,9 +4567,14 @@ function flushTime(){
 setInterval(flushTime, 5000);
 /* ===== 停留超时检测 + 周期成果推送 ===== */
 /* ===== 专注保护：切走检测（切标签页/切应用/最小化/切窗口） ===== */
-function guardFmtMin(m){
-  if(m < 1) return Math.max(1, Math.round(m * 60)) + ' 秒';
-  return (Math.round(m * 10) / 10) + ' 分钟';
+/* 时长展示格式：分钟数转「X 分 Y 秒」（3.4 分钟 → 3 分 24 秒）；整分钟用「X 分钟」、不足 1 分钟用「X 秒」 */
+function fmtDurMin(m){
+  if(!(m > 0)) return '0 分钟';
+  const totalSec = Math.round(m * 60);
+  const mm = Math.floor(totalSec / 60), ss = totalSec % 60;
+  if(mm <= 0) return Math.max(1, ss) + ' 秒';
+  if(ss === 0) return mm + ' 分钟';
+  return mm + ' 分 ' + ss + ' 秒';
 }
 function onGuardLeave(){
   if(!guardCfg.enabled || !isTrainView()) return;   /* 仅训练页启用 */
@@ -4556,12 +4595,12 @@ function onGuardBack(){
   if(durMin >= th){
     if(guardCfg.interrupt && isTrainView()){
       showView('dash');
-      if(guardCfg.toast) toast('⚠ 离开 ' + guardFmtMin(durMin) + '，已中断本次训练');
+      if(guardCfg.toast)       toast('⚠ 离开 ' + fmtDurMin(durMin) + '，已中断本次训练');
     } else if(guardCfg.toast){
-      toast('⚠ 离开 ' + guardFmtMin(durMin) + ' 分钟');
+      toast('⚠ 离开 ' + fmtDurMin(durMin));
     }
     if(guardCfg.pushParent){
-      const content = personName() + ' 离开训练页 ' + guardFmtMin(durMin)
+      const content = personName() + ' 离开训练页 ' + fmtDurMin(durMin)
         + '\n今日已离开 ' + guard.count + ' 次，累计 ' + guard.minutes + ' 分钟'
         + (guardCfg.interrupt ? '\n已中断本次训练' : '');
       sendWechat('⚠️ ' + personName() + ' 离开训练页', content);
@@ -4569,7 +4608,7 @@ function onGuardBack(){
       sendFeishu(content);
     }
   } else if(guardCfg.toast){
-    toast('刚离开 ' + guardFmtMin(durMin) + '，继续加油');
+    toast('刚离开 ' + fmtDurMin(durMin) + '，继续加油');
   }
   resetIdle();
 }
