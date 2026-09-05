@@ -1500,6 +1500,11 @@ function fitSigText(){
   const maxH = vh - top - 24;              /* 屏幕底部留 24px 边距 */
   const targetW = card.clientWidth * 0.95;
   if(targetW <= 0 || maxH <= 80) return;
+  /* 捕获当前字号作为过渡动画起点（切卡/换题/resize 时新旧字号平滑衔接，不瞬跳） */
+  const oldPx = parseFloat(getComputedStyle(el).fontSize) || 0;
+  /* 测量阶段临时禁用 transition：否则二分每次 set 后强制布局会读到过渡中间值，结果失真 */
+  const hadTrans = el.style.transition;
+  el.style.transition = 'none';
   let lo = 18, hi = 140;
   while(hi - lo > 1){
     const mid = (lo + hi) >> 1;
@@ -1508,8 +1513,18 @@ function fitSigText(){
     if(overflow) hi = mid; else lo = mid;
   }
   el.style.setProperty('--sig-fit', lo + 'px');
+  el.style.transition = hadTrans;
+  /* 字号从旧值显式动画到新值（WAAPI，不依赖 CSS transition 触发时序，保证必有过渡帧） */
+  if(_sigAnim){ try{ _sigAnim.cancel(); }catch(e){} _sigAnim = null; }
+  if(oldPx > 0 && Math.abs(oldPx - lo) > 1){
+    _sigAnim = el.animate(
+      [{ fontSize: oldPx + 'px' }, { fontSize: lo + 'px' }],
+      { duration: 450, easing: 'cubic-bezier(.4,0,.2,1)' }
+    );
+    _sigAnim.onfinish = function(){ _sigAnim = null; };
+  }
 }
-let _fitSigTimer = null;
+let _fitSigTimer = null, _sigAnim = null;
 window.addEventListener('resize', () => {
   clearTimeout(_fitSigTimer);
   _fitSigTimer = setTimeout(fitSigText, 160);
