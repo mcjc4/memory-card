@@ -72,7 +72,9 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .answer-zone{flex:0 0 auto;min-height:0;display:grid;grid-template-rows:0fr;overflow:hidden;opacity:0;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease .06s,padding .5s cubic-bezier(.4,0,.2,1);border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0;padding:0 14px}
 .answer-inner{min-height:0;overflow:hidden;padding:0 14px}
 .card.show .answer-zone{flex:2 1 67%;min-height:0;grid-template-rows:1fr;opacity:1;padding:14px}
-.card.show .answer-inner{padding:0 14px 6px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.card.show .answer-inner{padding:0 14px 6px;overflow-y:auto;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+/* 内容超高需内部滚动时才 contain（滚到底不再打扰页面）；内容铺满时保持 auto，滑动自然链条到整个网页 */
+.card.show .answer-inner.scrollable{overscroll-behavior:contain}
 .card.show .concl{line-height:1.7}
 /* 新卡入场：切卡/打卡后题干柔和淡入上滑，消除内容硬替换闪切 */
 @keyframes zoneIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -1557,6 +1559,8 @@ function fitAnsText(){
     if(inner.scrollHeight > innerH) hi = mid; else lo = mid;
   }
   el.style.setProperty('--concl-fit', lo + 'px');
+  /* 内容超高（需内部滚动）才加 scrollable → overscroll-behavior:contain；铺满时保持 auto，滑动可链条滚动整个网页 */
+  inner.classList.toggle('scrollable', inner.scrollHeight > innerH + 2);
   el.style.transition = hadTrans;
   if(_ansAnim){ try{ _ansAnim.cancel(); }catch(e){} _ansAnim = null; }
   if(oldPx > 0 && Math.abs(oldPx - lo) > 1){
