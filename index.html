@@ -65,12 +65,16 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .card.burst{animation:burst .5s}
 @keyframes burst{0%{box-shadow:0 0 0 0 rgba(59,109,17,.4)}100%{box-shadow:0 0 0 18px rgba(59,109,17,0)}}
 .signal-zone{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;padding:6px 0;transform-origin:center top;transition:transform .5s cubic-bezier(.4,0,.2,1),opacity .35s ease}
-.card.show .signal-zone{transform:scale(.94);opacity:.98}
-.answer-zone{flex:0 0 auto;min-height:0;max-height:0;overflow:hidden;opacity:0;transform:scale(.86);transform-origin:center bottom;transition:max-height .55s cubic-bezier(.4,0,.2,1),transform .5s cubic-bezier(.4,0,.2,1) .04s,opacity .4s ease .08s,padding .5s cubic-bezier(.4,0,.2,1);border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0;display:flex;flex-direction:column;justify-content:flex-start;padding:0 14px}
-.answer-inner{overflow:hidden;padding:0 14px;transform:scale(.92);transform-origin:center bottom;transition:transform .5s cubic-bezier(.4,0,.2,1) .04s}
-.card.show .answer-zone{max-height:2000px;opacity:1;transform:scale(1);padding:14px}
-.card.show .answer-inner{transform:scale(1);padding:0 14px}
+.card.show .signal-zone{transform:translateY(-8px);opacity:.97}
+/* A方案·抽屉动画：答案区 grid 0fr→1fr 真实高度过渡（无 max-height 假动画，收起匀速不骤收） */
+.answer-zone{flex:0 0 auto;min-height:0;display:grid;grid-template-rows:0fr;overflow:hidden;opacity:0;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease .06s,padding .5s cubic-bezier(.4,0,.2,1);border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0;padding:0 14px}
+.answer-inner{min-height:0;overflow:hidden;padding:0 14px}
+.card.show .answer-zone{grid-template-rows:1fr;opacity:1;padding:14px}
+.card.show .answer-inner{padding:0 14px}
 .card.show .concl{font-size:16px;line-height:1.85}
+/* 新卡入场：切卡/打卡后题干柔和淡入上滑，消除内容硬替换闪切 */
+@keyframes zoneIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.card.enter .signal-zone{animation:zoneIn .38s ease both}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
   .linkBadge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;cursor:pointer;text-decoration:none;transition:filter .15s}
@@ -137,10 +141,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5;white-space:nowrap}
 .browseTable .actBtn:hover{background:#E6F1FB;border-color:#185FA5}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
-.sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500}
+.sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500;transition:font-size .45s cubic-bezier(.4,0,.2,1),line-height .45s cubic-bezier(.4,0,.2,1)}
 .concl{font-size:16px;line-height:2.0;color:#1f2329}
 .sig .katex,.concl .katex{font-size:1.05em}
-.card.show .sig{font-size:clamp(16px,4cqw,32px);line-height:1.5}
+.card.show .sig{font-size:calc(var(--sig-fit,24px) * .82);line-height:1.5}
 .hint{margin-top:20px;font-size:13px;color:#9ca3af;text-align:center;transition:opacity .25s,max-height .25s,margin .25s;overflow:hidden}
 .trainPos{text-align:center;font-size:13px;color:#6b7280;margin:0 0 12px;font-weight:500}
 .card.show .hint{opacity:0;max-height:0;margin-top:0}
@@ -1601,6 +1605,9 @@ else { fOrigEl.innerHTML = ''; fOrigEl.style.display = 'none'; }
   if(d.link){ bLinkEl.innerHTML = '<a class="linkBadge" href="' + escHtml(d.link).replace(/"/g,'&quot;') + '" target="_blank" rel="noopener">🔗 原题链接</a>'; bLinkEl.style.display = ''; }
   else { bLinkEl.innerHTML = ''; bLinkEl.style.display = 'none'; }
   $('card').classList.remove('show', 'hide', 'collapsing');
+  /* 新卡入场：内容填充完毕后重触发淡入上滑（切卡/打卡/切题统一入口） */
+  const enterCard = $('card');
+  enterCard.classList.remove('enter'); void enterCard.offsetWidth; enterCard.classList.add('enter');
   shown = false;
   markBusy = false;
   $('comboBar').classList.remove('show');
