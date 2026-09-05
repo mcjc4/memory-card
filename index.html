@@ -338,6 +338,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button id="dashSettingsBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">⚙ 设置</button>
         <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;min-width:80px;text-align:left">☁ 同步状态</button>
+        <button id="dashBrowseBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="查看浏览历史（全部学科/全部执行人本机记录）">📋 浏览历史</button>
         <button id="dashCrossTopicBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#E6F1FB;color:#0C447C;cursor:pointer">🎯 跨科专题练</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
       </div>
@@ -685,6 +686,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div class="tqRow tqFull">
       <div class="row2">
         <button id="tqPreview">预览清单</button>
+        <button id="tqExportXlsx" title="把当前筛选条件下匹配的全部卡片导出为 Excel（xlsx）：科目 / 章节 / 题干 / 结论 / 出处 / 原题 / 链接 + 训练状态、最近答题、最近浏览、审核标记">📥 导出查询结果</button>
         <button id="tqStart" class="ok">开始训练</button>
       </div>
     </div>
@@ -2244,6 +2246,15 @@ function downloadFile(name, text, type){
   a.click();
   URL.revokeObjectURL(a.href);
 }
+function downloadBlob(name, u8, type){
+  const blob = new Blob([u8], {type});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
 function exportJSON(){
   const d = subjDef(cur);
   const payload = {subject: cur, color: d.color, display: d.display, items: d.items, state: state[cur] || {}, today: todayD[cur] || {}, goal: goal[cur] || 300, best: best[cur] || 0, exportedAt: new Date().toISOString()};
@@ -2258,6 +2269,107 @@ function exportCSV(){
   downloadFile(`记忆卡_${cur}_${today()}.csv`, csv, 'text/csv;charset=utf-8');
   toast('已导出 CSV');
 }
+
+/* ---------- xlsx 生成器（纯前端 store 方式打包 zip，零依赖；供专题练查询结果导出） ---------- */
+const XLW = (() => {
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+  const CRC_T = (() => { const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+  const crc32 = u8 => { let c = 0xFFFFFFFF; for(let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const enc = s => new TextEncoder().encode(s);
+  const colRef = i => { let s = ''; i++; while(i > 0){ const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = (i - m - 1) / 26 | 0; } return s; };
+  function buildZip(entries){
+    const chunks = [], cd = []; let off = 0;
+    const u16 = v => [v & 0xff, (v >>> 8) & 0xff];
+    const u32 = v => [v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff];
+    entries.forEach(e => {
+      const nm = enc(e.name), crc = crc32(e.data);
+      const lfh = new Uint8Array(30);
+      lfh.set([0x50,0x4b,0x03,0x04]); lfh.set(u16(20),4); lfh.set(u16(0x0800),6); lfh.set(u16(0),8);
+      lfh.set(u16(0),10); lfh.set(u16(0),12); lfh.set(u32(crc),14); lfh.set(u32(e.data.length),18);
+      lfh.set(u32(e.data.length),22); lfh.set(u16(nm.length),26); lfh.set(u16(0),28);
+      const head = new Uint8Array(30 + nm.length); head.set(lfh); head.set(nm,30);
+      chunks.push(head); chunks.push(e.data);
+      const cdh = new Uint8Array(46);
+      cdh.set([0x50,0x4b,0x01,0x02]); cdh.set(u16(20),4); cdh.set(u16(20),6); cdh.set(u16(0x0800),8);
+      cdh.set(u16(0),10); cdh.set(u16(0),12); cdh.set(u16(0),14); cdh.set(u32(crc),16);
+      cdh.set(u32(e.data.length),20); cdh.set(u32(e.data.length),24); cdh.set(u16(nm.length),28);
+      cdh.set(u32(0),32); cdh.set(u32(0),36); cdh.set(u32(0),38); cdh.set(u32(0),40); cdh.set(u32(off),42);
+      const ch = new Uint8Array(46 + nm.length); ch.set(cdh); ch.set(nm,46);
+      cd.push(ch); off += head.length + e.data.length;
+    });
+    const cdSize = cd.reduce((s,x) => s + x.length, 0);
+    const cdBuf = new Uint8Array(cdSize); let p = 0; cd.forEach(x => { cdBuf.set(x,p); p += x.length; });
+    const eocd = new Uint8Array(22);
+    eocd.set([0x50,0x4b,0x05,0x06]); eocd.set(u16(0),4); eocd.set(u16(0),6);
+    eocd.set(u16(entries.length),8); eocd.set(u16(entries.length),10); eocd.set(u32(cdSize),12); eocd.set(u32(off),16);
+    const total = chunks.reduce((s,x) => s + x.length, 0) + cdSize + 22;
+    const out = new Uint8Array(total); p = 0;
+    chunks.concat([cdBuf, eocd]).forEach(x => { out.set(x,p); p += x.length; });
+    return out;
+  }
+  function sheetXml(headers, rows, widths){
+    const cols = '<cols>' + widths.map((w,i) => '<col min="' + (i+1) + '" max="' + (i+1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols>';
+    const headCells = headers.map((h,i) => '<c r="' + colRef(i) + '1" t="inlineStr" s="1"><is><t xml:space="preserve">' + esc(h) + '</t></is></c>').join('');
+    let body = '';
+    rows.forEach((r,ri) => {
+      const rn = ri + 2; let cells = '';
+      r.forEach((v,ci) => { if(v === '' || v == null) return; cells += '<c r="' + colRef(ci) + rn + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>'; });
+      body += '<row r="' + rn + '">' + cells + '</row>';
+    });
+    const lastCol = colRef(widths.length - 1);
+    const lastRow = rows.length + 1;
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>'
+      + cols
+      + '<sheetData><row r="1">' + headCells + '</row>' + body + '</sheetData>'
+      + (rows.length ? '<autoFilter ref="A1:' + lastCol + lastRow + '"/>' : '')
+      + '</worksheet>';
+  }
+  function makeXlsx(headers, rows, widths){
+    const CT = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      + '</Types>';
+    const RELS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+      + '</Relationships>';
+    const WB = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<sheets><sheet name="\u67e5\u8be2\u7ed3\u679c" sheetId="1" r:id="rId1"/></sheets></workbook>';
+    const WB_RELS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+      + '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+      + '</Relationships>';
+    const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+      + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>'
+      + '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF185FA5"/></patternFill></fill></fills>'
+      + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+      + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+      + '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs>'
+      + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+      + '</styleSheet>';
+    return buildZip([
+      {name: '[Content_Types].xml', data: enc(CT)},
+      {name: '_rels/.rels', data: enc(RELS)},
+      {name: 'xl/workbook.xml', data: enc(WB)},
+      {name: 'xl/_rels/workbook.xml.rels', data: enc(WB_RELS)},
+      {name: 'xl/styles.xml', data: enc(STYLES)},
+      {name: 'xl/worksheets/sheet1.xml', data: enc(sheetXml(headers, rows, widths))}
+    ]);
+  }
+  return {makeXlsx: makeXlsx, crc32: crc32};
+})();
 
 /* ---------- Excel 导入（与之前相同） ---------- */
 const XL = (() => {
@@ -4166,6 +4278,45 @@ function previewTopicList(){
   const lines = ids.slice(0, 12).map(id => { const it = itemById(id); return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）'; });
   alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
 }
+/* 专题练查询结果导出 xlsx（含卡片全部字段 + 训练状态/最近答题/最近浏览/审核标记） */
+function tqExport(){
+  try{
+    const ids = topicQuery();
+    if(!ids.length){ toast('没有匹配的卡片，无可导出'); return; }
+    const stNames = {1:'记住了', 2:'没记住', 3:'模糊'};
+    const fmtTs = ts => {
+      if(!ts) return '';
+      const d = new Date(ts);
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')
+        + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    };
+    const headers = ['科目','章节/专题','题干信号','结论/易错点','出处','原题题干','题目链接','训练状态','最近答题','最近浏览','审核'];
+    const rows = [];
+    ids.forEach(id => {
+      const subj = subjectOfId(id);
+      const it = itemById(id);
+      if(!subj || !it) return;
+      const st = state[subj] || {}, lr = lastRes[subj] || {}, bm = browseMeta[subj] || {};
+      const v = st[id], lrItem = lr[id], bmItem = bm[id];
+      rows.push([
+        (ALL_SUBJECTS[subj] && ALL_SUBJECTS[subj].display ? ALL_SUBJECTS[subj].display : subj),
+        it.t || '', it.s || '', it.c || '', it.src || '', it.orig || '', it.link || '',
+        stNames[v] || '未测',
+        lrItem && lrItem.ts ? fmtTs(lrItem.ts) : '',
+        bmItem && bmItem.lastBrowse ? fmtTs(bmItem.lastBrowse) : '',
+        bmItem && bmItem.browsed ? '已审核' : '未审核'
+      ]);
+    });
+    if(!rows.length){ toast('没有可导出的卡片数据'); return; }
+    const widths = [12, 16, 44, 44, 16, 30, 30, 10, 18, 18, 8];
+    const zip = XLW.makeXlsx(headers, rows, widths);
+    downloadBlob('记忆卡_查询结果_' + ids.length + '张_' + today() + '.xlsx', zip, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast('已导出 ' + rows.length + ' 张卡片（xlsx）');
+  }catch(e){
+    console.error('tqExport failed:', e);
+    toast('导出失败：' + e.message);
+  }
+}
 function openSettings(){
   try {
     $('pushEnabled').checked = !!pushCfg.enabled;
@@ -4421,8 +4572,10 @@ $('tqStatusBtn').addEventListener('click', e => { e.stopPropagation(); openTqSta
 ['tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
 $('tqKeyword').addEventListener('input', refreshTqCount);
 $('tqBrowseStatus').addEventListener('change', refreshTqCount);
-$('tqStart').addEventListener('click', startTopicTrain);
-$('tqPreview').addEventListener('click', previewTopicList);
+  $('tqStart').addEventListener('click', startTopicTrain);
+  $('tqPreview').addEventListener('click', previewTopicList);
+  $('tqExportXlsx').addEventListener('click', tqExport);
+  $('tqExportXlsx').addEventListener('touchstart', e => { e.preventDefault(); tqExport(); }, {passive:false});
 $('browseHistoryClose').addEventListener('click', () => $('browseHistoryModal').classList.remove('show'));
 ['bhSearch','bhSubj','bhMode','bhStatus','bhDateStart','bhDateEnd'].forEach(id => {
   const el = $(id);
@@ -4430,8 +4583,10 @@ $('browseHistoryClose').addEventListener('click', () => $('browseHistoryModal').
   el.addEventListener(evt, renderBrowseHistory);
 });
 $('bhStart').addEventListener('click', startBhPractice);
-$('dTodayCard').addEventListener('click', openBrowseHistory);
-$('dTodayCard').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
+  $('dTodayCard').addEventListener('click', openBrowseHistory);
+  $('dTodayCard').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
+  $('dashBrowseBtn').addEventListener('click', openBrowseHistory);
+  $('dashBrowseBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 $('browseHistoryToolbarBtn').addEventListener('click', openBrowseHistory);
 $('browseHistoryToolbarBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 /* 工具栏 📄 出处 多选（影响 buildQueue）；默认全选 = 空集合显示全部 */
