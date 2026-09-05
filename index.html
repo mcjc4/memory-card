@@ -63,14 +63,16 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .progress i{display:block;height:100%;width:0;border-radius:3px;transition:width .3s}
 .card{position:relative;display:flex;flex-direction:column;min-height:320px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:26px;cursor:pointer;overflow:hidden;margin-bottom:12px;transition:box-shadow .3s}
 .card.burst{animation:burst .5s}
+/* 展开态：卡片高度锁定为视口可用高（JS 设 --rv-h），题干占上 1/3、答案占下 2/3 */
+.card.show{height:var(--rv-h,auto)}
 @keyframes burst{0%{box-shadow:0 0 0 0 rgba(59,109,17,.4)}100%{box-shadow:0 0 0 18px rgba(59,109,17,0)}}
 .signal-zone{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;padding:6px 0;transform-origin:center top;transition:transform .5s cubic-bezier(.4,0,.2,1),opacity .35s ease}
-.card.show .signal-zone{transform:translateY(-8px);opacity:.97}
+.card.show .signal-zone{flex:1 1 33%;min-height:0;overflow:hidden;transform:translateY(-8px);opacity:.97}
 /* A方案·抽屉动画：答案区 grid 0fr→1fr 真实高度过渡（无 max-height 假动画，收起匀速不骤收） */
 .answer-zone{flex:0 0 auto;min-height:0;display:grid;grid-template-rows:0fr;overflow:hidden;opacity:0;transition:grid-template-rows .5s cubic-bezier(.4,0,.2,1),opacity .4s ease .06s,padding .5s cubic-bezier(.4,0,.2,1);border-left:4px solid var(--accent,#185FA5);background:#f8fafc;border-radius:0 10px 10px 0;padding:0 14px}
 .answer-inner{min-height:0;overflow:hidden;padding:0 14px}
-.card.show .answer-zone{grid-template-rows:1fr;opacity:1;padding:14px}
-.card.show .answer-inner{padding:0 14px}
+.card.show .answer-zone{flex:2 1 67%;min-height:0;grid-template-rows:1fr;opacity:1;padding:14px}
+.card.show .answer-inner{padding:0 14px 6px;overflow-y:auto;overscroll-behavior:contain}
 .card.show .concl{font-size:16px;line-height:1.85}
 /* 新卡入场：切卡/打卡后题干柔和淡入上滑，消除内容硬替换闪切 */
 @keyframes zoneIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -144,7 +146,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500;transition:font-size .45s cubic-bezier(.4,0,.2,1),line-height .45s cubic-bezier(.4,0,.2,1)}
 .concl{font-size:16px;line-height:2.0;color:#1f2329}
 .sig .katex,.concl .katex{font-size:1.05em}
-.card.show .sig{font-size:calc(var(--sig-fit,24px) * .82);line-height:1.5}
+.card.show .sig{line-height:1.5}
 .hint{margin-top:20px;font-size:13px;color:#9ca3af;text-align:center;transition:opacity .25s,max-height .25s,margin .25s;overflow:hidden}
 .trainPos{text-align:center;font-size:13px;color:#6b7280;margin:0 0 12px;font-weight:500}
 .card.show .hint{opacity:0;max-height:0;margin-top:0}
@@ -247,7 +249,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .trainPerson{font-size:15px;color:#185FA5;background:#f0f7ff;border:1px solid #b9d4f5;border-radius:10px;padding:6px 16px;white-space:nowrap;display:flex;align-items:center;gap:6px;flex-shrink:0;min-width:120px;justify-content:center}
 .trainPerson b{color:#185FA5;font-weight:600;font-size:16px}
 @media (max-width:560px){.dashGrid{grid-template-columns:repeat(2,1fr)}.dashStats{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:520px){.todayRow{grid-template-columns:86px 1fr}.sig{font-size:16px}.concl{font-size:15px}.card{min-height:280px}}
+@media (max-width:520px){.todayRow{grid-template-columns:86px 1fr}.sig{font-size:16px}.concl{font-size:15px}.card{min-height:280px}.card.show .signal-zone{overflow-y:auto;overscroll-behavior:contain}}
 
 /* 模态框（新增/编辑卡片） */
 .modalMask{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:flex-start;justify-content:center;z-index:150;padding:18px;overflow:auto}
@@ -1491,15 +1493,19 @@ function restoreSubjectPos(name){
 
 /* ---------- 卡片：题面上收缩、答案从下展开 ---------- */
 /* 让题干文字自适应：宽度占卡片 95%，且卡片高度不超过屏幕高度 */
-function fitSigText(){
+function fitSigText(maxHpx){
   const el = $('fSig'); if(!el) return;
   if(!el.offsetParent) return;   /* 元素不可见（不在训练页） */
   const card = $('card');
+  const zone = card.querySelector('.signal-zone') || card;
   const vh = window.innerHeight || document.documentElement.clientHeight;
-  const top = card.getBoundingClientRect().top;
-  const maxH = vh - top - 24;              /* 屏幕底部留 24px 边距 */
+  if(maxHpx === undefined){
+    /* 默认（未展开）：题干自适应可占至视口底部，保留 ~26px 下边距 */
+    const zt = zone.getBoundingClientRect().top;
+    maxHpx = vh - zt - 50;
+  }
   const targetW = card.clientWidth * 0.95;
-  if(targetW <= 0 || maxH <= 80) return;
+  if(targetW <= 0 || maxHpx < 40) return;
   /* 捕获当前字号作为过渡动画起点（切卡/换题/resize 时新旧字号平滑衔接，不瞬跳） */
   const oldPx = parseFloat(getComputedStyle(el).fontSize) || 0;
   /* 测量阶段临时禁用 transition：否则二分每次 set 后强制布局会读到过渡中间值，结果失真 */
@@ -1509,7 +1515,8 @@ function fitSigText(){
   while(hi - lo > 1){
     const mid = (lo + hi) >> 1;
     el.style.setProperty('--sig-fit', mid + 'px');
-    const overflow = el.scrollWidth > targetW || card.offsetHeight > maxH;
+    /* 以 signal-zone 内容高判定：展开锁高后 card.offsetHeight 恒等于锁定值会失真 */
+    const overflow = el.scrollWidth > targetW || zone.scrollHeight > maxHpx;
     if(overflow) hi = mid; else lo = mid;
   }
   el.style.setProperty('--sig-fit', lo + 'px');
@@ -1638,8 +1645,16 @@ function flip(){
   if(shown){
     card.classList.remove('show'); shown = false;
     stopSpeak();   /* 收起答案时停止朗读 */
+    fitSigText();  /* 收回：题干字号恢复全卡自适应（平滑放大回原位） */
   } else {
     card.classList.add('show'); shown = true;
+    /* 视口内锁定 1:2：卡片高=可用视口高，题干压缩至上 1/3（字号按分区重算），答案占下 2/3 */
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const top = card.getBoundingClientRect().top;
+    const rvH = Math.max(340, vh - top - 84);   /* 底部留出打卡按钮/边距空间 */
+    card.style.setProperty('--rv-h', rvH + 'px');
+    /* 题干可用高 = 1/3 区(占 rvH 扣除卡内 padding 52) - zone 顶部徽章/朗读键约 84px - 内边距 12px */
+    fitSigText(Math.round((rvH - 52) * 0.33) - 96);
     /* 按需求：答案区不朗读（只朗读题干） */
   }
 }
