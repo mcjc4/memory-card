@@ -308,6 +308,10 @@
   position:absolute; border:2px dashed #b8860b; background:rgba(255,240,180,.3);
   pointer-events:none; z-index:60;
 }
+/* 框选模式禁用浏览器手势（避免吞 pointermove，导致单指画不出矩形） */
+body.tape-mode-rect .poster,
+body.tape-mode-rect #tape-layer,
+body.tape-mode-rect .tape { touch-action: none; }
 .tape-mode-rect .sec, .tape-mode-rect .footer-sec,
 .tape-mode-card .tape { cursor:inherit; }
 .tape-mode-card .sec, .tape-mode-card .footer-sec {
@@ -692,10 +696,15 @@
   let activePointers = new Map(); // 跟踪当前所有 pointer，多指时放行
 
   // ===== FAB 位置记忆 & 视口自适应 =====
-  // 存的是视口百分比，避免 zoom/resize 时位置错乱
+  // 用 visualViewport（手机 pinch zoom 时真正缩小的视口），否则固定靠 layout viewport 会让 FAB 在缩放后飞出屏幕
+  function getViewport(){
+    const vv = window.visualViewport;
+    if(vv){ return { w: vv.width, h: vv.height }; }
+    return { w: window.innerWidth, h: window.innerHeight };
+  }
   function clampFabToViewport(){
     const r = fabEl.getBoundingClientRect();
-    const w = window.innerWidth, h = window.innerHeight;
+    const {w, h} = getViewport();
     let left = r.left, top  = r.top;
     left = Math.max(8, Math.min(left, w - r.width  - 8));
     top  = Math.max(8, Math.min(top,  h - r.height - 8));
@@ -706,7 +715,7 @@
     return {x:left, y:top};
   }
   function applyFabPosFromPercent(pct){
-    const w = window.innerWidth, h = window.innerHeight;
+    const {w, h} = getViewport();
     const fw = fabEl.offsetWidth || 64, fh = fabEl.offsetHeight || 64;
     const x = Math.max(8, Math.min(pct.x/100*w, w - fw - 8));
     const y = Math.max(8, Math.min(pct.y/100*h, h - fh - 8));
@@ -716,7 +725,7 @@
   }
   function saveFabPos(){
     const r = fabEl.getBoundingClientRect();
-    const w = window.innerWidth, h = window.innerHeight;
+    const {w, h} = getViewport();
     // 用视口百分比存
     const pct = {x: ((r.left + r.width/2) / w) * 100, y: ((r.top + r.height/2) / h) * 100};
     try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(pct)); }catch(e){}
@@ -732,6 +741,10 @@
   }
   if(!loadFabPos()){ /* 默认 CSS 已用 vw/vh 自适应 */ }
   window.addEventListener('resize', ()=>clampFabToViewport());
+  // 手机双指缩放不会触发 window.resize，必须监听 visualViewport.resize
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', ()=>clampFabToViewport());
+  }
 
   // ===== 模式切换 =====
   function setMode(m, opts){
@@ -786,7 +799,7 @@
     fabMoved = true;
     const r = fabEl.getBoundingClientRect();
     let nx = r.left + dx, ny = r.top + dy;
-    const w = window.innerWidth, h = window.innerHeight;
+    const {w, h} = getViewport();
     nx = Math.max(0, Math.min(nx, w - r.width));
     ny = Math.max(0, Math.min(ny, h - r.height));
     fabEl.style.right='auto'; fabEl.style.bottom='auto';
