@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>昕言各科知识结构体系库 · 胶带版信息图导航</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'PingFang SC','Microsoft YaHei','Segoe UI',system-ui,sans-serif;color:#1f2d3d;line-height:1.75;
+    background:radial-gradient(900px 420px at 8% -4%,rgba(91,124,250,.10),transparent 60%),
+      radial-gradient(760px 380px at 96% -6%,rgba(45,208,180,.12),transparent 60%),
+      linear-gradient(160deg,#eef6ff,#f2fdf7);background-attachment:fixed;padding:28px 18px 60px}
+  .wrap{max-width:1080px;margin:0 auto}
+  .hero{background:linear-gradient(120deg,#5b7cfa,#4f8ef7 45%,#2fd0b4,#57d98d);border-radius:22px;padding:44px 40px;color:#fff;box-shadow:0 18px 44px -18px rgba(47,120,240,.55)}
+  .hero .tag{display:inline-block;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);font-size:13px;padding:4px 12px;border-radius:999px;margin-bottom:16px;letter-spacing:1px}
+  .hero h1{font-size:34px;font-weight:700;letter-spacing:1px}
+  .hero p{margin-top:12px;font-size:15px;opacity:.95;line-height:1.7;max-width:720px}
+  .stat{display:flex;gap:26px;margin-top:24px;flex-wrap:wrap}
+  .stat div{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:10px 18px}
+  .stat b{font-size:22px;display:block}
+  .stat span{font-size:12px;opacity:.92}
+  .howto{margin-top:22px;background:#fff;border:1px solid #e3edf7;border-radius:18px;padding:18px 22px;box-shadow:0 10px 30px -12px rgba(31,66,135,.16);font-size:14px;color:#42526b}
+  .howto b{color:#1f2d3d}
+  .howto .k{display:inline-block;background:#fff4e6;color:#d98512;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;margin:0 2px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-top:18px}
+  .card{display:flex;gap:14px;background:#fff;border:1px solid #e3edf7;border-radius:20px;padding:20px 18px;text-decoration:none;color:inherit;box-shadow:0 10px 30px -12px rgba(31,66,135,.16);transition:transform .18s ease,box-shadow .18s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 16px 36px -12px rgba(31,66,135,.26)}
+  .badge{flex:none;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4f8ef7,#22c3a6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600}
+  .card-body{min-width:0;flex:1}
+  .card-body h3{font-size:16px;color:#1f2d3d}
+  .card-body .sub{font-size:13px;color:#5c7185;margin-top:5px;line-height:1.55}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag-chip{font-size:11px;padding:2px 9px;border-radius:999px;background:#eef3ff;color:#2a6df4}
+  .tag-chip.k{background:#ecfdf6;color:#1a9e7a}
+  .tape-chip{font-size:11px;padding:2px 9px;border-radius:999px;background:#fdf2d0;color:#a4740f;font-weight:700}
+  .go{display:inline-block;margin-top:10px;font-size:13px;color:#fff;background:linear-gradient(120deg,#4f8ef7,#22c3a6);padding:5px 14px;border-radius:999px}
+  .foot{text-align:center;margin-top:34px;font-size:12px;color:#93a7ba}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <span class="tag">胶带版知识结构信息图 · 单文件离线可用</span>
+    <h1>昕言各科知识结构体系库</h1>
+    <p>高三一轮复习各科知识结构信息图（胶带遮盖版）：先自己背，再揭开核对。每科一图，覆盖 09-02 至 09-04 课堂纪要核心考点，胶带状态本地保存 + 云端同步。</p>
+    <div class="stat">
+      <div><b>6</b><span>个学科信息图</span></div>
+      <div><b>胶带版</b><span>框选贴带 · 揭开核对</span></div>
+      <div><b>☁️ 同步</b><span>本地 + Supabase 云端</span></div>
+      <div><b>单文件</b><span>零依赖离线运行</span></div>
+    </div>
+  </div>
+
+  <div class="howto">
+    <b>📖 使用方法</b>：点 <span class="k">✋浏览</span> 模式可正常滚动缩放；点右下角模式球切到 <span class="k">✏️框选</span>，单指画出矩形即可贴胶带挡住内容；回到浏览模式，<b>短按胶带揭开 / 贴回</b>，<b>长按 0.4s 删除或移动</b>；工具栏支持一键揭开 / 一键覆盖、导出导入。
+  </div>
+
+  <div class="grid">
+    <a class="card" href="chinese.html" target="_blank" rel="noopener">
+      <span class="badge">语0001</span>
+      <div class="card-body">
+        <h3>语文 · 文言文词类活用</h3>
+        <p class="sub">《劝学》默写易错点 · 句子成分分析法判定原理 · 名动形活用类型与真题演练</p>
+        <div class="tags"><span class="tag-chip">语文</span><span class="tag-chip c">文言文</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
+    <a class="card" href="math.html" target="_blank" rel="noopener">
+      <span class="badge">数0007</span>
+      <div class="card-body">
+        <h3>数学 · 三角函数性质与变换</h3>
+        <p class="sub">整体处理原图对照 · 奇偶性奇变偶不变 · 对称轴中心 · 同增异减 · 书写规范</p>
+        <div class="tags"><span class="tag-chip">数学</span><span class="tag-chip c">三角函数</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
+    <a class="card" href="physics.html" target="_blank" rel="noopener">
+      <span class="badge">物0008</span>
+      <div class="card-body">
+        <h3>物理 · 运动学实验与追及相遇</h3>
+        <p class="sub">刹车停止陷阱 · 打点计时器 · 瞬时速度与匀变速判定 · 逐差法 · v-t 图像规范</p>
+        <div class="tags"><span class="tag-chip">物理</span><span class="tag-chip c">匀变速直线运动</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
+    <a class="card" href="politics.html" target="_blank" rel="noopener">
+      <span class="badge">政0001</span>
+      <div class="card-body">
+        <h3>政治 · 唯物辩证法联系观</h3>
+        <p class="sub">知识框架 · 大切口答题规范 · 原理材料化示范 · 四大易错易混辨析</p>
+        <div class="tags"><span class="tag-chip">政治</span><span class="tag-chip c">哲学</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
+    <a class="card" href="english.html" target="_blank" rel="noopener">
+      <span class="badge">英0001</span>
+      <div class="card-body">
+        <h3>英语 · 阅读与写作专项</h3>
+        <p class="sub">熟词僻义 · 动作链四大句型 · AI 诗歌实验报告 · 七选五策略</p>
+        <div class="tags"><span class="tag-chip">英语</span><span class="tag-chip c">阅读与写作</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
+    <a class="card" href="../../chem_tape_demo.html" target="_blank" rel="noopener">
+      <span class="badge">化0001</span>
+      <div class="card-body">
+        <h3>化学 · 氧化还原 × 铁及其化合物</h3>
+        <p class="sub">化合价速判 · 电子转移 · 配平三步法 · 铁三角 · 实验专题与腐蚀防护（09-02/09-04 课堂）</p>
+        <div class="tags"><span class="tag-chip">化学</span><span class="tag-chip c">氧化还原</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
+  </div>
+  <div class="foot">昕言知识结构体系库 · 09-04 高三多学科复习纪要 · GitHub Pages</div>
+</div>
+</body>
+</html>
