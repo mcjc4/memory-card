@@ -702,7 +702,7 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 
 <!--pnid:eheixv085r88x8aEsY7Cc8--><!-- ====== 粘胶带：左上状态条 / 右上低频工具栏 / 右下 FAB 模式球 ====== -->
 <div data-page-node-id="7hzi4pnn2Jk3zSA6mrcsPa" class="tape-status"><!--pnid:rfF2JHTwwueJwViClvogsN-->
-  🧻 当前模式：<b data-page-node-id="KXlsVwgo8UoA7oJRoV5BaS" id="tape-mode-label"><!--pnid:tdS7rSPH9lbi4kFHjnvf1t-->浏览 ✋</b><!--pnid:mnHhcFXWAiiHYOV3jbRbJI-->　|　胶带 <b data-page-node-id="qtr4O76DSJ4Z1MkBOpZv0q" id="tape-count"><!--pnid:ZHGiIc3HGvHd41CfvINT6m-->0</b><!--pnid:SBxNj36eSmqKtbuU8a4gSb--> 条（覆盖 <b data-page-node-id="tape-count-cover" id="tape-count-cover">0</b> / 揭开 <b data-page-node-id="tape-count-reveal" id="tape-count-reveal">0</b>）　|　短按胶带揭起/贴回　|　长按胶带移动或删除　|　按 ESC 退回浏览
+  🧻 当前模式：<b data-page-node-id="KXlsVwgo8UoA7oJRoV5BaS" id="tape-mode-label"><!--pnid:tdS7rSPH9lbi4kFHjnvf1t-->浏览 ✋</b><!--pnid:mnHhcFXWAiiHYOV3jbRbJI-->　|　胶带 <b data-page-node-id="qtr4O76DSJ4Z1MkBOpZv0q" id="tape-count"><!--pnid:ZHGiIc3HGvHd41CfvINT6m-->0</b><!--pnid:SBxNj36eSmqKtbuU8a4gSb--> 条（覆盖 <b data-page-node-id="tape-count-cover" id="tape-count-cover">0</b> / 揭开 <b data-page-node-id="tape-count-reveal" id="tape-count-reveal">0</b>）　|　短按胶带揭起/贴回　|　长按胶带移动或删除　|　按 ESC 退回浏览　<span id="tape-cloud-badge" title="云端同步状态：☁️已同步 / ☁️…同步中 / ☁️⚠离线降级 / 📴已断开">☁️…</span>
 </div>
 
 <div data-page-node-id="F7QVwk1bIdEseKIY2G4HXV" class="tape-toolbar">
@@ -1287,7 +1287,169 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
     catch(e){ return []; }
   }
-  function saveState(s){ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+  function saveState(s){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    tapeMarkDirty();
+  }
+
+  // ===== 云端同步（Supabase PostgREST，egress 流量安全模式） =====
+  // 策略（吸取旧库 vajgltnfpdjpnsoknoma 出站流量超限被封的教训）：
+  //   1. localStorage 永远是主存储，云端仅做备份 + 跨设备同步；云端失败静默降级
+  //   2. 无 Realtime 订阅、无 setInterval 定时轮询；只在「页面加载」和「回前台且距上次探针 > 120s」时探针一次
+  //   3. 探针只查 updated_at（约 150B 响应），云端无新版本绝不下载全量 state
+  //   4. 本地变更 debounce 2.5s 合并推送：连续揭开/覆盖/移动多次只推一次，单行 upsert 仅几 KB
+  //   5. 推送前防覆盖探针：云端版本比本地推送基准新 → 放弃推送转为拉取（云端优先，防多设备互相覆盖）
+  const TAPE_CLOUD_TABLE = 'tape_state';
+  const TAPE_CFG_KEY = 'tape_cloud_cfg';
+  const TAPE_SYNC_AT_KEY    = 'tape_sync_at_' + FIG_ID;    // 本地已对齐的云端版本时间戳
+  const TAPE_BASE_UP_KEY    = 'tape_base_up_' + FIG_ID;    // 本地推送基准版本（防覆盖）
+  const TAPE_DIRTY_KEY      = 'tape_dirty_at_' + FIG_ID;   // 本地最后修改时间（本地版本号）
+  const TAPE_LAST_PROBE_KEY = 'tape_last_probe_' + FIG_ID; // 上次探针时间（回前台节流）
+  const TAPE_PROBE_MIN_GAP = 120000; // 回前台探针最小间隔 120s
+  // 默认用学习产品线同一 Supabase 新库；旧库 vajgltnfpdjpnsoknoma 已因 egress 超限封禁，残留配置一律丢弃
+  const TAPE_DEFAULT_CLOUD = {
+    url: 'https://mixuqjognbdrafrrlivc.supabase.co',
+    key: 'sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX'
+  };
+  function tapeCloudCfg(){
+    try{
+      const c = JSON.parse(localStorage.getItem(TAPE_CFG_KEY) || 'null');
+      if(c && c.url && c.key && c.url.indexOf('vajgltnfpdjpnsoknoma') < 0) return c;
+    }catch(e){}
+    return TAPE_DEFAULT_CLOUD;
+  }
+  function tapeNum(k){ return Number(localStorage.getItem(k)) || 0; }
+  function tapeSetNum(k, v){ try{ localStorage.setItem(k, String(v)); }catch(e){} }
+  function tapeMarkDirty(){ tapeSetNum(TAPE_DIRTY_KEY, Date.now()); }
+  function tapeBadge(s){
+    const el = document.getElementById('tape-cloud-badge');
+    if(!el) return;
+    const map = { sync:'☁️…', on:'☁️', off:'📴', warn:'☁️⚠' };
+    el.textContent = map[s] || '';
+  }
+  function tapeFetchTimeout(url, opts, ms){
+    return new Promise((resolve, reject) => {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => { ctl.abort(); reject(new Error('timeout')); }, ms || 8000);
+      fetch(url, Object.assign({}, opts || {}, {signal: ctl.signal}))
+        .then(r => { clearTimeout(timer); resolve(r); })
+        .catch(e => { clearTimeout(timer); reject(e); });
+    });
+  }
+  function tapeHeaders(ct, key){
+    const h = { 'apikey': key };
+    h['Authorization'] = 'Bearer ' + key; // 新旧 key 缺此头都会 PostgREST 401
+    if(ct) h['Content-Type'] = 'application/json';
+    return h;
+  }
+  async function tapeProbeMeta(cfg){
+    // 只查 updated_at（≈150B）；网络失败返回 null（调用方降级保护）
+    try{
+      const url = cfg.url.replace(/\/+$/,'') + '/rest/v1/' + TAPE_CLOUD_TABLE
+        + '?fig_id=eq.' + encodeURIComponent(FIG_ID) + '&select=updated_at';
+      const res = await tapeFetchTimeout(url, {method:'GET', headers: tapeHeaders(false, cfg.key)}, 6000);
+      if(!res.ok) throw new Error('http ' + res.status);
+      const rows = await res.json();
+      if(Array.isArray(rows) && rows.length && rows[0] && rows[0].updated_at){
+        return new Date(rows[0].updated_at).getTime() || 0;
+      }
+      return 0; // 云端无记录
+    }catch(e){ return null; }
+  }
+  async function tapePush(force){
+    const cfg = tapeCloudCfg();
+    if(cfg.disabled) return;
+    const dirty = tapeNum(TAPE_DIRTY_KEY);
+    if(!force && dirty <= tapeNum(TAPE_BASE_UP_KEY)) return; // 无未同步修改
+    try{
+      tapeBadge('sync');
+      if(!force){
+        const meta = await tapeProbeMeta(cfg);
+        if(meta !== null && meta > Math.max(tapeNum(TAPE_BASE_UP_KEY), 0)){
+          // 云端有比本地基准新的版本 → 本地可能是旧数据，放弃推送转拉取（云端优先）
+          tapePull(true, false);
+          return;
+        }
+      }
+      const url = cfg.url.replace(/\/+$/,'') + '/rest/v1/' + TAPE_CLOUD_TABLE;
+      const body = JSON.stringify({
+        fig_id: FIG_ID,
+        state: loadState(),
+        updated_at: new Date(dirty || Date.now()).toISOString()
+      });
+      const res = await tapeFetchTimeout(url, {
+        method:'POST',
+        headers: Object.assign(tapeHeaders(true, cfg.key), {'Prefer':'resolution=merge-duplicates'}),
+        body: body
+      }, 8000);
+      if(!res.ok) throw new Error('http ' + res.status);
+      tapeSetNum(TAPE_SYNC_AT_KEY, dirty);
+      tapeSetNum(TAPE_BASE_UP_KEY, dirty);
+      tapeBadge('on');
+    }catch(e){ console.warn('tape cloud push failed:', e); tapeBadge('warn'); }
+  }
+  let tapePushTimer = null;
+  function scheduleTapePush(){
+    if(tapePushTimer) clearTimeout(tapePushTimer);
+    tapePushTimer = setTimeout(()=>tapePush(false), 2500);
+  }
+  async function tapePull(silent, force){
+    const cfg = tapeCloudCfg();
+    if(cfg.disabled){ tapeBadge('off'); return; }
+    try{
+      // 回前台节流：距上次探针 < 120s 直接跳过（页面加载首拉 force 不受限）
+      if(!force){
+        const last = tapeNum(TAPE_LAST_PROBE_KEY);
+        if(last && Date.now() - last < TAPE_PROBE_MIN_GAP) return;
+      }
+      tapeSetNum(TAPE_LAST_PROBE_KEY, Date.now());
+      tapeBadge('sync');
+      const meta = await tapeProbeMeta(cfg);
+      if(meta !== null && meta <= Math.max(tapeNum(TAPE_SYNC_AT_KEY), 0)){
+        tapeBadge('on'); return; // 云端不比本地新 → 跳过全量下载（egress 保护核心）
+      }
+      const url = cfg.url.replace(/\/+$/,'') + '/rest/v1/' + TAPE_CLOUD_TABLE
+        + '?fig_id=eq.' + encodeURIComponent(FIG_ID) + '&select=*';
+      const res = await tapeFetchTimeout(url, {method:'GET', headers: tapeHeaders(false, cfg.key)}, 8000);
+      if(!res.ok) throw new Error('http ' + res.status);
+      const rows = await res.json();
+      if(Array.isArray(rows) && rows.length){
+        const row = rows[0];
+        const remoteUp = new Date(row.updated_at || 0).getTime() || 0;
+        const dirty = tapeNum(TAPE_DIRTY_KEY);
+        if(remoteUp > tapeNum(TAPE_SYNC_AT_KEY) && remoteUp > dirty){
+          // 云端更新 → 先备份本地再整份采用（新者胜）
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if(raw){ try{ localStorage.setItem(STORAGE_KEY + '_prepull_backup', raw); }catch(e){} }
+          let arr = row.state;
+          if(typeof arr === 'string'){ try{ arr = JSON.parse(arr); }catch(e){ arr = []; } }
+          if(!Array.isArray(arr)) arr = [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+          layer.innerHTML = '';
+          restore();
+          tapeSetNum(TAPE_SYNC_AT_KEY, remoteUp);
+          tapeSetNum(TAPE_BASE_UP_KEY, remoteUp);
+          if(!silent) flashSnack('已从云端同步胶带状态');
+        } else if(dirty > remoteUp){
+          tapePush(true); // 本地更新 → 上推
+          return;
+        }
+      } else {
+        tapePush(true); // 云端无记录 → 首次上传本地
+        return;
+      }
+      tapeBadge('on');
+    }catch(e){ console.warn('tape cloud pull failed:', e); tapeBadge('warn'); }
+  }
+  function initTapeCloud(){
+    const cfg = tapeCloudCfg();
+    if(cfg.disabled){ tapeBadge('off'); return; }
+    tapePull(true, false);
+    // 无定时轮询（egress 保护）：仅回前台时节流探针
+    document.addEventListener('visibilitychange', ()=>{
+      if(!document.hidden) tapePull(true, false);
+    });
+  }
 
   // 初次加载：按 localStorage 还原所有胶带
   function restore(){
@@ -1330,6 +1492,8 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     localStorage.removeItem(STORAGE_KEY);
     layer.innerHTML = '';
     updateCount();
+    tapeMarkDirty();          // 清空也要同步到云端（推空数组）
+    scheduleTapePush();
   };
 
   // ===== 覆盖胶带定时轻闪（方案D：每 4s 触发一次 200ms 暖橙脉冲） =====
@@ -1370,6 +1534,7 @@ window.addEventListener('pagehide', resetFabAfterGesture);
 
   // 启动
   restore();
+  initTapeCloud();
 })();
 </script>
 </body>
