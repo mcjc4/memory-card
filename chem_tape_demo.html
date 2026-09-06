@@ -712,6 +712,9 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   <button data-page-node-id="09QQKMmNLeDyg5hIB5b1ac" class="tb-btn" id="tape-clear" title="清空所有胶带"><!--pnid:rX7KVfx6tvXaFeEaOwv2uT-->🧹 清除</button>
   <button data-page-node-id="VsALpnVlZZqgf6Nr4hfYIC" class="tb-btn" id="tape-export" title="导出当前胶带布局为 JSON"><!--pnid:GzKtyP23Ly0uuqPNYQhi8h-->💾 导出</button>
   <button data-page-node-id="YNbpX5eSRhWEY6w0onW3Eh" class="tb-btn" id="tape-import" title="从 JSON 恢复胶带布局"><!--pnid:E47APYqoawmUv2vKStOex6-->📥 导入</button>
+  <button class="tb-btn" id="tape-cloud-push" title="手动上传：把当前胶带状态强制推送到云端">☁️⬆ 上传</button>
+  <button class="tb-btn" id="tape-cloud-pull" title="手动下载：从云端拉取胶带状态（云端优先，本地先备份）">☁️⬇ 下载</button>
+  <button class="tb-btn" id="tape-cloud-auto" title="自动同步开关：关闭后改动只存本地，仅手动上传/下载时联网">🔄 自动开</button>
 </div>
 
 <!--pnid:p9BbueDhhSWZFoo8wkRIlI--><!-- 模式切换横幅：切到框选时弹出 0.6s 提示 -->
@@ -1306,6 +1309,10 @@ window.addEventListener('pagehide', resetFabAfterGesture);
   const TAPE_DIRTY_KEY      = 'tape_dirty_at_' + FIG_ID;   // 本地最后修改时间（本地版本号）
   const TAPE_LAST_PROBE_KEY = 'tape_last_probe_' + FIG_ID; // 上次探针时间（回前台节流）
   const TAPE_PROBE_MIN_GAP = 120000; // 回前台探针最小间隔 120s
+  // 手动同步控制（参考记忆卡同步机制）：'0'=仅手动上传/下载，其他=自动同步
+  const TAPE_AUTO_KEY = 'tape_auto_sync';
+  function tapeAutoSync(){ try{ return localStorage.getItem(TAPE_AUTO_KEY) !== '0'; }catch(e){ return true; } }
+  function tapeSetAuto(on){ try{ localStorage.setItem(TAPE_AUTO_KEY, on ? '1' : '0'); }catch(e){} }
   // 默认用学习产品线同一 Supabase 新库；旧库 vajgltnfpdjpnsoknoma 已因 egress 超限封禁，残留配置一律丢弃
   const TAPE_DEFAULT_CLOUD = {
     url: 'https://mixuqjognbdrafrrlivc.supabase.co',
@@ -1390,12 +1397,15 @@ window.addEventListener('pagehide', resetFabAfterGesture);
   }
   let tapePushTimer = null;
   function scheduleTapePush(){
+    if(!tapeAutoSync()) return; // 手动模式：改动只存本地，不自动推送
     if(tapePushTimer) clearTimeout(tapePushTimer);
     tapePushTimer = setTimeout(()=>tapePush(false), 2500);
   }
   async function tapePull(silent, force){
     const cfg = tapeCloudCfg();
     if(cfg.disabled){ tapeBadge('off'); return; }
+    // 手动模式：非 force 的自动探针（首拉/回前台）一律跳过
+    if(!force && !tapeAutoSync()){ tapeBadge('off'); return; }
     try{
       // 回前台节流：距上次探针 < 120s 直接跳过（页面加载首拉 force 不受限）
       if(!force){
@@ -1531,6 +1541,44 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     };
     r.readAsText(f, 'utf-8');
   };
+
+  // ===== 手动同步控制（参考记忆卡机制：上传 / 下载 / 自动开关） =====
+  // 自动开：维持 egress 安全模式（首拉 + 回前台 120s 节流探针 + 2.5s debounce 推送）
+  // 自动关：完全断网模式，改动只写 localStorage，点「上传/下载」才联网（force 跳过节流）
+  const btnCloudPush = document.getElementById('tape-cloud-push');
+  const btnCloudPull = document.getElementById('tape-cloud-pull');
+  const btnCloudAuto = document.getElementById('tape-cloud-auto');
+  function syncAutoBtn(){
+    const on = tapeAutoSync();
+    btnCloudAuto.textContent = on ? '🔄 自动开' : '🔄 自动关';
+    btnCloudAuto.style.opacity = on ? '1' : '.55';
+    tapeBadge(on ? 'on' : 'off');
+  }
+  btnCloudPush.onclick = async ()=>{
+    if(btnCloudPush.disabled) return;
+    btnCloudPush.disabled = true;
+    tapeMarkDirty();
+    await tapePush(true); // force：跳过防覆盖探针，以本地为准强推
+    btnCloudPush.disabled = false;
+    flashSnack(document.getElementById('tape-cloud-badge').textContent.indexOf('⚠') >= 0
+      ? '上传失败（网络或云端配置）' : '已上传到云端 ☁️');
+  };
+  btnCloudPull.onclick = async ()=>{
+    if(btnCloudPull.disabled) return;
+    btnCloudPull.disabled = true;
+    await tapePull(false, true); // force：跳过 120s 节流；云端优先 + 本地 _prepull_backup 备份
+    btnCloudPull.disabled = false;
+    flashSnack(document.getElementById('tape-cloud-badge').textContent.indexOf('⚠') >= 0
+      ? '下载失败（网络或云端配置）' : '云端检查完成：有更新已应用，无更新保持本地 ☁️');
+  };
+  btnCloudAuto.onclick = ()=>{
+    tapeSetAuto(!tapeAutoSync());
+    syncAutoBtn();
+    flashSnack(tapeAutoSync()
+      ? '自动同步已开启：改动 2.5s 后自动上传 ☁️'
+      : '已切为手动同步：改动只存本地，用 ☁️⬆/⬇ 控制同步');
+  };
+  syncAutoBtn();
 
   // 启动
   restore();
