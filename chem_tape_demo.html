@@ -197,19 +197,23 @@
   width:1080px; pointer-events:none;
   z-index:50;
 }
-/* 覆盖态默认样式 —— 静态暖橙虚线 + 轻阴影（方案C：解决"红色脉冲持续动"的不安感） */
+/* 覆盖态默认样式 —— 100% 不透明 + 暖黄底 + 斜纹纹理（彻底遮挡底字，但仍可一眼识别"这里有胶带"） */
 .tape {
   position:absolute;
-  background:
-    linear-gradient(135deg, rgba(255,250,225,.95), rgba(255,240,180,.95));
-  border:2px solid rgba(255,140,40,.7);
+  background-color:#fcf2c8;  /* 主底色：暖黄胶带 */
+  /* 暖黄渐变层次 + 45° 斜纹叠加 */
+  background-image:
+    repeating-linear-gradient(45deg, rgba(180,140,40,.22) 0 6px, transparent 6px 14px),
+    linear-gradient(135deg, #fff7cf 0%, #fcf2c8 50%, #f5e89e 100%);
+  border:2px solid rgba(180,140,40,.85);
   border-radius:3px;
   pointer-events:auto; cursor:pointer;
-  box-shadow:0 2px 8px rgba(255,140,40,.22), inset 0 0 0 1px rgba(255,255,255,.35);
+  box-shadow:0 2px 8px rgba(180,140,40,.35), inset 0 0 0 1px rgba(255,255,255,.35);
   /* 不再默认动画 —— 脉冲改成 4s 一次的 JS 触发（方案D） */
   transition:transform .25s ease, opacity .25s, box-shadow .35s ease;
   display:flex; align-items:center; justify-content:center;
   user-select:none;
+  opacity:1;  /* 完全不透明，把底字挡死 */
 }
 /* 短暂轻闪脉冲：4s 触发一次，仅持续 200ms 后由 JS 移除 */
 .tape.pulse-on {
@@ -724,7 +728,7 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 (function(){
   const FIG_ID = 'chem_oxidation_iron';
   const STORAGE_KEY = 'infographic_mask_' + FIG_ID;
-  const FAB_POS_KEY = 'infographic_fab_pos_' + FIG_ID;
+  // FAB_POS_KEY 已删除：FAB 永远在右下角，不再记忆位置
   const layer = document.getElementById('tape-layer');
   const poster = document.querySelector('.poster');
   const countEl = document.getElementById('tape-count');
@@ -741,77 +745,49 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   let modeSwitchLockUntil = 0; // 切模式后 150ms 静默，防止误触
   let activePointers = new Map(); // 跟踪当前所有 pointer，多指时放行
 
-  // ===== FAB 位置记忆 & 视口自适应 =====
-  // 用 visualViewport（手机 pinch zoom 时真正缩小的视口），否则固定靠 layout viewport 会让 FAB 在缩放后飞出屏幕
-  function getViewport(){
-    const vv = window.visualViewport;
-    if(vv){
-      // 返回带原点偏移的视觉视口（visualViewport.offsetLeft/offsetTop 反映用户在 pinch-zoom 后的滚动位置）
-      return { vox: vv.offsetLeft, voy: vv.offsetTop, w: vv.width, h: vv.height };
+  // ===== FAB：始终锁定右下角；删除位置记忆与拖动到任意位置的逻辑 =====
+// 缩放/拖动页面时清掉 inline left/top，让 CSS 的 right/bottom 接管
+function resetFabToBottomRight(){
+  // 立即重置（无动画），让 CSS 的 right/bottom 默认值接管
+  fabEl.style.transition = '';
+  fabEl.style.left  = 'auto';
+  fabEl.style.top   = 'auto';
+  fabEl.style.right = '';
+  fabEl.style.bottom = '';
+  fabEl.classList.remove('dragging');
+}
+function animateFabBackToCorner(){
+  // 短暂"弹回"动画：从当前位置 transition 到右下角（CSS right/bottom 默认值）
+  if(fabEl.style.left && fabEl.style.top){
+    fabEl.style.transition = 'left .35s cubic-bezier(.4,1.6,.5,1), top .35s cubic-bezier(.4,1.6,.5,1)';
+  }
+  fabEl.style.left  = 'auto';
+  fabEl.style.top   = 'auto';
+  setTimeout(()=>{ fabEl.style.transition = ''; }, 380);
+}
+
+// 用户「拖动页面」「缩放页面」停止 0.5s 后，FAB 自动回到右下角
+let fabResetTimer = null;
+function resetFabAfterGesture(){
+  clearTimeout(fabResetTimer);
+  fabResetTimer = setTimeout(()=>{
+    // 如果 FAB 当前不在右下角（说明之前被覆盖/拖出过），才弹回
+    if(fabEl.style.left || fabEl.style.top){
+      fabEl.style.transition = 'left .35s cubic-bezier(.4,1.6,.5,1), top .35s cubic-bezier(.4,1.6,.5,1)';
+      fabEl.style.left  = 'auto';
+      fabEl.style.top   = 'auto';
+      setTimeout(()=>{ fabEl.style.transition = ''; }, 380);
     }
-    return { vox: 0, voy: 0, w: window.innerWidth, h: window.innerHeight };
-  }
-  function clampFabToViewport(){
-    const r = fabEl.getBoundingClientRect();
-    const {vox, voy, w, h} = getViewport();
-    // 把 layout-px 的 r 换算到 visual-viewport 坐标系内
-    const fabLeftVisual = r.left - vox;
-    const fabTopVisual  = r.top  - voy;
-    // 在 visual viewport 内夹取（保留 8px 边距）
-    const newLeftVisual = Math.max(8, Math.min(fabLeftVisual, w - r.width  - 8));
-    const newTopVisual  = Math.max(8, Math.min(fabTopVisual,  h - r.height - 8));
-    // 写回 layout-px（= visual 原点 + visual 内偏移）
-    const writeLeft = vox + newLeftVisual;
-    const writeTop  = voy + newTopVisual;
-    if(Math.abs(writeLeft - r.left) > 0.5 || Math.abs(writeTop - r.top) > 0.5){
-      fabEl.style.right = 'auto'; fabEl.style.bottom = 'auto';
-      fabEl.style.left = writeLeft + 'px'; fabEl.style.top = writeTop + 'px';
-    }
-    return { x: vox + newLeftVisual, y: voy + newTopVisual };
-  }
-  function applyFabPosFromPercent(pct){
-    const {vox, voy, w, h} = getViewport();
-    const fw = fabEl.offsetWidth || 64, fh = fabEl.offsetHeight || 64;
-    const xVisual = Math.max(8, Math.min(pct.x/100*w, w - fw - 8));
-    const yVisual = Math.max(8, Math.min(pct.y/100*h, h - fh - 8));
-    fabEl.style.right = 'auto'; fabEl.style.bottom = 'auto';
-    fabEl.style.left = (vox + xVisual) + 'px';
-    fabEl.style.top  = (voy + yVisual) + 'px';
-  }
-  function saveFabPos(){
-    const r = fabEl.getBoundingClientRect();
-    const {vox, voy, w, h} = getViewport();
-    // 用 visual viewport 百分比存（这样 zoom 不会让位置跳动）
-    const pct = {
-      x: ((r.left - vox + r.width/2) / w) * 100,
-      y: ((r.top  - voy + r.height/2) / h) * 100
-    };
-    try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(pct)); }catch(e){}
-  }
-  function loadFabPos(){
-    try {
-      const p = JSON.parse(localStorage.getItem(FAB_POS_KEY) || 'null');
-      if(p && typeof p.x==='number' && typeof p.y==='number'){
-        applyFabPosFromPercent(p); return true;
-      }
-    }catch(e){}
-    return false;
-  }
-  if(!loadFabPos()){ /* 默认 CSS 已用 vw/vh 自适应 */ }
-  // 缩放/调整大小期间持续触发 → 停止后 0.5s 才真正重定位（避免抖动中 FAB 反复跳动）
-  let fabClampTimer = null;
-  function clampFabDebounced(){
-    clearTimeout(fabClampTimer);
-    fabClampTimer = setTimeout(()=>{
-      clampFabToViewport();
-      saveFabPos();
-    }, 500);
-  }
-  window.addEventListener('resize', clampFabDebounced);
-  // 手机双指缩放不会触发 window.resize，必须监听 visualViewport.resize
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', clampFabDebounced);
-  }
+  }, 500);
+}
+window.addEventListener('resize', resetFabAfterGesture);
+// 双指缩放触发 visualViewport.resize；用户拖动页面触发 visualViewport.scroll
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', resetFabAfterGesture);
+  window.visualViewport.addEventListener('scroll', resetFabAfterGesture);
+}
+// 兜底：浏览器滚动（拖动页面原生滚动条）也归位
+window.addEventListener('scroll', resetFabAfterGesture, {passive:true});
 
   // ===== 模式切换 =====
   function setMode(m, opts){
@@ -846,51 +822,30 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     bannerTimer = setTimeout(()=>bannerEl.classList.remove('show'), 1700);
   }
 
-  // ===== FAB：单击切模式 / 长按可拖到屏幕边缘 =====
-  let fabPressTimer = null, fabMoved = false, fabStartX = 0, fabStartY = 0;
-  const FAB_LONG_PRESS = 220;
+  // ===== FAB：单击切模式（拖动能力已删除 —— FAB 永远锁定右下角） =====
+  let fabPressTimer = null;
   fabEl.addEventListener('pointerdown', function(e){
     if(e.pointerType==='mouse' && e.button!==0) return;
     fabEl.setPointerCapture(e.pointerId);
-    fabMoved = false;
-    fabStartX = e.clientX; fabStartY = e.clientY;
     fabPressTimer = setTimeout(()=>{
+      // 长按：仅作短暂的"呼吸"反馈，立即归位（保持视觉聚焦右下角）
       fabEl.classList.add('dragging');
-      flashSnack('长按拖动中 · 松开贴到边缘');
-    }, FAB_LONG_PRESS);
-  });
-  fabEl.addEventListener('pointermove', function(e){
-    if(!fabEl.classList.contains('dragging')) return;
-    const dx = e.clientX - fabStartX, dy = e.clientY - fabStartY;
-    if(Math.abs(dx)+Math.abs(dy) < 6) return;
-    fabMoved = true;
-    const r = fabEl.getBoundingClientRect();
-    let nx = r.left + dx, ny = r.top + dy;
-    const {w, h} = getViewport();
-    nx = Math.max(0, Math.min(nx, w - r.width));
-    ny = Math.max(0, Math.min(ny, h - r.height));
-    fabEl.style.right='auto'; fabEl.style.bottom='auto';
-    fabEl.style.left = nx + 'px';
-    fabEl.style.top  = ny + 'px';
-    fabStartX = e.clientX; fabStartY = e.clientY;
+      animateFabBackToCorner();
+      flashSnack('FAB 锁右下角 · 松开归位');
+    }, 220);
   });
   fabEl.addEventListener('pointerup', function(e){
     clearTimeout(fabPressTimer);
-    const wasDragging = fabEl.classList.contains('dragging');
     fabEl.classList.remove('dragging');
+    animateFabBackToCorner();
     try { fabEl.releasePointerCapture(e.pointerId); }catch(_){}
-    if(wasDragging){
-      if(fabMoved){ saveFabPos(); flashSnack('已收纳到新位置'); }
-      else { setMode(mode==='browse' ? 'rect' : 'browse'); }
-    } else {
-      // 短按：切模式
-      if(Date.now() < modeSwitchLockUntil) return;
-      setMode(mode==='browse' ? 'rect' : 'browse');
-    }
+    if(Date.now() < modeSwitchLockUntil) return;
+    setMode(mode==='browse' ? 'rect' : 'browse');
   });
   fabEl.addEventListener('pointercancel', function(){
     clearTimeout(fabPressTimer);
     fabEl.classList.remove('dragging');
+    animateFabBackToCorner();
   });
 
   // ===== ESC 键退回浏览（键盘党福利） =====
