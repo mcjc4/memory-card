@@ -223,10 +223,24 @@
   border:1px solid rgba(180,160,90,.5); font-size:11px;
 }
 .tape.removed {
-  background:transparent; border:none; box-shadow:none;
-  opacity:0; pointer-events:none; transform:rotate(-3deg) translateY(-4px);
+  /* 揭开后：仍可看见撕开痕迹（虚线外框 + 斜纹纸面），点击仍可贴回 */
+  background:
+    repeating-linear-gradient(45deg, rgba(180,160,90,.12) 0 6px, rgba(255,250,225,.55) 6px 12px);
+  border:1.5px dashed rgba(184,134,11,.6);
+  box-shadow:none;
+  opacity:.55;
+  pointer-events:auto; cursor:pointer;
+  transform:rotate(-1.2deg);
 }
 .tape.removed::before, .tape.removed::after { display:none; }
+.tape.removed .tape-tag {
+  background:rgba(255,255,255,.7);
+  border-color:rgba(184,134,11,.4);
+  color:#7a5a18;
+  font-weight:600;
+}
+.tape.removed .tape-tag::before { content:"已揭开 · "; color:#b8860b; font-weight:700; }
+.tape.removed .tape-tag .tape-original-label { text-decoration:line-through; opacity:.7; }
 
 /* 顶部低频工具栏（仅 清除/导出/导入） */
 .tape-toolbar {
@@ -269,7 +283,9 @@
   box-shadow:0 6px 18px rgba(220,60,40,.45), 0 0 0 8px rgba(255,82,82,.22);
   animation: fabPulse 1.6s ease-in-out infinite;
 }
-.tape-fab[data-mode="card"] {
+.tape-fab[data-mode="browse"] {
+  background:linear-gradient(135deg,#7ec8e3 0%,#4a90e2 100%);
+  box-shadow:0 6px 18px rgba(60,120,200,.4), 0 0 0 6px rgba(74,144,226,.18);
   animation: fabIdle 4s ease-in-out infinite;
 }
 @keyframes fabPulse {
@@ -277,8 +293,8 @@
   50%     { box-shadow:0 6px 18px rgba(220,60,40,.55), 0 0 0 18px rgba(255,82,82,0); }
 }
 @keyframes fabIdle {
-  0%,100% { box-shadow:0 6px 18px rgba(180,120,30,.35), 0 0 0 0 rgba(255,184,71,0); }
-  50%     { box-shadow:0 6px 18px rgba(180,120,30,.45), 0 0 0 6px rgba(255,184,71,.18); }
+  0%,100% { box-shadow:0 6px 18px rgba(60,120,200,.35), 0 0 0 0 rgba(74,144,226,0); }
+  50%     { box-shadow:0 6px 18px rgba(60,120,200,.45), 0 0 0 6px rgba(74,144,226,.18); }
 }
 .tape-fab-snack {
   position:fixed; right:96px; bottom:36px;
@@ -303,23 +319,30 @@
 .tape-banner.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .tape-banner .ic { margin-right:6px; }
 
-/* 框选高亮 */
+/* 框选高亮：醒目 + 脉冲，最小区域从 6px 起都生效 */
 .tape-rect-select {
-  position:absolute; border:2px dashed #b8860b; background:rgba(255,240,180,.3);
+  position:absolute;
+  border:3px solid #ff5252;
+  background:rgba(255,82,82,.18);
+  box-shadow:0 0 0 2px rgba(255,255,255,.85), 0 4px 14px rgba(255,82,82,.35);
   pointer-events:none; z-index:60;
+  border-radius:2px;
+  animation: rectPulse .9s ease-in-out infinite;
+}
+@keyframes rectPulse {
+  0%,100% { box-shadow:0 0 0 2px rgba(255,255,255,.85), 0 4px 14px rgba(255,82,82,.35); }
+  50%     { box-shadow:0 0 0 2px rgba(255,255,255,.85), 0 4px 14px rgba(255,82,82,.55), 0 0 0 6px rgba(255,82,82,.15); }
 }
 /* 框选模式禁用浏览器手势（避免吞 pointermove，导致单指画不出矩形） */
 body.tape-mode-rect .poster,
 body.tape-mode-rect #tape-layer,
 body.tape-mode-rect .tape { touch-action: none; }
-.tape-mode-rect .sec, .tape-mode-rect .footer-sec,
-.tape-mode-card .tape { cursor:inherit; }
-.tape-mode-card .sec, .tape-mode-card .footer-sec {
-  outline:2px dashed transparent; outline-offset:-3px; transition:outline .2s;
-}
-.tape-mode-card .sec:hover, .tape-mode-card .footer-sec:hover {
-  outline-color:rgba(184,134,11,.55);
-}
+/* 浏览模式：只读，不应阻挡原生页面拖动/缩放 */
+body.tape-mode-browse .sec, body.tape-mode-browse .footer-sec, body.tape-mode-browse .header { cursor:inherit; }
+/* 浏览模式下若有胶带存在，胶带仍然可点击揭起/贴回（不挡页面其它交互） */
+body.tape-mode-browse .poster { touch-action: pan-x pan-y pinch-zoom; }
+/* 浏览模式下：胶带单独关闭双击延迟 + 阻止误判滚动，但仍允许页面的双指缩放 */
+body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 
 /* 左上角：模式状态 */
 .tape-status {
@@ -654,11 +677,13 @@ body.tape-mode-rect .tape { touch-action: none; }
 
 <!--pnid:eheixv085r88x8aEsY7Cc8--><!-- ====== 粘胶带：左上状态条 / 右上低频工具栏 / 右下 FAB 模式球 ====== -->
 <div data-page-node-id="7hzi4pnn2Jk3zSA6mrcsPa" class="tape-status"><!--pnid:rfF2JHTwwueJwViClvogsN-->
-  🧻 当前模式：<b data-page-node-id="KXlsVwgo8UoA7oJRoV5BaS" id="tape-mode-label"><!--pnid:tdS7rSPH9lbi4kFHjnvf1t-->整卡 ✋</b><!--pnid:mnHhcFXWAiiHYOV3jbRbJI-->　|　胶带 <b data-page-node-id="qtr4O76DSJ4Z1MkBOpZv0q" id="tape-count"><!--pnid:ZHGiIc3HGvHd41CfvINT6m-->0</b><!--pnid:SBxNj36eSmqKtbuU8a4gSb--> 条　|　点击胶带揭起/贴回　|　按 ESC 退回整卡
+  🧻 当前模式：<b data-page-node-id="KXlsVwgo8UoA7oJRoV5BaS" id="tape-mode-label"><!--pnid:tdS7rSPH9lbi4kFHjnvf1t-->浏览 👁️</b><!--pnid:mnHhcFXWAiiHYOV3jbRbJI-->　|　胶带 <b data-page-node-id="qtr4O76DSJ4Z1MkBOpZv0q" id="tape-count"><!--pnid:ZHGiIc3HGvHd41CfvINT6m-->0</b><!--pnid:SBxNj36eSmqKtbuU8a4gSb--> 条（覆盖 <b data-page-node-id="tape-count-cover" id="tape-count-cover">0</b> / 揭开 <b data-page-node-id="tape-count-reveal" id="tape-count-reveal">0</b>）　|　点击胶带揭起/贴回　|　按 ESC 退回浏览
 </div>
 
 <div data-page-node-id="F7QVwk1bIdEseKIY2G4HXV" class="tape-toolbar">
   <b data-page-node-id="FiNi8dWJVfmozgTOxdBxji"><!--pnid:fNtLroCveic68OxrxxOjGp-->🧻 工具</b>
+  <button data-page-node-id="tape-peel-all" class="tb-btn" id="tape-peel-all" title="一键揭开所有胶带（保留位置）"><!--pnid:-->🫥 揭开</button>
+  <button data-page-node-id="tape-cover-all" class="tb-btn" id="tape-cover-all" title="一键覆盖所有胶带"><!--pnid:-->🧻 覆盖</button>
   <button data-page-node-id="09QQKMmNLeDyg5hIB5b1ac" class="tb-btn" id="tape-clear" title="清空所有胶带"><!--pnid:rX7KVfx6tvXaFeEaOwv2uT-->🧹 清除</button>
   <button data-page-node-id="VsALpnVlZZqgf6Nr4hfYIC" class="tb-btn" id="tape-export" title="导出当前胶带布局为 JSON"><!--pnid:GzKtyP23Ly0uuqPNYQhi8h-->💾 导出</button>
   <button data-page-node-id="YNbpX5eSRhWEY6w0onW3Eh" class="tb-btn" id="tape-import" title="从 JSON 恢复胶带布局"><!--pnid:E47APYqoawmUv2vKStOex6-->📥 导入</button>
@@ -668,8 +693,8 @@ body.tape-mode-rect .tape { touch-action: none; }
 <div data-page-node-id="CBVpX2JBDqJjvTOe7om5fT" class="tape-banner" id="tape-banner"><span data-page-node-id="5aHMlK290p4wOzHMxTGSd2" class="ic"><!--pnid:mkA1WrWmyd4RX1tbgM9mj5-->✏️</span><span data-page-node-id="OCh9MUQUT8P71tlB3nfLhN" id="tape-banner-text"><!--pnid:1BvaaHEelDMYkGg6L9ls7B-->框选模式</span></div>
 
 <!--pnid:GmPlC6ZmqG1RL3EuFSwSsx--><!-- 浮动模式球 FAB：单击切模式，长按可拖到屏幕边缘收纳 -->
-<div data-page-node-id="E8CndJtGgo2OHXtwoXqiHq" class="tape-fab" data-mode="card" id="tape-fab" title="单击切换模式 · 长按拖到边缘"><!--pnid:DcoPiFwhQqdYkqgzj3BqKJ-->✋</div>
-<div data-page-node-id="vVUpe4tIlPv6RL13fQxiwG" class="tape-fab-snack" id="tape-fab-snack"><!--pnid:REr4QwLFdAYOckJ6dTGPYT-->整卡模式</div>
+<div data-page-node-id="E8CndJtGgo2OHXtwoXqiHq" class="tape-fab" data-mode="browse" id="tape-fab" title="单击切换模式 · 长按拖到边缘"><!--pnid:DcoPiFwhQqdYkqgzj3BqKJ-->👁️</div>
+<div data-page-node-id="vVUpe4tIlPv6RL13fQxiwG" class="tape-fab-snack" id="tape-fab-snack"><!--pnid:REr4QwLFdAYOckJ6dTGPYT-->浏览模式</div>
 
 <div data-page-node-id="NdIfiP3HDVDpRIx5Z06ARC" class="tape-layer" id="tape-layer"></div>
 <input data-page-node-id="ITXynWM987Jup7gSYvwnwN" accept=".json" id="tape-import-input" type="file" style="display:none">
@@ -688,7 +713,7 @@ body.tape-mode-rect .tape { touch-action: none; }
   const bannerEl = document.getElementById('tape-banner');
   const bannerTextEl = document.getElementById('tape-banner-text');
 
-  let mode = 'card';  // 'card' | 'rect'
+  let mode = 'browse';  // 'browse' | 'rect' — 浏览（只读）/ 框选（贴胶带）
   let rectDraft = null;
   let rectOrigin = null;
   let rectSelectEl = null;
@@ -751,19 +776,19 @@ body.tape-mode-rect .tape { touch-action: none; }
     opts = opts || {};
     mode = m;
     modeSwitchLockUntil = Date.now() + (opts.silent ? 0 : 150);
-    document.body.classList.toggle('tape-mode-card', m==='card');
+    document.body.classList.toggle('tape-mode-browse', m==='browse');
     document.body.classList.toggle('tape-mode-rect', m==='rect');
-    if(m==='card'){
-      fabEl.dataset.mode = 'card'; fabEl.textContent = '✋';
-      modeLabelEl.textContent = '整卡 ✋';
-      if(!opts.silent) flashSnack('整卡模式 · 点卡片贴胶带');
+    if(m==='browse'){
+      fabEl.dataset.mode = 'browse'; fabEl.textContent = '👁️';
+      modeLabelEl.textContent = '浏览 👁️';
+      if(!opts.silent) flashSnack('浏览模式 · 只读，可点击胶带揭起/贴回');
     }else{
       fabEl.dataset.mode = 'rect'; fabEl.textContent = '✏️';
       modeLabelEl.textContent = '框选 ✏️';
-      showBanner('框选模式 · 单指拖动画矩形 · 再点球退回');
+      showBanner('框选模式 · 单指拖动画矩形 · 再点球退回浏览');
     }
   }
-  setMode('card', {silent:true});
+  setMode('browse', {silent:true});
 
   function flashSnack(text){
     snackEl.textContent = text;
@@ -814,11 +839,11 @@ body.tape-mode-rect .tape { touch-action: none; }
     try { fabEl.releasePointerCapture(e.pointerId); }catch(_){}
     if(wasDragging){
       if(fabMoved){ saveFabPos(); flashSnack('已收纳到新位置'); }
-      else { setMode(mode==='card' ? 'rect' : 'card'); }
+      else { setMode(mode==='browse' ? 'rect' : 'browse'); }
     } else {
       // 短按：切模式
       if(Date.now() < modeSwitchLockUntil) return;
-      setMode(mode==='card' ? 'rect' : 'card');
+      setMode(mode==='browse' ? 'rect' : 'browse');
     }
   });
   fabEl.addEventListener('pointercancel', function(){
@@ -826,10 +851,10 @@ body.tape-mode-rect .tape { touch-action: none; }
     fabEl.classList.remove('dragging');
   });
 
-  // ===== ESC 键退回整卡（键盘党福利） =====
+  // ===== ESC 键退回浏览（键盘党福利） =====
   document.addEventListener('keydown', function(e){
     if(e.key==='Escape' || e.key==='Esc'){
-      if(mode==='rect'){ setMode('card'); e.preventDefault(); }
+      if(mode==='rect'){ setMode('browse'); e.preventDefault(); }
     }
   });
 
@@ -844,21 +869,8 @@ body.tape-mode-rect .tape { touch-action: none; }
     activePointers.delete(e.pointerId);
   }, true);
 
-  // ===== 卡片模式：点击卡片 → 贴/揭胶带 =====
-  poster.addEventListener('click', function(e){
-    if(mode !== 'card') return;
-    if(Date.now() < modeSwitchLockUntil) return;
-    if(e.target.closest('.tape') || e.target.closest('.tape-toolbar') || e.target.closest('.tape-status')
-       || e.target.closest('.tape-fab') || e.target.closest('.tape-fab-snack')) return;
-    const card = e.target.closest('.sec, .footer-sec, .header');
-    if(!card) return;
-    const r = card.getBoundingClientRect();
-    const pr = poster.getBoundingClientRect();
-    const x = r.left - pr.left, y = r.top - pr.top;
-    const w = r.width, h = r.height;
-    const id = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    addTape({id, x, y, w, h, type:'card', mask:true, label: card.querySelector('.sec-title, .h-title')?.textContent.trim().slice(0,12) || '区块'});
-  });
+  // ===== 浏览模式：纯只读（页面原生滚动/缩放放行），点击卡片不再自动贴胶带 =====
+  // 仅框选模式下画矩形贴胶带
 
   // ===== 框选模式：document 监听 pointerdown 起 / move 跟 / up 落 =====
   // 关键修复：pointerdown 挂在 document（捕获阶段），不再依赖 layer 的 setPointerCapture
@@ -922,7 +934,7 @@ body.tape-mode-rect .tape { touch-action: none; }
   });
   document.addEventListener('pointerup', function(e){
     if(!rectDraft || activeRectPid === null || e.pointerId !== activeRectPid) return;
-    if(rectDraft.w > 20 && rectDraft.h > 20){
+    if(rectDraft.w > 6 && rectDraft.h > 6){
       const id = 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
       addTape({id, x:rectDraft.x, y:rectDraft.y, w:rectDraft.w, h:rectDraft.h, type:'rect', mask:true, label:'自定义区域'});
     }
@@ -936,7 +948,7 @@ body.tape-mode-rect .tape { touch-action: none; }
     }
   });
 
-  // ===== 胶带操作：点击胶带揭起/重新贴回 =====
+  // ===== 胶带操作：点击胶带揭起/重新贴回（浏览/框选模式皆生效） =====
   layer.addEventListener('click', function(e){
     const tape = e.target.closest('.tape');
     if(!tape) return;
@@ -948,6 +960,7 @@ body.tape-mode-rect .tape { touch-action: none; }
     item.mask = !item.mask;
     tape.classList.toggle('removed', !item.mask);
     saveState(state);
+    updateCount();
   });
 
   function addTape(t){
@@ -958,7 +971,8 @@ body.tape-mode-rect .tape { touch-action: none; }
     el.style.top    = t.y + 'px';
     el.style.width  = t.w + 'px';
     el.style.height = t.h + 'px';
-    el.innerHTML = '<span class="tape-tag">🧻 ' + t.label + '</span>';
+    // 用 .tape-original-label 包裹原始名称，揭开样式可对其加 line-through
+    el.innerHTML = '<span class="tape-tag">🧻 <span class="tape-original-label">' + (t.label||'区块') + '</span></span>';
     if(!t.mask) el.classList.add('removed');
     layer.appendChild(el);
     const state = loadState();
@@ -966,7 +980,17 @@ body.tape-mode-rect .tape { touch-action: none; }
     saveState(state);
     updateCount();
   }
-  function updateCount(){ countEl.textContent = loadState().filter(t=>t.mask).length; }
+  function updateCount(){
+    const arr = loadState();
+    const total = arr.length;
+    const cover = arr.filter(t=>t.mask).length;
+    const reveal = total - cover;
+    countEl.textContent = total;
+    const coverEl = document.getElementById('tape-count-cover');
+    const revealEl = document.getElementById('tape-count-reveal');
+    if(coverEl) coverEl.textContent = cover;
+    if(revealEl) revealEl.textContent = reveal;
+  }
 
   function loadState(){
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
@@ -982,11 +1006,33 @@ body.tape-mode-rect .tape { touch-action: none; }
       el.dataset.id = t.id;
       el.style.left = t.x+'px'; el.style.top = t.y+'px';
       el.style.width = t.w+'px'; el.style.height = t.h+'px';
-      el.innerHTML = '<span class="tape-tag">🧻 ' + (t.label||'区块') + '</span>';
+      el.innerHTML = '<span class="tape-tag">🧻 <span class="tape-original-label">' + (t.label||'区块') + '</span></span>';
       layer.appendChild(el);
     });
     updateCount();
   }
+
+  // ===== 一键揭开 / 一键覆盖所有胶带（不删 DOM，仅切换 mask） =====
+  function setAllMask(mask){
+    const state = loadState();
+    if(!state.length) return 0;
+    state.forEach(t => t.mask = mask);
+    saveState(state);
+    // 同步所有 DOM
+    document.querySelectorAll('.tape').forEach(el=>{
+      el.classList.toggle('removed', !mask);
+    });
+    updateCount();
+    return state.length;
+  }
+  document.getElementById('tape-peel-all').onclick = ()=>{
+    const n = setAllMask(false);
+    if(n) flashSnack(`已揭开 ${n} 条胶带 · 点胶带可贴回`);
+  };
+  document.getElementById('tape-cover-all').onclick = ()=>{
+    const n = setAllMask(true);
+    if(n) flashSnack(`已覆盖 ${n} 条胶带`);
+  };
 
   // 清除全部
   document.getElementById('tape-clear').onclick = ()=>{
@@ -1015,7 +1061,7 @@ body.tape-mode-rect .tape { touch-action: none; }
         else alert('JSON 格式不对');
       }catch(err){ alert('解析失败：'+err.message); }
     };
-    r.read();
+    r.readAsText(f, 'utf-8');
   };
 
   // 启动
