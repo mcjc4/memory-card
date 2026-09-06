@@ -200,15 +200,20 @@
 .tape {
   position:absolute;
   background:
-    linear-gradient(135deg, rgba(255,250,225,.92), rgba(255,240,180,.92));
+    linear-gradient(135deg, rgba(255,250,225,.88), rgba(255,240,180,.88));
   border:1.5px dashed rgba(180,160,90,.55);
   border-radius:3px;
   pointer-events:auto; cursor:pointer;
-  box-shadow:0 2px 6px rgba(120,90,30,.18), inset 0 0 0 1px rgba(255,255,255,.4);
-  transition:transform .35s cubic-bezier(.4,1.6,.5,1), opacity .35s, box-shadow .25s;
+  /* 覆盖态：红色脉冲阴影，不显示任何文字 */
+  box-shadow:0 0 0 0 rgba(255,82,82,.55), 0 0 12px rgba(255,82,82,.45);
+  animation: tapePulse 1.8s ease-in-out infinite;
+  transition:transform .25s ease, opacity .25s, box-shadow .25s;
   display:flex; align-items:center; justify-content:center;
-  color:#7a5a18; font-size:13px; font-weight:700; letter-spacing:.5px;
   user-select:none;
+}
+@keyframes tapePulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(255,82,82,.45), 0 0 12px rgba(255,82,82,.35); }
+  50%     { box-shadow:0 0 0 10px rgba(255,82,82,0), 0 0 18px rgba(255,82,82,.6); }
 }
 .tape::before, .tape::after {
   content:""; position:absolute; left:0; right:0; height:6px;
@@ -218,29 +223,45 @@
 }
 .tape::before { top:-3px; }
 .tape::after  { bottom:-3px; }
-.tape .tape-tag {
-  background:rgba(255,255,255,.85); padding:2px 8px; border-radius:4px;
-  border:1px solid rgba(180,160,90,.5); font-size:11px;
+.tape.dragging {
+  cursor:grabbing; opacity:.75;
+  animation:none;
+  box-shadow:0 0 0 3px rgba(255,82,82,.7), 0 8px 22px rgba(0,0,0,.25);
 }
+.tape .tape-tag {
+  /* 不再显示文字标签（覆盖态不写字，揭开态也不显示"已揭开"） */
+  display:none;
+}
+/* 单胶带删除按钮：长按 400ms 后浮在胶带右上角 */
+.tape-del-btn {
+  position:absolute; top:-14px; right:-14px;
+  width:28px; height:28px;
+  background:linear-gradient(135deg,#ff5252,#c62828);
+  color:#fff; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:800;
+  border:2px solid #fff;
+  box-shadow:0 3px 10px rgba(198,40,40,.45);
+  cursor:pointer; user-select:none;
+  z-index:70;
+  transform:scale(0);
+  transition:transform .25s cubic-bezier(.4,1.6,.5,1);
+}
+.tape-del-btn.show { transform:scale(1); }
+.tape-del-btn:hover { transform:scale(1.12); }
 .tape.removed {
-  /* 揭开后：仍可看见撕开痕迹（虚线外框 + 斜纹纸面），点击仍可贴回 */
+  /* 揭开后：仅保留撕开痕迹（虚线外框 + 斜纹纸面），不再显示"已揭开"字样 */
   background:
     repeating-linear-gradient(45deg, rgba(180,160,90,.12) 0 6px, rgba(255,250,225,.55) 6px 12px);
   border:1.5px dashed rgba(184,134,11,.6);
   box-shadow:none;
   opacity:.55;
   pointer-events:auto; cursor:pointer;
-  transform:rotate(-1.2deg);
+  animation:none;
 }
 .tape.removed::before, .tape.removed::after { display:none; }
-.tape.removed .tape-tag {
-  background:rgba(255,255,255,.7);
-  border-color:rgba(184,134,11,.4);
-  color:#7a5a18;
-  font-weight:600;
-}
-.tape.removed .tape-tag::before { content:"已揭开 · "; color:#b8860b; font-weight:700; }
-.tape.removed .tape-tag .tape-original-label { text-decoration:line-through; opacity:.7; }
+/* 揭开态：拖动时也不脉冲（与覆盖态一致） */
+.tape.removed.dragging { animation:none; box-shadow:0 0 0 3px rgba(184,134,11,.7), 0 8px 22px rgba(0,0,0,.25); }
 
 /* 顶部低频工具栏（仅 清除/导出/导入） */
 .tape-toolbar {
@@ -677,7 +698,7 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 
 <!--pnid:eheixv085r88x8aEsY7Cc8--><!-- ====== 粘胶带：左上状态条 / 右上低频工具栏 / 右下 FAB 模式球 ====== -->
 <div data-page-node-id="7hzi4pnn2Jk3zSA6mrcsPa" class="tape-status"><!--pnid:rfF2JHTwwueJwViClvogsN-->
-  🧻 当前模式：<b data-page-node-id="KXlsVwgo8UoA7oJRoV5BaS" id="tape-mode-label"><!--pnid:tdS7rSPH9lbi4kFHjnvf1t-->浏览 👁️</b><!--pnid:mnHhcFXWAiiHYOV3jbRbJI-->　|　胶带 <b data-page-node-id="qtr4O76DSJ4Z1MkBOpZv0q" id="tape-count"><!--pnid:ZHGiIc3HGvHd41CfvINT6m-->0</b><!--pnid:SBxNj36eSmqKtbuU8a4gSb--> 条（覆盖 <b data-page-node-id="tape-count-cover" id="tape-count-cover">0</b> / 揭开 <b data-page-node-id="tape-count-reveal" id="tape-count-reveal">0</b>）　|　点击胶带揭起/贴回　|　按 ESC 退回浏览
+  🧻 当前模式：<b data-page-node-id="KXlsVwgo8UoA7oJRoV5BaS" id="tape-mode-label"><!--pnid:tdS7rSPH9lbi4kFHjnvf1t-->浏览 ✋</b><!--pnid:mnHhcFXWAiiHYOV3jbRbJI-->　|　胶带 <b data-page-node-id="qtr4O76DSJ4Z1MkBOpZv0q" id="tape-count"><!--pnid:ZHGiIc3HGvHd41CfvINT6m-->0</b><!--pnid:SBxNj36eSmqKtbuU8a4gSb--> 条（覆盖 <b data-page-node-id="tape-count-cover" id="tape-count-cover">0</b> / 揭开 <b data-page-node-id="tape-count-reveal" id="tape-count-reveal">0</b>）　|　短按胶带揭起/贴回　|　长按胶带移动或删除　|　按 ESC 退回浏览
 </div>
 
 <div data-page-node-id="F7QVwk1bIdEseKIY2G4HXV" class="tape-toolbar">
@@ -693,7 +714,7 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 <div data-page-node-id="CBVpX2JBDqJjvTOe7om5fT" class="tape-banner" id="tape-banner"><span data-page-node-id="5aHMlK290p4wOzHMxTGSd2" class="ic"><!--pnid:mkA1WrWmyd4RX1tbgM9mj5-->✏️</span><span data-page-node-id="OCh9MUQUT8P71tlB3nfLhN" id="tape-banner-text"><!--pnid:1BvaaHEelDMYkGg6L9ls7B-->框选模式</span></div>
 
 <!--pnid:GmPlC6ZmqG1RL3EuFSwSsx--><!-- 浮动模式球 FAB：单击切模式，长按可拖到屏幕边缘收纳 -->
-<div data-page-node-id="E8CndJtGgo2OHXtwoXqiHq" class="tape-fab" data-mode="browse" id="tape-fab" title="单击切换模式 · 长按拖到边缘"><!--pnid:DcoPiFwhQqdYkqgzj3BqKJ-->👁️</div>
+<div data-page-node-id="E8CndJtGgo2OHXtwoXqiHq" class="tape-fab" data-mode="browse" id="tape-fab" title="单击切换模式 · 长按拖到边缘"><!--pnid:DcoPiFwhQqdYkqgzj3BqKJ-->✋</div>
 <div data-page-node-id="vVUpe4tIlPv6RL13fQxiwG" class="tape-fab-snack" id="tape-fab-snack"><!--pnid:REr4QwLFdAYOckJ6dTGPYT-->浏览模式</div>
 
 <div data-page-node-id="NdIfiP3HDVDpRIx5Z06ARC" class="tape-layer" id="tape-layer"></div>
@@ -765,10 +786,19 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     return false;
   }
   if(!loadFabPos()){ /* 默认 CSS 已用 vw/vh 自适应 */ }
-  window.addEventListener('resize', ()=>clampFabToViewport());
+  // 缩放/调整大小期间持续触发 → 停止后 0.5s 才真正重定位（避免抖动中 FAB 反复跳动）
+  let fabClampTimer = null;
+  function clampFabDebounced(){
+    clearTimeout(fabClampTimer);
+    fabClampTimer = setTimeout(()=>{
+      clampFabToViewport();
+      saveFabPos();
+    }, 500);
+  }
+  window.addEventListener('resize', clampFabDebounced);
   // 手机双指缩放不会触发 window.resize，必须监听 visualViewport.resize
   if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', ()=>clampFabToViewport());
+    window.visualViewport.addEventListener('resize', clampFabDebounced);
   }
 
   // ===== 模式切换 =====
@@ -779,13 +809,13 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     document.body.classList.toggle('tape-mode-browse', m==='browse');
     document.body.classList.toggle('tape-mode-rect', m==='rect');
     if(m==='browse'){
-      fabEl.dataset.mode = 'browse'; fabEl.textContent = '👁️';
-      modeLabelEl.textContent = '浏览 👁️';
+      fabEl.dataset.mode = 'browse'; fabEl.textContent = '✋';
+      modeLabelEl.textContent = '浏览 ✋';
       if(!opts.silent) flashSnack('浏览模式 · 只读，可点击胶带揭起/贴回');
     }else{
       fabEl.dataset.mode = 'rect'; fabEl.textContent = '✏️';
       modeLabelEl.textContent = '框选 ✏️';
-      showBanner('框选模式 · 单指拖动画矩形 · 再点球退回浏览');
+      showBanner('框选模式 · 单指拖动画矩形 · 长按胶带可移动');
     }
   }
   setMode('browse', {silent:true});
@@ -936,7 +966,8 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     if(!rectDraft || activeRectPid === null || e.pointerId !== activeRectPid) return;
     if(rectDraft.w > 6 && rectDraft.h > 6){
       const id = 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-      addTape({id, x:rectDraft.x, y:rectDraft.y, w:rectDraft.w, h:rectDraft.h, type:'rect', mask:true, label:'自定义区域'});
+      // 不再写 label 文字（视觉不显示任何字，红色脉冲阴影即标识）
+      addTape({id, x:rectDraft.x, y:rectDraft.y, w:rectDraft.w, h:rectDraft.h, type:'rect', mask:true});
     }
     rectDraft = null; rectOrigin = null; activeRectPid = null;
     if(rectSelectEl){ rectSelectEl.remove(); rectSelectEl=null; }
@@ -949,7 +980,19 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   });
 
   // ===== 胶带操作：点击胶带揭起/重新贴回（浏览/框选模式皆生效） =====
+  // 短按=揭起/贴回；长按=进入操作态（移动/删除）
   layer.addEventListener('click', function(e){
+    // 删除按钮被点：单独处理
+    const del = e.target.closest('.tape-del-btn');
+    if(del){
+      e.stopPropagation(); e.preventDefault();
+      const tape = del.closest('.tape');
+      if(!tape) return;
+      deleteTape(tape.dataset.id, tape);
+      return;
+    }
+    // 拖动期间不触发揭起/贴回
+    if(e.target.closest('.tape.dragging')){ e.stopPropagation(); return; }
     const tape = e.target.closest('.tape');
     if(!tape) return;
     e.stopPropagation();
@@ -963,6 +1006,146 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     updateCount();
   });
 
+  // ===== 长按胶带 = 进入操作态：未移动显示 🗑️ 删除；移动 >6px → 拖动模式 =====
+  const TAPE_LONG_PRESS = 400;
+  const TAPE_DRAG_THRESHOLD = 6;
+  let tapePressTimer = null;
+  let tapeLongPressed = false;  // 已超过长按阈值
+  let tapeDragged = false;      // 已进入拖动（>6px）
+  let tapeTarget = null;         // 当前操作的胶带
+  let tapeOffX = 0, tapeOffY = 0; // 指针相对胶带左上角的偏移
+
+  function showTapeDeleteBtn(tape){
+    hideAllTapeDeleteBtns();
+    let btn = tape.querySelector('.tape-del-btn');
+    if(!btn){
+      btn = document.createElement('div');
+      btn.className = 'tape-del-btn';
+      btn.title = '删除该胶带';
+      btn.innerHTML = '×';
+      tape.appendChild(btn);
+    }
+    requestAnimationFrame(()=>btn.classList.add('show'));
+  }
+  function hideAllTapeDeleteBtns(){
+    document.querySelectorAll('.tape-del-btn.show').forEach(b=>b.classList.remove('show'));
+  }
+  function hideTapeDeleteBtn(tape){
+    const btn = tape && tape.querySelector('.tape-del-btn');
+    if(btn) btn.classList.remove('show');
+  }
+  function deleteTape(id, el){
+    const state = loadState().filter(t=>t.id!==id);
+    saveState(state);
+    if(el) el.remove();
+    updateCount();
+    flashSnack('已删除 1 条胶带');
+  }
+
+  layer.addEventListener('pointerdown', function(e){
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    const tape = e.target.closest('.tape');
+    if(!tape) {
+      // 点空白处 → 隐藏所有删除按钮
+      if(!e.target.closest('.tape-toolbar, .tape-status, .tape-fab, .tape-fab-snack, .tape-banner')){
+        hideAllTapeDeleteBtns();
+      }
+      return;
+    }
+    // 点中删除按钮 → 让 click 处理，不进长按流程
+    if(e.target.closest('.tape-del-btn')) return;
+    tapeTarget = tape;
+    const r = tape.getBoundingClientRect();
+    tapeOffX = e.clientX - r.left;
+    tapeOffY = e.clientY - r.top;
+    tapeLongPressed = false;
+    tapeDragged = false;
+    try { tape.setPointerCapture(e.pointerId); }catch(_){}
+    clearTimeout(tapePressTimer);
+    tapePressTimer = setTimeout(()=>{
+      if(!tapeTarget || tapeTarget !== tape) return;
+      tapeLongPressed = true;
+      showTapeDeleteBtn(tape);
+    }, TAPE_LONG_PRESS);
+  });
+
+  layer.addEventListener('pointermove', function(e){
+    if(!tapeTarget) return;
+    if(tapeDragged){
+      // 拖动中：跟随指针（基于 poster 坐标系）
+      const pr = poster.getBoundingClientRect();
+      let nx = e.clientX - pr.left - tapeOffX;
+      let ny = e.clientY - pr.top - tapeOffY;
+      // 限制不能拖出 poster 太远（至少露出一截，避免丢失）
+      nx = Math.max(-tapeTarget.offsetWidth + 40, Math.min(nx, pr.width - 40));
+      ny = Math.max(-tapeTarget.offsetHeight + 40, Math.min(ny, pr.height - 40));
+      tapeTarget.style.left = nx + 'px';
+      tapeTarget.style.top  = ny + 'px';
+      return;
+    }
+    // 已长按，但还没拖动 → 检测是否进入拖动
+    if(tapeLongPressed){
+      const r = tapeTarget.getBoundingClientRect();
+      const moved = Math.abs(e.clientX - (r.left + tapeOffX)) + Math.abs(e.clientY - (r.top + tapeOffY));
+      if(moved > TAPE_DRAG_THRESHOLD){
+        tapeDragged = true;
+        hideTapeDeleteBtn(tapeTarget);
+        tapeTarget.classList.add('dragging');
+      }
+    }
+  });
+
+  layer.addEventListener('pointerup', function(e){
+    clearTimeout(tapePressTimer);
+    if(tapeTarget && tapeDragged){
+      // 拖动完成：保存新位置到 state
+      const id = tapeTarget.dataset.id;
+      const state = loadState();
+      const item = state.find(t=>t.id===id);
+      if(item){
+        item.x = parseFloat(tapeTarget.style.left) || item.x;
+        item.y = parseFloat(tapeTarget.style.top)  || item.y;
+        saveState(state);
+      }
+      tapeTarget.classList.remove('dragging');
+      e.stopPropagation(); e.preventDefault();
+      // 阻止后续 click 误触揭起/贴回
+      tapeTarget.dataset.justDragged = '1';
+      setTimeout(()=>{ if(tapeTarget) tapeTarget.dataset.justDragged = ''; }, 250);
+    }
+    tapeTarget = null; tapeLongPressed = false; tapeDragged = false;
+  });
+
+  layer.addEventListener('pointercancel', function(){
+    clearTimeout(tapePressTimer);
+    if(tapeTarget && tapeDragged){
+      // 取消：恢复原位
+      const id = tapeTarget.dataset.id;
+      const state = loadState();
+      const item = state.find(t=>t.id===id);
+      if(item){
+        tapeTarget.style.left = item.x + 'px';
+        tapeTarget.style.top  = item.y + 'px';
+      }
+      tapeTarget.classList.remove('dragging');
+    }
+    tapeTarget = null; tapeLongPressed = false; tapeDragged = false;
+  });
+
+  // 点空白处（含 poster / body）→ 隐藏所有删除按钮
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.tape, .tape-del-btn, .tape-toolbar, .tape-fab')){
+      hideAllTapeDeleteBtns();
+    }
+  }, true);
+
+  // ESC 也隐藏删除按钮
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape' || e.key==='Esc'){
+      hideAllTapeDeleteBtns();
+    }
+  });
+
   function addTape(t){
     const el = document.createElement('div');
     el.className = 'tape';
@@ -971,8 +1154,7 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     el.style.top    = t.y + 'px';
     el.style.width  = t.w + 'px';
     el.style.height = t.h + 'px';
-    // 用 .tape-original-label 包裹原始名称，揭开样式可对其加 line-through
-    el.innerHTML = '<span class="tape-tag">🧻 <span class="tape-original-label">' + (t.label||'区块') + '</span></span>';
+    // 不再写入 label 文字（视觉上不显示任何文字，红色脉冲阴影即标识）
     if(!t.mask) el.classList.add('removed');
     layer.appendChild(el);
     const state = loadState();
@@ -1006,7 +1188,6 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
       el.dataset.id = t.id;
       el.style.left = t.x+'px'; el.style.top = t.y+'px';
       el.style.width = t.w+'px'; el.style.height = t.h+'px';
-      el.innerHTML = '<span class="tape-tag">🧻 <span class="tape-original-label">' + (t.label||'区块') + '</span></span>';
       layer.appendChild(el);
     });
     updateCount();
