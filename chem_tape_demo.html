@@ -745,44 +745,53 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   let modeSwitchLockUntil = 0; // 切模式后 150ms 静默，防止误触
   let activePointers = new Map(); // 跟踪当前所有 pointer，多指时放行
 
-  // ===== 视口坐标（layout 视口 = 当前缩放下的 css px；vox/voy 是 visualViewport 的滚动偏移） =====
+// ===== 视口坐标（关键：用 visualViewport 的 w/h，不是 window.innerWidth！） =====
+  // pinch zoom 放大后：window.innerWidth 不变（layout viewport），
+  // 但 visualViewport.width 缩小（用户实际看到的区域）。
+  // FAB 要贴"用户看到的屏幕"右下角 → 必须用 visualViewport 尺寸做 clamp 目标。
+  // 这是旧版（正常工作）的写法，commit 186abf3 误改成 window.innerWidth 导致 zoom 后 FAB 飞出屏幕。
   function getViewport(){
     const vv = window.visualViewport;
-    return {
-      vox: vv ? vv.offsetLeft : 0,
-      voy: vv ? vv.offsetTop  : 0,
-      w: window.innerWidth,
-      h: window.innerHeight,
-    };
+    if(vv){
+      return {
+        vox: vv.offsetLeft, voy: vv.offsetTop,
+        w: vv.width, h: vv.height,   // visual viewport 尺寸（用户实际可见区域）
+      };
+    }
+    return { vox: 0, voy: 0, w: window.innerWidth, h: window.innerHeight };
   }
-  // 把 FAB 视觉坐标换算到 layout px 后再 clamp 回视口内（pinch zoom 时仍正确）
+  // 把 FAB clamp 回 visual viewport 内（zoom 后仍贴用户可见屏幕）
   function clampFabPos(){
     const r = fabEl.getBoundingClientRect();
     const {vox, voy, w, h} = getViewport();
-    const layoutLeft = r.left - vox;
-    const layoutTop  = r.top  - voy;
+    // r 是 layout client 坐标；减 vox/voy 换算到 visual viewport 内的坐标
+    const visLeft = r.left - vox;
+    const visTop  = r.top  - voy;
     const fw = fabEl.offsetWidth  || 64;
     const fh = fabEl.offsetHeight || 64;
-    const newLeft = Math.max(0, Math.min(layoutLeft, w - fw));
-    const newTop  = Math.max(0, Math.min(layoutTop,  h - fh));
-    if(Math.abs(newLeft - layoutLeft) > 0.5 || Math.abs(newTop - layoutTop) > 0.5){
+    const newVisLeft = Math.max(8, Math.min(visLeft, w - fw - 8));
+    const newVisTop  = Math.max(8, Math.min(visTop,  h - fh - 8));
+    // 换算回 layout client 坐标写回（fixed 元素的 left/top 是 layout client 坐标）
+    const writeLeft = vox + newVisLeft;
+    const writeTop  = voy + newVisTop;
+    if(Math.abs(writeLeft - r.left) > 0.5 || Math.abs(writeTop - r.top) > 0.5){
       fabEl.style.right = 'auto'; fabEl.style.bottom = 'auto';
-      fabEl.style.left = newLeft + 'px';
-      fabEl.style.top  = newTop  + 'px';
+      fabEl.style.left = writeLeft + 'px';
+      fabEl.style.top  = writeTop  + 'px';
     }
   }
-  // ===== FAB 位置最终控制：JS 写 viewport 右下角，不依赖 CSS right/bottom =====
-  // —— 这是为了应对"外层容器有 transform: scale()"的场景：
-  //    position:fixed 元素的 containing block 会变成 transform 容器，
-  //    此时 CSS right:24px 是相对 transform 容器，不是 viewport，FAB 不再视觉右下角
-  //    JS 直接写 left/top 到 window.innerWidth/innerHeight 计算出的位置，不受外层 transform 影响
-  const FAB_MARGIN = 24; // 距视口右/下边的内边距
+  // ===== FAB 位置最终控制：JS 写到 visual viewport 右下角 =====
+  // —— 用 visualViewport 尺寸（用户实际可见区域），pinch zoom 后 FAB 仍贴用户屏幕右下角
+  // —— 不依赖 CSS right/bottom：避免外层 transform 把 containing block 挪走
+  const FAB_MARGIN = 24; // 距可见屏幕右/下边的内边距
   function getFabTargetPos(){
+    const {vox, voy, w, h} = getViewport();  // w/h 是 visual viewport 尺寸
     const fw = fabEl.offsetWidth  || 64;
     const fh = fabEl.offsetHeight || 64;
     return {
-      left: window.innerWidth  - fw - FAB_MARGIN,
-      top:  window.innerHeight - fh - FAB_MARGIN,
+      // visual viewport 右下角（留边距），换算回 layout client 坐标写 left/top
+      left: vox + (w - fw - FAB_MARGIN),
+      top:  voy + (h - fh - FAB_MARGIN),
     };
   }
   function setFabToBottomRight(animate){
@@ -833,21 +842,24 @@ setInterval(()=>{
   }
 }, 2000);
 
-// 兜底：每 300ms 检测 FAB 是否完全在视觉视口内（如果不在，立即 JS 复位到 viewport 右下角）
-// 只在 FAB 离开 CSS 默认位置时检查（FAB 默认就在右下角时跳过，零开销）
+// 兜底：每 300ms 检测 FAB 是否完全在 **visual viewport**（用户实际可见区域）内
+// 如果飞出可见区域，立即 JS 复位到 visual viewport 右下角
+// 注意判定基准也是 visual viewport（r 是 layout client 坐标，减 vox/voy 换算）
 let fabSafetyTimer = null;
 function startFabSafetyCheck(){
   if(fabSafetyTimer) return;
   fabSafetyTimer = setInterval(()=>{
     if(fabUserInteracting) return;
     if(fabEl.classList.contains('dragging')) return;
-    // 只在 FAB 视觉上飞出 viewport 时触发复位（不判断"不在右下角"，避免误复位用户拖出去的 FAB）
     const r = fabEl.getBoundingClientRect();
+    const {vox, voy, w, h} = getViewport();  // w/h 是 visual viewport 尺寸
     const fw = fabEl.offsetWidth  || 64;
     const fh = fabEl.offsetHeight || 64;
-    const out = r.left < -4 || r.top < -4
-             || r.right  > window.innerWidth  + 4
-             || r.bottom > window.innerHeight + 4;
+    // FAB 相对 visual viewport 的位置
+    const visLeft = r.left - vox, visTop = r.top - voy;
+    const out = visLeft < -4 || visTop < -4
+             || visLeft + fw > w + 4
+             || visTop  + fh > h + 4;
     if(out){
       // 立即复位，无动画
       setFabToBottomRight(false);
@@ -943,12 +955,13 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     // 视觉坐标 r.left 先减 vox 还原成 layout px，再累加位移 dx
     let nx = (r.left - vox) + dx;
     let ny = (r.top  - voy) + dy;
-    // clamp 到 layout 视口内（保证 zoom/滚动场景下 FAB 也不会飞出）
+    // nx/ny 是"visual viewport 内"的坐标；clamp 到用户可见区域内（zoom 后 FAB 也不会拖出可见屏幕）
     nx = Math.max(0, Math.min(nx, w  - r.width));
     ny = Math.max(0, Math.min(ny, h - r.height));
     fabEl.style.right = 'auto'; fabEl.style.bottom = 'auto';
-    fabEl.style.left = nx + 'px'; // 直接写 layout px（FAB 是 position:fixed）
-    fabEl.style.top  = ny + 'px';
+    // 写回 layout client 坐标：visual 内坐标 + vox/voy 偏移
+    fabEl.style.left = (nx + vox) + 'px';
+    fabEl.style.top  = (ny + voy) + 'px';
     fabStartX = e.clientX; fabStartY = e.clientY;
   });
   fabEl.addEventListener('pointerup', function(e){
