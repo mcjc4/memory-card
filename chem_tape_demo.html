@@ -781,26 +781,74 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     setTimeout(()=>{ fabEl.style.transition = ''; }, 380);
   }
 
-// 用户「拖动页面」/「缩放页面」停止 0.5s 后，FAB 自动回到右下角
+// 用户「拖动页面」/「缩放页面」/「任何 layout 变动」停止 0.5s 后，FAB 自动回到右下角
 // —— 但如果是 FAB 自己正在被拖动（fabUserInteracting），不触发复位
 let fabResetTimer = null;
 let fabUserInteracting = false; // FAB 自己的 pointerdown 期间为 true，pointerup/cancel 变 false
+let fabInteractSince = 0;       // pointerdown 时间戳；超时兜底用
+
 function resetFabAfterGesture(){
   if(fabUserInteracting) return; // 用户在拖 FAB，不是页面手势
   clearTimeout(fabResetTimer);
   fabResetTimer = setTimeout(()=>{
-    if(!fabEl.style.left && !fabEl.style.top) return; // 已经在右下角
-    animateFabBackToCorner();
+    // 陈总要求"网页变动后必须回到右下角" —— 无条件复位（已在右下角也是 noop）
+    fabEl.style.transition = 'left .35s cubic-bezier(.4,1.6,.5,1), top .35s cubic-bezier(.4,1.6,.5,1)';
+    fabEl.style.left  = 'auto';
+    fabEl.style.top   = 'auto';
+    setTimeout(()=>{ fabEl.style.transition = ''; }, 380);
   }, 500);
 }
+
+// 兜底：fabUserInteracting 状态卡死超过 10s（pointerup/cancel 丢失）强制重置
+setInterval(()=>{
+  if(fabUserInteracting && Date.now() - fabInteractSince > 10000){
+    fabUserInteracting = false;
+    fabEl.classList.remove('dragging');
+  }
+}, 2000);
+
+// 兜底：每 300ms 检测 FAB 是否完全在视觉视口内（如果不在，触发 resetFabAfterGesture）
+// 只在 FAB 离开 CSS 默认位置时检查（零开销）
+let fabSafetyTimer = null;
+function startFabSafetyCheck(){
+  if(fabSafetyTimer) return;
+  fabSafetyTimer = setInterval(()=>{
+    if(fabUserInteracting) return;
+    if(!fabEl.style.left && !fabEl.style.top) return; // 在默认右下角，跳过
+    const r = fabEl.getBoundingClientRect();
+    const {vox, voy, w, h} = getViewport();
+    const layoutLeft = r.left - vox;
+    const layoutTop  = r.top  - voy;
+    const fw = fabEl.offsetWidth  || 64;
+    const fh = fabEl.offsetHeight || 64;
+    const out = layoutLeft < -4 || layoutTop < -4
+             || layoutLeft + fw > w + 4
+             || layoutTop  + fh > h + 4;
+    if(out) resetFabAfterGesture();
+  }, 300);
+}
+startFabSafetyCheck();
+
+// ===== 事件监听 —— 全覆盖 layout 变动场景 =====
+// 1. window.resize：浏览器地址栏伸缩、软键盘、桌面尺寸调整
 window.addEventListener('resize', resetFabAfterGesture);
-// 双指缩放触发 visualViewport.resize；用户拖动页面触发 visualViewport.scroll
+// 2. visualViewport.resize：手机 pinch zoom
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize', resetFabAfterGesture);
+  // 3. visualViewport.scroll：手机拖动页面
   window.visualViewport.addEventListener('scroll', resetFabAfterGesture);
 }
-// 兜底：浏览器滚动（拖动页面原生滚动条）也归位
+// 4. window.scroll：浏览器原生滚动条
 window.addEventListener('scroll', resetFabAfterGesture, {passive:true});
+// 5. orientationchange：设备旋转（部分 Android 不触发 resize）
+window.addEventListener('orientationchange', resetFabAfterGesture);
+// 6. visibilitychange：从后台切回
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') resetFabAfterGesture();
+});
+// 7. pageshow / pagehide：BFCache 恢复、浏览器前进/后退
+window.addEventListener('pageshow', resetFabAfterGesture);
+window.addEventListener('pagehide', resetFabAfterGesture);
 
   // ===== 模式切换 =====
   function setMode(m, opts){
@@ -846,6 +894,7 @@ window.addEventListener('scroll', resetFabAfterGesture, {passive:true});
     if(e.pointerType==='mouse' && e.button!==0) return;
     try { fabEl.setPointerCapture(e.pointerId); }catch(_){}
     fabUserInteracting = true;
+    fabInteractSince = Date.now();
     fabMoved = false;
     fabStartX = e.clientX; fabStartY = e.clientY;
     fabPressTimer = setTimeout(()=>{
