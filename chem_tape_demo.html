@@ -745,35 +745,47 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   // 用 visualViewport（手机 pinch zoom 时真正缩小的视口），否则固定靠 layout viewport 会让 FAB 在缩放后飞出屏幕
   function getViewport(){
     const vv = window.visualViewport;
-    if(vv){ return { w: vv.width, h: vv.height }; }
-    return { w: window.innerWidth, h: window.innerHeight };
+    if(vv){
+      // 返回带原点偏移的视觉视口（visualViewport.offsetLeft/offsetTop 反映用户在 pinch-zoom 后的滚动位置）
+      return { vox: vv.offsetLeft, voy: vv.offsetTop, w: vv.width, h: vv.height };
+    }
+    return { vox: 0, voy: 0, w: window.innerWidth, h: window.innerHeight };
   }
   function clampFabToViewport(){
     const r = fabEl.getBoundingClientRect();
-    const {w, h} = getViewport();
-    let left = r.left, top  = r.top;
-    left = Math.max(8, Math.min(left, w - r.width  - 8));
-    top  = Math.max(8, Math.min(top,  h - r.height - 8));
-    if(left !== r.left || top !== r.top){
+    const {vox, voy, w, h} = getViewport();
+    // 把 layout-px 的 r 换算到 visual-viewport 坐标系内
+    const fabLeftVisual = r.left - vox;
+    const fabTopVisual  = r.top  - voy;
+    // 在 visual viewport 内夹取（保留 8px 边距）
+    const newLeftVisual = Math.max(8, Math.min(fabLeftVisual, w - r.width  - 8));
+    const newTopVisual  = Math.max(8, Math.min(fabTopVisual,  h - r.height - 8));
+    // 写回 layout-px（= visual 原点 + visual 内偏移）
+    const writeLeft = vox + newLeftVisual;
+    const writeTop  = voy + newTopVisual;
+    if(Math.abs(writeLeft - r.left) > 0.5 || Math.abs(writeTop - r.top) > 0.5){
       fabEl.style.right = 'auto'; fabEl.style.bottom = 'auto';
-      fabEl.style.left = left + 'px'; fabEl.style.top = top + 'px';
+      fabEl.style.left = writeLeft + 'px'; fabEl.style.top = writeTop + 'px';
     }
-    return {x:left, y:top};
+    return { x: vox + newLeftVisual, y: voy + newTopVisual };
   }
   function applyFabPosFromPercent(pct){
-    const {w, h} = getViewport();
+    const {vox, voy, w, h} = getViewport();
     const fw = fabEl.offsetWidth || 64, fh = fabEl.offsetHeight || 64;
-    const x = Math.max(8, Math.min(pct.x/100*w, w - fw - 8));
-    const y = Math.max(8, Math.min(pct.y/100*h, h - fh - 8));
+    const xVisual = Math.max(8, Math.min(pct.x/100*w, w - fw - 8));
+    const yVisual = Math.max(8, Math.min(pct.y/100*h, h - fh - 8));
     fabEl.style.right = 'auto'; fabEl.style.bottom = 'auto';
-    fabEl.style.left = x + 'px';
-    fabEl.style.top  = y + 'px';
+    fabEl.style.left = (vox + xVisual) + 'px';
+    fabEl.style.top  = (voy + yVisual) + 'px';
   }
   function saveFabPos(){
     const r = fabEl.getBoundingClientRect();
-    const {w, h} = getViewport();
-    // 用视口百分比存
-    const pct = {x: ((r.left + r.width/2) / w) * 100, y: ((r.top + r.height/2) / h) * 100};
+    const {vox, voy, w, h} = getViewport();
+    // 用 visual viewport 百分比存（这样 zoom 不会让位置跳动）
+    const pct = {
+      x: ((r.left - vox + r.width/2) / w) * 100,
+      y: ((r.top  - voy + r.height/2) / h) * 100
+    };
     try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(pct)); }catch(e){}
   }
   function loadFabPos(){
