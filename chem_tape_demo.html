@@ -197,23 +197,23 @@
   width:1080px; pointer-events:none;
   z-index:50;
 }
+/* 覆盖态默认样式 —— 静态暖橙虚线 + 轻阴影（方案C：解决"红色脉冲持续动"的不安感） */
 .tape {
   position:absolute;
   background:
-    linear-gradient(135deg, rgba(255,250,225,.88), rgba(255,240,180,.88));
-  border:1.5px dashed rgba(180,160,90,.55);
+    linear-gradient(135deg, rgba(255,250,225,.95), rgba(255,240,180,.95));
+  border:2px solid rgba(255,140,40,.7);
   border-radius:3px;
   pointer-events:auto; cursor:pointer;
-  /* 覆盖态：红色脉冲阴影，不显示任何文字 */
-  box-shadow:0 0 0 0 rgba(255,82,82,.55), 0 0 12px rgba(255,82,82,.45);
-  animation: tapePulse 1.8s ease-in-out infinite;
-  transition:transform .25s ease, opacity .25s, box-shadow .25s;
+  box-shadow:0 2px 8px rgba(255,140,40,.22), inset 0 0 0 1px rgba(255,255,255,.35);
+  /* 不再默认动画 —— 脉冲改成 4s 一次的 JS 触发（方案D） */
+  transition:transform .25s ease, opacity .25s, box-shadow .35s ease;
   display:flex; align-items:center; justify-content:center;
   user-select:none;
 }
-@keyframes tapePulse {
-  0%,100% { box-shadow:0 0 0 0 rgba(255,82,82,.45), 0 0 12px rgba(255,82,82,.35); }
-  50%     { box-shadow:0 0 0 10px rgba(255,82,82,0), 0 0 18px rgba(255,82,82,.6); }
+/* 短暂轻闪脉冲：4s 触发一次，仅持续 200ms 后由 JS 移除 */
+.tape.pulse-on {
+  box-shadow:0 0 0 8px rgba(255,140,40,0), 0 2px 14px rgba(255,140,40,.5);
 }
 .tape::before, .tape::after {
   content:""; position:absolute; left:0; right:0; height:6px;
@@ -223,9 +223,9 @@
 }
 .tape::before { top:-3px; }
 .tape::after  { bottom:-3px; }
+/* 拖动中：保留用户主动反馈的醒目阴影（独立于默认"静态暖橙"） */
 .tape.dragging {
-  cursor:grabbing; opacity:.75;
-  animation:none;
+  cursor:grabbing; opacity:.9;
   box-shadow:0 0 0 3px rgba(255,82,82,.7), 0 8px 22px rgba(0,0,0,.25);
 }
 .tape .tape-tag {
@@ -1222,6 +1222,20 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
     layer.innerHTML = '';
     updateCount();
   };
+
+  // ===== 覆盖胶带定时轻闪（方案D：每 4s 触发一次 200ms 暖橙脉冲） =====
+  // 只对"覆盖态"（非 removed / 非 dragging）的胶带闪，提醒用户这里有遮挡
+  const TAPE_PULSE_INTERVAL = 4000; // 4s 一次
+  const TAPE_PULSE_DURATION = 200;  // 单次脉冲 200ms
+  setInterval(()=>{
+    document.querySelectorAll('.tape').forEach(el=>{
+      if(el.classList.contains('removed')) return;   // 揭开不闪
+      if(el.classList.contains('dragging')) return;  // 拖动中不闪
+      if(el.classList.contains('pulse-on')) return;   // 已有脉冲避免叠加
+      el.classList.add('pulse-on');
+      setTimeout(()=>el.classList.remove('pulse-on'), TAPE_PULSE_DURATION);
+    });
+  }, TAPE_PULSE_INTERVAL);
 
   // 导出 / 导入
   document.getElementById('tape-export').onclick = ()=>{
