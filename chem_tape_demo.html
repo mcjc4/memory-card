@@ -771,14 +771,43 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
       fabEl.style.top  = newTop  + 'px';
     }
   }
-  // 把 FAB 平滑弹回 CSS 默认右下角（清掉 inline left/top，让 right/bottom 接管）
-  function animateFabBackToCorner(){
-    if(fabEl.style.left && fabEl.style.top){
-      fabEl.style.transition = 'left .35s cubic-bezier(.4,1.6,.5,1), top .35s cubic-bezier(.4,1.6,.5,1)';
+  // ===== FAB 位置最终控制：JS 写 viewport 右下角，不依赖 CSS right/bottom =====
+  // —— 这是为了应对"外层容器有 transform: scale()"的场景：
+  //    position:fixed 元素的 containing block 会变成 transform 容器，
+  //    此时 CSS right:24px 是相对 transform 容器，不是 viewport，FAB 不再视觉右下角
+  //    JS 直接写 left/top 到 window.innerWidth/innerHeight 计算出的位置，不受外层 transform 影响
+  const FAB_MARGIN = 24; // 距视口右/下边的内边距
+  function getFabTargetPos(){
+    const fw = fabEl.offsetWidth  || 64;
+    const fh = fabEl.offsetHeight || 64;
+    return {
+      left: window.innerWidth  - fw - FAB_MARGIN,
+      top:  window.innerHeight - fh - FAB_MARGIN,
+    };
+  }
+  function setFabToBottomRight(animate){
+    if(fabUserInteracting) return; // 拖动中跳过
+    const target = getFabTargetPos();
+    // 如果当前已经在目标位置（容许 1px 误差）→ noop
+    const curLeft = parseFloat(fabEl.style.left);
+    const curTop  = parseFloat(fabEl.style.top);
+    if(fabEl.style.left && fabEl.style.top
+       && Math.abs((curLeft || 0) - target.left) < 1
+       && Math.abs((curTop  || 0) - target.top)  < 1){
+      return;
     }
-    fabEl.style.left  = 'auto';
-    fabEl.style.top   = 'auto';
-    setTimeout(()=>{ fabEl.style.transition = ''; }, 380);
+    if(animate){
+      fabEl.style.transition = 'left .35s cubic-bezier(.4,1.6,.5,1), top .35s cubic-bezier(.4,1.6,.5,1)';
+    }else{
+      fabEl.style.transition = 'none';
+    }
+    fabEl.style.right  = 'auto';
+    fabEl.style.bottom = 'auto';
+    fabEl.style.left = target.left + 'px';
+    fabEl.style.top  = target.top  + 'px';
+    if(animate){
+      setTimeout(()=>{ fabEl.style.transition = ''; }, 380);
+    }
   }
 
 // 用户「拖动页面」/「缩放页面」/「任何 layout 变动」停止 0.5s 后，FAB 自动回到右下角
@@ -791,11 +820,8 @@ function resetFabAfterGesture(){
   if(fabUserInteracting) return; // 用户在拖 FAB，不是页面手势
   clearTimeout(fabResetTimer);
   fabResetTimer = setTimeout(()=>{
-    // 陈总要求"网页变动后必须回到右下角" —— 无条件复位（已在右下角也是 noop）
-    fabEl.style.transition = 'left .35s cubic-bezier(.4,1.6,.5,1), top .35s cubic-bezier(.4,1.6,.5,1)';
-    fabEl.style.left  = 'auto';
-    fabEl.style.top   = 'auto';
-    setTimeout(()=>{ fabEl.style.transition = ''; }, 380);
+    // 陈总要求"网页变动后必须回到右下角" —— JS 写 viewport 右下角位置（不受外层 transform 影响）
+    setFabToBottomRight(true);
   }, 500);
 }
 
@@ -807,27 +833,31 @@ setInterval(()=>{
   }
 }, 2000);
 
-// 兜底：每 300ms 检测 FAB 是否完全在视觉视口内（如果不在，触发 resetFabAfterGesture）
-// 只在 FAB 离开 CSS 默认位置时检查（零开销）
+// 兜底：每 300ms 检测 FAB 是否完全在视觉视口内（如果不在，立即 JS 复位到 viewport 右下角）
+// 只在 FAB 离开 CSS 默认位置时检查（FAB 默认就在右下角时跳过，零开销）
 let fabSafetyTimer = null;
 function startFabSafetyCheck(){
   if(fabSafetyTimer) return;
   fabSafetyTimer = setInterval(()=>{
     if(fabUserInteracting) return;
-    if(!fabEl.style.left && !fabEl.style.top) return; // 在默认右下角，跳过
+    if(fabEl.classList.contains('dragging')) return;
+    // 只在 FAB 视觉上飞出 viewport 时触发复位（不判断"不在右下角"，避免误复位用户拖出去的 FAB）
     const r = fabEl.getBoundingClientRect();
-    const {vox, voy, w, h} = getViewport();
-    const layoutLeft = r.left - vox;
-    const layoutTop  = r.top  - voy;
     const fw = fabEl.offsetWidth  || 64;
     const fh = fabEl.offsetHeight || 64;
-    const out = layoutLeft < -4 || layoutTop < -4
-             || layoutLeft + fw > w + 4
-             || layoutTop  + fh > h + 4;
-    if(out) resetFabAfterGesture();
+    const out = r.left < -4 || r.top < -4
+             || r.right  > window.innerWidth  + 4
+             || r.bottom > window.innerHeight + 4;
+    if(out){
+      // 立即复位，无动画
+      setFabToBottomRight(false);
+    }
   }, 300);
 }
 startFabSafetyCheck();
+
+// 初始化时立即把 FAB 同步到 viewport 右下角（防止外层 transform 影响 + 兜住 JS 加载完成的瞬间）
+setFabToBottomRight(false);
 
 // ===== 事件监听 —— 全覆盖 layout 变动场景 =====
 // 1. window.resize：浏览器地址栏伸缩、软键盘、桌面尺寸调整
