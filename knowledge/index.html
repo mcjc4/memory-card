@@ -25,13 +25,13 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-top:18px}
   .card{display:flex;gap:14px;background:#fff;border:1px solid #e3edf7;border-radius:20px;padding:20px 18px;text-decoration:none;color:inherit;box-shadow:0 10px 30px -12px rgba(31,66,135,.16);transition:transform .18s ease,box-shadow .18s ease}
   .card:hover{transform:translateY(-3px);box-shadow:0 16px 36px -12px rgba(31,66,135,.26)}
-  .badge{flex:none;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4f8ef7,#22c3a6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600}
+  .badge{flex:none;width:44px;height:44px;border-radius:12px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
   .card-body{min-width:0;flex:1}
   .card-body h3{font-size:16px;color:#1f2d3d}
   .card-body .sub{font-size:13px;color:#5c7185;margin-top:5px;line-height:1.55}
   .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tag-chip{font-size:11px;padding:2px 9px;border-radius:999px;background:#eef3ff;color:#2a6df4}
-  .tag-chip.k{background:#ecfdf6;color:#1a9e7a}
+  .tag-chip.err{background:#fdeee2;color:#b3541e;font-weight:700}
   .tape-chip{font-size:11px;padding:2px 9px;border-radius:999px;background:#fdf2d0;color:#a4740f;font-weight:700}
   .go{display:inline-block;margin-top:10px;font-size:13px;color:#fff;background:linear-gradient(120deg,#4f8ef7,#22c3a6);padding:5px 14px;border-radius:999px}
   .foot{text-align:center;margin-top:34px;font-size:12px;color:#93a7ba}
@@ -40,78 +40,78 @@
 <body>
 <div class="wrap">
   <div class="hero">
-    <span class="tag">胶带版知识结构信息图 · 单文件离线可用</span>
+    <span class="tag">1080px 知识结构海报 · 胶带遮盖版 · 单文件离线可用</span>
     <h1>昕言各科知识结构体系库</h1>
-    <p>高三一轮复习各科知识结构信息图（胶带遮盖版）：先自己背，再揭开核对。每科一图，覆盖 09-02 至 09-04 课堂纪要核心考点，胶带状态本地保存 + 云端同步。</p>
+    <p>按《学科信息图生成 SOP》v1.0 生成的高三六科知识结构信息图（胶带遮盖版）：核心概念 → 方法步骤 → 辨析对照 → 易错点，先背再揭开核对。胶带状态本地保存 + 云端同步。</p>
     <div class="stat">
-      <div><b>6</b><span>个学科信息图</span></div>
-      <div><b>胶带版</b><span>框选贴带 · 揭开核对</span></div>
-      <div><b>☁️ 同步</b><span>本地 + Supabase 云端</span></div>
-      <div><b>单文件</b><span>零依赖离线运行</span></div>
+      <div><b>6</b><span>科全覆盖</span></div>
+      <div><b>6~9 节</b><span>每图知识节</span></div>
+      <div><b>≤10 条</b><span>易错点按科定量</span></div>
+      <div><b>☁️ 同步</b><span>本地 + Supabase</span></div>
     </div>
   </div>
 
   <div class="howto">
-    <b>📖 使用方法</b>：点 <span class="k">✋浏览</span> 模式可正常滚动缩放；点右下角模式球切到 <span class="k">✏️框选</span>，单指画出矩形即可贴胶带挡住内容；回到浏览模式，<b>短按胶带揭开 / 贴回</b>，<b>长按 0.4s 删除或移动</b>；工具栏支持一键揭开 / 一键覆盖、导出导入。
+    <b>📖 使用方法</b>：点 <span class="k">✋浏览</span> 模式可正常滚动缩放；点右下角模式球切到 <span class="k">✏️框选</span>，单指画矩形贴胶带挡住内容；回浏览模式<b>短按胶带揭开 / 贴回</b>，<b>长按 0.4s 删除或移动</b>；工具栏一键揭开 / 覆盖、导出导入、☁️ 上传 / 下载手动同步。
   </div>
 
   <div class="grid">
+    <a class="card" href="chemistry.html" target="_blank" rel="noopener">
+      <span class="badge" style="background:linear-gradient(135deg,#0b3c6e,#1b77c9)">化0001</span>
+      <div class="card-body">
+        <h3>化学 · 铁及其化合物</h3>
+        <p class="sub">亚铁检验 · 铁盐配制 · 晶体提取 · 铁三角 SVG · 氢氧化亚铁制备 · 腐蚀与防护｜易错 6 条</p>
+        <div class="tags"><span class="tag-chip">化学</span><span class="tag-chip err">易错 Top 6</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
     <a class="card" href="chinese.html" target="_blank" rel="noopener">
-      <span class="badge">语0001</span>
+      <span class="badge" style="background:linear-gradient(135deg,#123f33,#2e8b6e)">语0001</span>
       <div class="card-body">
         <h3>语文 · 文言文词类活用</h3>
-        <p class="sub">《劝学》默写易错点 · 句子成分分析法判定原理 · 名动形活用类型与真题演练</p>
-        <div class="tags"><span class="tag-chip">语文</span><span class="tag-chip c">文言文</span><span class="tape-chip">🩹 胶带版</span></div>
+        <p class="sub">《劝学》易错字 · 成分分析法 · 活用七类总表 · 特殊语法 · 真题四例｜易错 5 条</p>
+        <div class="tags"><span class="tag-chip">语文</span><span class="tag-chip err">易错 Top 5</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
     <a class="card" href="math.html" target="_blank" rel="noopener">
-      <span class="badge">数0007</span>
+      <span class="badge" style="background:linear-gradient(135deg,#2c1a52,#6c3fa0)">数0007</span>
       <div class="card-body">
         <h3>数学 · 三角函数性质与变换</h3>
-        <p class="sub">整体处理原图对照 · 奇偶性奇变偶不变 · 对称轴中心 · 同增异减 · 书写规范</p>
-        <div class="tags"><span class="tag-chip">数学</span><span class="tag-chip c">三角函数</span><span class="tape-chip">🩹 胶带版</span></div>
+        <p class="sub">整体处理原图对照 · 奇变偶不变 · 对称性 · 同增异减 · 书写规范红线｜易错 6 条</p>
+        <div class="tags"><span class="tag-chip">数学</span><span class="tag-chip err">易错 Top 6</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
     <a class="card" href="physics.html" target="_blank" rel="noopener">
-      <span class="badge">物0008</span>
+      <span class="badge" style="background:linear-gradient(135deg,#5c2e0e,#c96a1e)">物0008</span>
       <div class="card-body">
         <h3>物理 · 运动学实验与追及相遇</h3>
-        <p class="sub">刹车停止陷阱 · 打点计时器 · 瞬时速度与匀变速判定 · 逐差法 · v-t 图像规范</p>
-        <div class="tags"><span class="tag-chip">物理</span><span class="tag-chip c">匀变速直线运动</span><span class="tape-chip">🩹 胶带版</span></div>
+        <p class="sub">刹车陷阱 · 双解取舍 · 相距最远 · 打点计时器 · 逐差法 · 图像规范｜易错 6 条</p>
+        <div class="tags"><span class="tag-chip">物理</span><span class="tag-chip err">易错 Top 6</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
     <a class="card" href="politics.html" target="_blank" rel="noopener">
-      <span class="badge">政0001</span>
+      <span class="badge" style="background:linear-gradient(135deg,#6e1a12,#b03a2e)">政0001</span>
       <div class="card-body">
         <h3>政治 · 唯物辩证法联系观</h3>
-        <p class="sub">知识框架 · 大切口答题规范 · 原理材料化示范 · 四大易错易混辨析</p>
-        <div class="tags"><span class="tag-chip">政治</span><span class="tag-chip c">哲学</span><span class="tape-chip">🩹 胶带版</span></div>
+        <p class="sub">知识框架 · 原理材料化 · 大切口答题 · 原理默写卡 · 系统优化｜易错 5 条</p>
+        <div class="tags"><span class="tag-chip">政治</span><span class="tag-chip err">易错 Top 5</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
     <a class="card" href="english.html" target="_blank" rel="noopener">
-      <span class="badge">英0001</span>
+      <span class="badge" style="background:linear-gradient(135deg,#083a42,#17858a)">英0001</span>
       <div class="card-body">
         <h3>英语 · 阅读与写作专项</h3>
-        <p class="sub">熟词僻义 · 动作链四大句型 · AI 诗歌实验报告 · 七选五策略</p>
-        <div class="tags"><span class="tag-chip">英语</span><span class="tag-chip c">阅读与写作</span><span class="tape-chip">🩹 胶带版</span></div>
-        <span class="go">打开信息图 →</span>
-      </div>
-    </a>
-    <a class="card" href="../../chem_tape_demo.html" target="_blank" rel="noopener">
-      <span class="badge">化0001</span>
-      <div class="card-body">
-        <h3>化学 · 氧化还原 × 铁及其化合物</h3>
-        <p class="sub">化合价速判 · 电子转移 · 配平三步法 · 铁三角 · 实验专题与腐蚀防护（09-02/09-04 课堂）</p>
-        <div class="tags"><span class="tag-chip">化学</span><span class="tag-chip c">氧化还原</span><span class="tape-chip">🩹 胶带版</span></div>
+        <p class="sub">熟词僻义 · 动作链四句型 · 实验报告结构 · 七选五策略 · 例证题｜易错 5 条</p>
+        <div class="tags"><span class="tag-chip">英语</span><span class="tag-chip err">易错 Top 5</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
   </div>
-  <div class="foot">昕言知识结构体系库 · 09-04 高三多学科复习纪要 · GitHub Pages</div>
+  <div class="foot">昕言知识结构体系库 · 按《学科信息图生成 SOP》v1.0 生成 · 整理：小宇 · 生成模型：GLM-5.3 · GitHub Pages</div>
 </div>
 </body>
 </html>
