@@ -596,6 +596,8 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="mTopicBtn" class="bulk">批量改专题</button>
       <button id="mDelBtn" class="bulkDel">批量删除</button>
       <button id="mClearBtn" class="bulkDel" style="background:#A32D2D;border-color:#A32D2D;color:#fff" title="清空当前科目全部卡片（含训练进度）——更新题库时先清空再导入">🗑 清空全部</button>
+      <button id="mDelSubjBtn" class="bulkDel" style="background:#7C1D1D;border-color:#7C1D1D;color:#fff" title="删除当前整个科目（含全部卡片与进度），内置六科不可删">🗑 删除本科目</button>
+      <button id="mCleanDirtyBtn" class="bulkDel" style="background:#854F0B;border-color:#854F0B;color:#fff" title="一键删除异常科目：非内置且名字是编号样式（如 che0001、纯英文/数字）——旧版导入 bug 产生的脏科目">🧹 清理异常科目</button>
       <button id="mExpJsonBtn">导出 JSON</button>
       <button id="mExpCsvBtn">导出 CSV</button>
     </div>
@@ -2285,6 +2287,48 @@ function clearAllCards(){
   toast('已清空 ' + disp + ' 全部 ' + n + ' 张卡片');
 }
 
+/* ---------- 科目级删除 ---------- */
+function isDirtySubjName(nm){
+  if(SUBJECTS[nm]) return false;                       /* 内置科目永不判脏 */
+  if(/[\u4e00-\u9fa5]/.test(nm)) return false;        /* 含中文 = 正常科目名（含「未分类_xxxx」） */
+  return /[0-9]/.test(nm);                              /* 无中文且含数字（che0001 / 纯数字 / abc123）→ 判脏 */
+}
+function collectSubjCardIds(nm){
+  const d = subjDef(nm);
+  return (d && d.items) ? d.items.map(x => x.id) : [];
+}
+function wipeSubjectData(nm, ids){
+  [state, lastRes, browseMeta, POS, trainCount, subjectTime].forEach(m => { if(m && m[nm]) delete m[nm]; });
+  if(ids && ids.length) retryOrder = retryOrder.filter(id => ids.indexOf(id) === -1);
+}
+function deleteSubject(nm, silent){
+  if(SUBJECTS[nm]){ toast('「' + (ALL_SUBJECTS[nm] ? ALL_SUBJECTS[nm].display : nm) + '」是内置科目，只能清空不能删除'); return false; }
+  if(!IMPORTED[nm] && !CUSTOM[nm]){ toast('科目不存在'); return false; }
+  const disp = (ALL_SUBJECTS[nm] && ALL_SUBJECTS[nm].display) || nm;
+  const ids = collectSubjCardIds(nm);
+  if(!silent && !confirm('确定删除科目「' + disp + '」？\n\n将删除该科目全部 ' + ids.length + ' 张卡片、训练进度与浏览记录，此操作不可恢复！\n\n如需留底，可先到「设置 → 🛟 备份与恢复」做一次快照。')) return false;
+  if(IMPORTED[nm]) delete IMPORTED[nm];
+  if(CUSTOM[nm]) delete CUSTOM[nm];
+  wipeSubjectData(nm, ids);
+  savePerson();
+  rebuildSubjects();
+  if(cur === nm){ cur = SUBJ_NAMES[0] || null; }
+  renderManage(); refreshToday(); updateStats(); renderDash();
+  if(cur){ const cc = ALL_SUBJECTS[cur].color; document.documentElement.style.setProperty('--accent', cc); }
+  toast('已删除科目「' + disp + '」（' + ids.length + ' 张卡片）');
+  return true;
+}
+function cleanDirtySubjects(){
+  const dirty = Object.keys(ALL_SUBJECTS).filter(isDirtySubjName);
+  if(!dirty.length) return toast('没有发现异常科目 🎉');
+  const total = dirty.reduce((s, nm) => s + collectSubjCardIds(nm).length, 0);
+  const preview = dirty.slice(0, 15).join('、') + (dirty.length > 15 ? ' …等 ' + dirty.length + ' 个' : '');
+  if(!confirm('发现 ' + dirty.length + ' 个异常科目（共 ' + total + ' 张卡片）：\n' + preview + '\n\n这些是旧版导入 bug 把「编号」当成科目名生成的脏科目（如 che0001）。\n确定全部删除？此操作不可恢复！\n\n如需留底，可先到「设置 → 🛟 备份与恢复」做一次快照。')) return;
+  let done = 0;
+  dirty.forEach(nm => { if(deleteSubject(nm, true)) done++; });
+  toast('已清理 ' + done + ' 个异常科目' + (done !== dirty.length ? '（' + (dirty.length - done) + ' 个跳过）' : '') + ' 🧹');
+}
+
 /* ---------- 导出 ---------- */
 function downloadFile(name, text, type){
   const blob = new Blob([text], {type});
@@ -2560,9 +2604,10 @@ async function importCross(file){
     let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
     if(headIdx === -1) headIdx = 0;
     const head = rows[headIdx].map(v => String(v || ''));
-    const ci = {s: undefined, c: undefined, t: undefined, src: undefined, note: undefined, no: undefined, orig: undefined, link: undefined};
+    const ci = {subj: undefined, s: undefined, c: undefined, t: undefined, src: undefined, note: undefined, no: undefined, orig: undefined, link: undefined};
     head.forEach((c, i) => {
-      if(c.includes('编号') || c.includes('序号') || c.includes('题号') || c.includes('卡号')) ci.no = i;
+      if(c.includes('科目') || c.includes('学科')) ci.subj = i;
+      else if(c.includes('编号') || c.includes('序号') || c.includes('题号') || c.includes('卡号')) ci.no = i;
       else if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
       else if(c.includes('原题')) ci.orig = i;
       else if(c.includes('链接')) ci.link = i;
@@ -2572,22 +2617,33 @@ async function importCross(file){
       else if(c.includes('备注') || c.includes('注释') || c.includes('note')) ci.note = i;
     });
     if(ci.s === undefined){ ci.t = 1; ci.s = 2; ci.c = 3; ci.src = 4; }
-    /* 按 A 列科目名分组 */
+    /* 分组：有「科目」列（表头识别）→ 用它；否则回退 A 列，但仅当 A 列含中文（科目名）时采信，
+       纯 ASCII 编号（如 che0001）不再当科目名，归入兜底提醒改名 */
+    const subjCol = (ci.subj !== undefined) ? ci.subj : 0;
+    const hasSubjCol = ci.subj !== undefined;
+    const KNOWN_SUBJ = ['语文','数学','英语','物理','化学','政治','生物','历史','地理'];
+    const normSubj = raw => {
+      const v = String(raw || '').trim();
+      if(!v || v.includes('科目')) return '';
+      if(hasSubjCol) return v;                          /* 显式科目列：信任内容 */
+      if(KNOWN_SUBJ.indexOf(v) !== -1 || ALL_SUBJECTS[v]) return v;   /* A 列兜底：已知科目名 */
+      if(/[\u4e00-\u9fa5]/.test(v)) return v;          /* A 列含中文 → 视为自定义科目名 */
+      return '';                                        /* A 列是编号/英文 → 不采信 */
+    };
     const groups = {};   /* {subjName: {items: []}} */
-    let emptySubjCnt = 0;   /* A 列无科目名的行数 */
+    let emptySubjCnt = 0;   /* 无科目名的行数 */
     for(let i = headIdx + 1; i < rows.length; i++){
       const r = rows[i];
       const g = idx => (idx !== undefined && idx !== null) ? String(r[idx] || '').trim() : '';
       const s = g(ci.s), c = g(ci.c);
       if(!s || !c) continue;
-      const v0 = g(0);
-      let subj = (v0 && !v0.includes('科目')) ? v0 : '';
+      let subj = normSubj(g(subjCol));
       if(!subj){
         emptySubjCnt++;
         subj = '__MISSING__';   /* 兜底分组，避免丢行 */
       }
       if(!groups[subj]) groups[subj] = {items: []};
-      groups[subj].items.push({t: g(ci.t), s, c, src: g(ci.src), note: g(ci.note), orig: g(ci.orig), link: g(ci.link)});
+      groups[subj].items.push({t: g(ci.t), s, c, src: g(ci.src), note: g(ci.note), no: g(ci.no), orig: g(ci.orig), link: g(ci.link)});
     }
     const groupNames = Object.keys(groups);
     if(!groupNames.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
@@ -2651,9 +2707,10 @@ function buildSubject(rows, fileName){
   let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
   if(headIdx === -1) headIdx = 0;
   const head = rows[headIdx].map(v => String(v || ''));
-  const ci = {s: undefined, c: undefined, t: undefined, src: undefined, note: undefined, no: undefined, orig: undefined, link: undefined};
+  const ci = {subj: undefined, s: undefined, c: undefined, t: undefined, src: undefined, note: undefined, no: undefined, orig: undefined, link: undefined};
   head.forEach((c, i) => {
-    if(c.includes('编号') || c.includes('序号') || c.includes('题号') || c.includes('卡号')) ci.no = i;
+    if(c.includes('科目') || c.includes('学科')) ci.subj = i;
+    else if(c.includes('编号') || c.includes('序号') || c.includes('题号') || c.includes('卡号')) ci.no = i;
     else if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
     else if(c.includes('原题')) ci.orig = i;          /* 原题题干列（卡片小字预览） */
     else if(c.includes('链接')) ci.link = i;          /* 题目链接列（徽章点击跳转） */
@@ -2665,13 +2722,14 @@ function buildSubject(rows, fileName){
   if(ci.s === undefined) { ci.t = 1; ci.s = 2; ci.c = 3; ci.src = 4; }
   const items = [];
   const subjSet = new Set();
+  const subjColB = (ci.subj !== undefined) ? ci.subj : 0;
   for(let i = headIdx + 1; i < rows.length; i++){
     const r = rows[i];
     const g = idx => (idx !== undefined && idx !== null) ? String(r[idx] || '').trim() : '';
     const s = g(ci.s), c = g(ci.c);
     if(!s || !c) continue;
-    const v0 = g(0);
-    if(v0 && !v0.includes('科目')) subjSet.add(v0);
+    const vs = g(subjColB);
+    if(vs && !vs.includes('科目') && (ci.subj !== undefined || /[\u4e00-\u9fa5]/.test(vs) || ALL_SUBJECTS[vs])) subjSet.add(vs);
     items.push({t: g(ci.t), s, c, src: g(ci.src), note: g(ci.note), no: g(ci.no), orig: g(ci.orig), link: g(ci.link)});
   }
   if(!items.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
@@ -4767,6 +4825,8 @@ $('mAllBtn').addEventListener('click', () => { items().forEach(it => manageSel.a
 $('mTopicBtn').addEventListener('click', bulkMoveTopic);
 $('mDelBtn').addEventListener('click', bulkDelete);
 $('mClearBtn').addEventListener('click', clearAllCards);
+$('mDelSubjBtn').addEventListener('click', () => { if(cur) deleteSubject(cur); });
+$('mCleanDirtyBtn').addEventListener('click', cleanDirtySubjects);
 $('mExpJsonBtn').addEventListener('click', exportJSON);
 $('mExpCsvBtn').addEventListener('click', exportCSV);
 document.addEventListener('keydown', e => {
