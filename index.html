@@ -80,6 +80,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
 @keyframes zoneIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .card.enter .signal-zone{animation:zoneIn .38s ease both}
 .badge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;align-self:flex-start;margin-bottom:12px}
+/* 徽章横向行：主题徽章 + 编号徽章并排，不占额外垂直空间 */
+.badgeRow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;align-self:flex-start;margin-bottom:12px}
+.badgeRow .badge{margin-bottom:0}
+.noBadge{background:#fff;color:#475569;border:1px dashed #B9C4D0;font-weight:500;padding:2px 10px}
 .src-front{font-size:11px;color:#9ca3af;margin-top:-6px;margin-bottom:8px;align-self:flex-start;word-break:break-all;line-height:1.5}
   .linkBadge{display:inline-block;background:var(--badge-bg,#B5D4F4);color:var(--badge-fg,#0C447C);font-size:12px;padding:3px 12px;border-radius:999px;cursor:pointer;text-decoration:none;transition:filter .15s}
   .linkBadge:hover{filter:brightness(.92)}
@@ -153,6 +157,8 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .trainPos{text-align:center;font-size:13px;color:#6b7280;margin:0 0 12px;font-weight:500}
 .card.show .hint{opacity:0;max-height:0;margin-top:0}
 .src{margin-top:14px;font-size:12px;color:#9ca3af;word-break:break-all;padding-bottom:14px}
+.srcRow{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:18px;margin-top:14px}
+.srcRow .src{margin-top:0;padding-bottom:0}
 .kbd{display:inline-block;border:1px solid #d1d5db;border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12px;background:#f9fafb;color:#4b5563;margin:0 2px}
 .combo{display:none;text-align:center;font-size:15px;font-weight:500;color:#854F0B;margin-bottom:10px;animation:pop .35s}
 .combo.show{display:block}
@@ -341,6 +347,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
         <button id="dashBrowseBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="查看浏览历史（全部学科/全部执行人本机记录）">📋 浏览历史</button>
         <button id="dashCrossTopicBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#E6F1FB;color:#0C447C;cursor:pointer">🎯 跨科专题练</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
+        <button id="dashTplBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="下载导入模板 xlsx（含备注列，按表头填写后导入）">📄 模板</button>
       </div>
     </div>
     <div class="timeRingWrap">
@@ -441,17 +448,26 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="lastRes" id="fLast" style="display:none"></div>
       <div class="src-front" id="fSrc" style="display:none"></div>
       <div class="src-front" id="fLink" style="display:none"></div>
-      <span class="badge" id="fBadge"></span>
+      <span class="badgeRow">
+        <span class="badge" id="fBadge"></span>
+        <span class="badge noBadge" id="fNo" style="display:none"></span>
+      </span>
       <div class="sig" id="fSig"></div>
       <div class="orig-preview" id="fOrig" style="display:none"></div>
       <div class="hint">点卡片展开答案 <span class="kbd">空格</span> · 或用 <span class="kbd">1</span> 没记住 <span class="kbd">2</span> 模糊 <span class="kbd">3</span> 记住了</div>
     </div>
     <div class="answer-zone">
       <div class="answer-inner">
-        <span class="badge" id="bBadge"></span>
+        <span class="badgeRow">
+          <span class="badge" id="bBadge"></span>
+          <span class="badge noBadge" id="bNo" style="display:none"></span>
+        </span>
         <div class="concl" id="bConcl"></div>
-        <div class="src" id="bSrc"></div>
-        <div class="src" id="bLink" style="display:none"></div>
+        <div class="srcRow">
+          <div class="src" id="bSrc"></div>
+          <div class="src" id="bNote" style="display:none"></div>
+          <div class="src" id="bLink" style="display:none"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -502,12 +518,16 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div style="font-size:12px;color:#6b7280;margin-bottom:6px">科目：<b id="modalSubj"></b></div>
     <label>章节知识点（专题）</label>
     <input id="mTopic" placeholder="如 电容器动态分析">
+    <label>编号 <span style="color:#9ca3af;font-weight:normal">（可选，题号/序号，卡片上以徽章并排显示）</span></label>
+    <input id="mNo" placeholder="可选，如 P1-02、023">
     <label>题干信号（看到…） <span style="color:#A32D2D">*</span></label>
     <textarea id="mSig" placeholder="必填，看到什么题干条件"></textarea>
     <label>结论/易错点（想到…警惕…） <span style="color:#A32D2D">*</span></label>
     <textarea id="mConcl" placeholder="必填，想到什么结论/警惕什么"></textarea>
     <label>出处</label>
     <input id="mSrc" placeholder="可选，PDF 文件名或页码">
+    <label>备注 <span style="color:#9ca3af;font-weight:normal">（可选，展开答案后显示在出处右边）</span></label>
+    <input id="mNote" placeholder="可选，如：需重点回看、2026 真光卷">
     <label>原题题干（可选，卡片上小字预览）</label>
     <textarea id="mOrig" placeholder="可选，原题题干（显示前若干字）"></textarea>
     <label>题目链接（可选，徽章点击跳转）</label>
@@ -529,6 +549,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div style="font-size:13px;color:#374151;margin:6px 0 4px">① 选择文件（xlsx / xls / csv）</div>
     <div style="display:flex;align-items:center;gap:8px">
       <button id="impFileBtn" class="ok" style="background:#185FA5;border-color:#185FA5;padding:7px 14px;border-radius:8px;color:#fff;cursor:pointer;font-size:13px;white-space:nowrap">📁 选择文件</button>
+      <button id="impTplBtn" style="padding:7px 14px;border-radius:8px;color:#185FA5;cursor:pointer;font-size:13px;white-space:nowrap;border:1px solid #185FA5;background:#fff" title="下载导入模板 xlsx（含备注列）">📄 下载模板</button>
       <span id="impFileName" style="flex:1;font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未选择</span>
     </div>
     <input type="file" id="impFilePick" accept=".xlsx,.xls,.csv" style="display:none">
@@ -574,6 +595,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="mAllBtn">全选</button>
       <button id="mTopicBtn" class="bulk">批量改专题</button>
       <button id="mDelBtn" class="bulkDel">批量删除</button>
+      <button id="mClearBtn" class="bulkDel" style="background:#A32D2D;border-color:#A32D2D;color:#fff" title="清空当前科目全部卡片（含训练进度）——更新题库时先清空再导入">🗑 清空全部</button>
       <button id="mExpJsonBtn">导出 JSON</button>
       <button id="mExpCsvBtn">导出 CSV</button>
     </div>
@@ -1314,7 +1336,9 @@ function buildQueue(){
 /* ---------- 持久化：写入覆盖层 ---------- */
 function persistSubject(name){
   const d = subjDef(name);
-  CUSTOM[name] = { color:d.color, display:d.display, items:d.items };
+  /* items 删空（整科清空/删光最后一张）→ 置 cleared 覆盖层，rebuild 豁免清理，科目保持 0 张不回退内置默认 */
+  const cleared = !!(d && d.items && d.items.length === 0);
+  CUSTOM[name] = { color: d.color, display: d.display, items: d.items, cleared: cleared ? true : undefined };
   savePerson();
   schedulePush();
 }
@@ -1605,6 +1629,10 @@ function show(){
     $('fBadge').textContent = d.t || '未分类';
     $('bBadge').textContent = d.t || '未分类';
   }
+  /* 编号徽章（导入 xlsx 的「编号」列，正反面主题徽章右侧并排；无编号则不占位） */
+  const noVal = d.no || '';
+  $('fNo').textContent = noVal; $('fNo').style.display = noVal ? '' : 'none';
+  $('bNo').textContent = noVal; $('bNo').style.display = noVal ? '' : 'none';
   /* 记录浏览历史（防重复，同卡连续翻牌只记一次） + 更新 browseMeta */
   if(d.id !== lastBrowseId){
     lastBrowseId = d.id;
@@ -1659,6 +1687,9 @@ else { fOrigEl.innerHTML = ''; fOrigEl.style.display = 'none'; }
   fitSigText();   /* 题干字号自适应：宽度 95% 且高度不超屏幕 */
   prefetchAdjacentAudio();   /* 后台预加载：当前卡背面 + 下一卡正面，切卡翻牌零等待 */
   $('bConcl').innerHTML = renderMath(d.c);
+  const bNoteEl = $('bNote');
+  if(d.note && String(d.note).trim()){ bNoteEl.innerHTML = '📝 ' + renderMath(d.note); bNoteEl.style.display = ''; }
+  else { bNoteEl.innerHTML = ''; bNoteEl.style.display = 'none'; }
   $('bSrc').textContent = d.src ? '出处：' + d.src : '';
   const bLinkEl = $('bLink');
   if(d.link){ bLinkEl.innerHTML = '<a class="linkBadge" href="' + escHtml(d.link).replace(/"/g,'&quot;') + '" target="_blank" rel="noopener">🔗 原题链接</a>'; bLinkEl.style.display = ''; }
@@ -1983,8 +2014,8 @@ function closeManage(){ $('viewManage').style.display = 'none'; }
 
 /* ---------- 科目合并 & 切换 ---------- */
 function rebuildSubjects(){
-  /* 启动时清理所有空壳（被删空的 CUSTOM）—— 避免 subjDef 优先取到空数据 */
-  Object.keys(CUSTOM).forEach(n => { if(!CUSTOM[n] || !CUSTOM[n].items || !CUSTOM[n].items.length) delete CUSTOM[n]; });
+  /* 启动时清理所有空壳（被删空的 CUSTOM）—— 避免 subjDef 优先取到空数据；cleared 标记 = 用户显式清空整科，豁免并保持 0 张 */
+  Object.keys(CUSTOM).forEach(n => { if(!CUSTOM[n] || !CUSTOM[n].items || !CUSTOM[n].items.length){ if(!(CUSTOM[n] && CUSTOM[n].cleared)) delete CUSTOM[n]; } });
   Object.keys(IMPORTED).forEach(n => { if(!IMPORTED[n] || !IMPORTED[n].items || !IMPORTED[n].items.length) delete IMPORTED[n]; });
   ALL_SUBJECTS = {};
   Object.keys(SUBJECTS).forEach(n => ALL_SUBJECTS[n] = subjDef(n));
@@ -2142,9 +2173,11 @@ function openCardModal(editId){
   $('modalDel').style.display = editId ? '' : 'none';
   const it = editId ? itemById(editId) : null;
   $('mTopic').value = it ? it.t : (topic || '');
+  $('mNo').value = it ? (it.no || '') : '';
   $('mSig').value = it ? it.s : '';
   $('mConcl').value = it ? it.c : '';
   $('mSrc').value = it ? it.src : '';
+  $('mNote').value = it ? (it.note || '') : '';
   $('mOrig').value = it ? (it.orig || '') : '';
   $('mLink').value = it ? (it.link || '') : '';
   $('modalErr').textContent = '';
@@ -2154,17 +2187,19 @@ function openCardModal(editId){
 function closeCardModal(){ $('cardModal').classList.remove('show'); }
 function submitCard(){
   const t = $('mTopic').value.trim();
+  const no = $('mNo').value.trim();
   const s = $('mSig').value.trim();
   const c = $('mConcl').value.trim();
   const src = $('mSrc').value.trim();
+  const note = $('mNote').value.trim();
   const orig = $('mOrig').value.trim();
   const link = $('mLink').value.trim();
   if(!s || !c){ $('modalErr').textContent = '题干信号与结论为必填项'; return; }
   if(modalEditId){
-    updateCard(cur, modalEditId, {t, s, c, src, orig, link});
+    updateCard(cur, modalEditId, {t, s, c, src, note, orig, link, no});
     toast('已更新');
   } else {
-    addCard(cur, {t, s, c, src, orig, link});
+    addCard(cur, {t, s, c, src, note, orig, link, no});
     toast('已添加，开始训练时会出现');
   }
   closeCardModal();
@@ -2185,7 +2220,7 @@ function renderManage(){
   tbl.innerHTML = '';
   const filtered = its.filter(it => {
     if(mt && it.t !== mt) return false;
-    if(search){ const s = (it.s + it.c + (it.src||'') + (it.t||'')).toLowerCase(); if(!s.includes(search)) return false; }
+    if(search){ const s = (it.s + it.c + (it.src||'') + (it.note||'') + (it.no||'') + (it.t||'')).toLowerCase(); if(!s.includes(search)) return false; }
     return true;
   });
   /* 表头 */
@@ -2236,6 +2271,19 @@ function bulkDelete(){
   toast('已批量删除 ' + ids.length + ' 条');
   rebuildSubjects(); renderManage();
 }
+/* 一键清空当前科目全部卡片（含进度）——用于整体更新题库：先清空 → 再导入新版 */
+function clearAllCards(){
+  if(!cur) return;
+  const d = subjDef(cur);
+  if(!d || !d.items || !d.items.length) return toast('该科目已是空库，无需清空');
+  const n = d.items.length;
+  const disp = (ALL_SUBJECTS[cur] && ALL_SUBJECTS[cur].display) || cur;
+  if(!confirm('确定清空「' + disp + '」的全部 ' + n + ' 张卡片？\n\n将删除全部卡片及其训练进度，此操作不可恢复！\n\n如需留底，可先到「设置 → 🛟 备份与恢复」做一次快照。')) return;
+  bulkRemove(d.items.map(x => x.id));
+  manageSel.clear();
+  rebuildSubjects(); renderManage(); refreshToday(); updateStats(); renderDash();
+  toast('已清空 ' + disp + ' 全部 ' + n + ' 张卡片');
+}
 
 /* ---------- 导出 ---------- */
 function downloadFile(name, text, type){
@@ -2263,8 +2311,8 @@ function exportJSON(){
 }
 function exportCSV(){
   const esc = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-  const rows = [['章节知识点','题干信号','结论/易错点','出处','原题题干','题目链接']];
-  items().forEach(it => rows.push([it.t||'', it.s||'', it.c||'', it.src||'', it.orig||'', it.link||'']));
+  const rows = [['章节知识点','编号','题干信号','结论/易错点','出处','备注','原题题干','题目链接']];
+  items().forEach(it => rows.push([it.t||'', it.no||'', it.s||'', it.c||'', it.src||'', it.note||'', it.orig||'', it.link||'']));
   const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n');
   downloadFile(`记忆卡_${cur}_${today()}.csv`, csv, 'text/csv;charset=utf-8');
   toast('已导出 CSV');
@@ -2329,7 +2377,7 @@ const XLW = (() => {
       + (rows.length ? '<autoFilter ref="A1:' + lastCol + lastRow + '"/>' : '')
       + '</worksheet>';
   }
-  function makeXlsx(headers, rows, widths){
+  function makeXlsx(headers, rows, widths, sheetName){
     const CT = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
       + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -2344,7 +2392,7 @@ const XLW = (() => {
       + '</Relationships>';
     const WB = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-      + '<sheets><sheet name="\u67e5\u8be2\u7ed3\u679c" sheetId="1" r:id="rId1"/></sheets></workbook>';
+      + '<sheets><sheet name="' + esc(sheetName || '\u67e5\u8be2\u7ed3\u679c') + '" sheetId="1" r:id="rId1"/></sheets></workbook>';
     const WB_RELS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
       + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
@@ -2370,6 +2418,23 @@ const XLW = (() => {
   }
   return {makeXlsx: makeXlsx, crc32: crc32};
 })();
+
+/* ---------- 导入模板下载（含「备注」列；首页跨科导入与管理页导入弹窗共用） ---------- */
+function downloadImpTemplate(){
+  try{
+    const headers = ['科目','章节/专题','编号','题干信号','结论/易错点','出处','备注','原题题干','题目链接'];
+    const exRows = [
+      ['物理','力学 连接体','P1-02','看到两物体叠放、由绳或杆相连一起运动','想到整体法与隔离法：求外力用整体、求内力用隔离；两物 μ 相同时才可整体','物一轮_必修一P23','易错：μA≠μB 时不可整体列式','示例原题可留空','https://zujuan.xkw.com/…'],
+      ['化学','电化学 原电池','H2-01','看到原电池装置图：两种活泼性不同的电极 + 电解质溶液','想到负极失电子被氧化；阳离子移向正极；电子只走导线不经过溶液','课堂笔记 0907','含盐桥的双液电池电流更稳定','','']
+    ];
+    const zip = XLW.makeXlsx(headers, exRows, [8, 15, 8, 34, 40, 13, 24, 20, 20], '\u5bfc\u5165\u6a21\u677f');
+    downloadBlob('记忆卡_导入模板.xlsx', zip, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast('已下载导入模板：示例行可删除，按表头填写（备注列可选）');
+  }catch(e){
+    console.error('downloadImpTemplate failed:', e);
+    toast('模板下载失败：' + e.message);
+  }
+}
 
 /* ---------- Excel 导入（与之前相同） ---------- */
 const XL = (() => {
@@ -2495,14 +2560,16 @@ async function importCross(file){
     let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
     if(headIdx === -1) headIdx = 0;
     const head = rows[headIdx].map(v => String(v || ''));
-    const ci = {s: undefined, c: undefined, t: undefined, src: undefined, orig: undefined, link: undefined};
+    const ci = {s: undefined, c: undefined, t: undefined, src: undefined, note: undefined, no: undefined, orig: undefined, link: undefined};
     head.forEach((c, i) => {
-      if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
+      if(c.includes('编号') || c.includes('序号') || c.includes('题号') || c.includes('卡号')) ci.no = i;
+      else if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
       else if(c.includes('原题')) ci.orig = i;
       else if(c.includes('链接')) ci.link = i;
       else if(c.includes('结论') || c.includes('易错') || c.includes('想到')) ci.c = i;
       else if(c.includes('章节') || c.includes('知识点') || c.includes('专题')) ci.t = i;
       else if(c.includes('出处') || c.includes('来源')) ci.src = i;
+      else if(c.includes('备注') || c.includes('注释') || c.includes('note')) ci.note = i;
     });
     if(ci.s === undefined){ ci.t = 1; ci.s = 2; ci.c = 3; ci.src = 4; }
     /* 按 A 列科目名分组 */
@@ -2520,7 +2587,7 @@ async function importCross(file){
         subj = '__MISSING__';   /* 兜底分组，避免丢行 */
       }
       if(!groups[subj]) groups[subj] = {items: []};
-      groups[subj].items.push({t: g(ci.t), s, c, src: g(ci.src), orig: g(ci.orig), link: g(ci.link)});
+      groups[subj].items.push({t: g(ci.t), s, c, src: g(ci.src), note: g(ci.note), orig: g(ci.orig), link: g(ci.link)});
     }
     const groupNames = Object.keys(groups);
     if(!groupNames.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
@@ -2584,14 +2651,16 @@ function buildSubject(rows, fileName){
   let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
   if(headIdx === -1) headIdx = 0;
   const head = rows[headIdx].map(v => String(v || ''));
-  const ci = {s: undefined, c: undefined, t: undefined, src: undefined, orig: undefined, link: undefined};
+  const ci = {s: undefined, c: undefined, t: undefined, src: undefined, note: undefined, no: undefined, orig: undefined, link: undefined};
   head.forEach((c, i) => {
-    if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
+    if(c.includes('编号') || c.includes('序号') || c.includes('题号') || c.includes('卡号')) ci.no = i;
+    else if(c.includes('题干信号') || c.includes('看到')) ci.s = i;
     else if(c.includes('原题')) ci.orig = i;          /* 原题题干列（卡片小字预览） */
     else if(c.includes('链接')) ci.link = i;          /* 题目链接列（徽章点击跳转） */
     else if(c.includes('结论') || c.includes('易错') || c.includes('想到')) ci.c = i;
     else if(c.includes('章节') || c.includes('知识点') || c.includes('专题')) ci.t = i;
     else if(c.includes('出处') || c.includes('来源')) ci.src = i;
+    else if(c.includes('备注') || c.includes('注释') || c.includes('note')) ci.note = i;
   });
   if(ci.s === undefined) { ci.t = 1; ci.s = 2; ci.c = 3; ci.src = 4; }
   const items = [];
@@ -2603,7 +2672,7 @@ function buildSubject(rows, fileName){
     if(!s || !c) continue;
     const v0 = g(0);
     if(v0 && !v0.includes('科目')) subjSet.add(v0);
-    items.push({t: g(ci.t), s, c, src: g(ci.src), orig: g(ci.orig), link: g(ci.link)});
+    items.push({t: g(ci.t), s, c, src: g(ci.src), note: g(ci.note), no: g(ci.no), orig: g(ci.orig), link: g(ci.link)});
   }
   if(!items.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
   /* 仅做「识别名」推断，不做冲突改名——目标科目与处理方式由导入弹窗显式决策 */
@@ -4290,7 +4359,7 @@ function tqExport(){
       return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')
         + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
     };
-    const headers = ['科目','章节/专题','题干信号','结论/易错点','出处','原题题干','题目链接','训练状态','最近答题','最近浏览','审核'];
+    const headers = ['科目','章节/专题','编号','题干信号','结论/易错点','出处','备注','原题题干','题目链接','训练状态','最近答题','最近浏览','审核'];
     const rows = [];
     ids.forEach(id => {
       const subj = subjectOfId(id);
@@ -4300,7 +4369,7 @@ function tqExport(){
       const v = st[id], lrItem = lr[id], bmItem = bm[id];
       rows.push([
         (ALL_SUBJECTS[subj] && ALL_SUBJECTS[subj].display ? ALL_SUBJECTS[subj].display : subj),
-        it.t || '', it.s || '', it.c || '', it.src || '', it.orig || '', it.link || '',
+        it.t || '', it.no || '', it.s || '', it.c || '', it.src || '', it.note || '', it.orig || '', it.link || '',
         stNames[v] || '未测',
         lrItem && lrItem.ts ? fmtTs(lrItem.ts) : '',
         bmItem && bmItem.lastBrowse ? fmtTs(bmItem.lastBrowse) : '',
@@ -4308,7 +4377,7 @@ function tqExport(){
       ]);
     });
     if(!rows.length){ toast('没有可导出的卡片数据'); return; }
-    const widths = [12, 16, 44, 44, 16, 30, 30, 10, 18, 18, 8];
+    const widths = [12, 16, 10, 40, 40, 15, 22, 26, 26, 10, 17, 17, 8];
     const zip = XLW.makeXlsx(headers, rows, widths);
     downloadBlob('记忆卡_查询结果_' + ids.length + '张_' + today() + '.xlsx', zip, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     toast('已导出 ' + rows.length + ' 张卡片（xlsx）');
@@ -4536,6 +4605,7 @@ $('settingsBtn').addEventListener('click', openSettings);
 $('dashSettingsBtn').addEventListener('click', openSettings);
 $('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(b) b.click(); });
 $('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('fileInput').click(); });
+$('dashTplBtn').addEventListener('click', downloadImpTemplate);
 $('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
 $('settingsModalClose').addEventListener('click', () => { $('settingsModal').classList.remove('show'); renderDash(); });
 $('pushSaveBtn').addEventListener('click', savePushCfg);
@@ -4670,6 +4740,7 @@ $('fileInput').addEventListener('change', e => {
 $('impClose').addEventListener('click', closeImportModal);
 $('impCancel').addEventListener('click', closeImportModal);
 $('impFileBtn').addEventListener('click', () => $('impFilePick').click());
+$('impTplBtn').addEventListener('click', downloadImpTemplate);
 $('impFilePick').addEventListener('change', e => { if(e.target.files[0]) parseImportAndShow(e.target.files[0]); e.target.value = ''; });
 $('impModeNew').addEventListener('change', () => { syncImpUI(); refreshImpStrategy(); });
 $('impModeMerge').addEventListener('change', () => { syncImpUI(); refreshImpStrategy(); });
@@ -4695,6 +4766,7 @@ $('mAddBtn').addEventListener('click', () => openCardModal(null));
 $('mAllBtn').addEventListener('click', () => { items().forEach(it => manageSel.add(it.id)); renderManage(); });
 $('mTopicBtn').addEventListener('click', bulkMoveTopic);
 $('mDelBtn').addEventListener('click', bulkDelete);
+$('mClearBtn').addEventListener('click', clearAllCards);
 $('mExpJsonBtn').addEventListener('click', exportJSON);
 $('mExpCsvBtn').addEventListener('click', exportCSV);
 document.addEventListener('keydown', e => {
