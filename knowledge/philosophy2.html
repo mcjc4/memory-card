@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1080">
+<meta name="viewport" content="width=1120">
 <title>高三化学信息图 · 铁及其化合物</title>
 <meta name="subject" content="化学">
 <meta name="number" content="化0001">
@@ -10,8 +10,8 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { background:#eef2f7; }
   body { font-family:"Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;
-         color:#23303f; width:1080px; margin:0 auto; }
-  .poster { width:1080px; background:#eef2f7; padding:0 0 28px; }
+         color:#23303f; width:1120px; margin:0 auto; }
+  .poster { width:1120px; background:#eef2f7; padding:0 0 28px; }
 
   /* ===== 主题变量（化学：蓝）===== */
   :root {
@@ -86,7 +86,7 @@
   @media print {
     @page { size:A4 portrait; margin:9mm 8mm; }
     html,body { background:#eef2f7 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    body { width:1080px; zoom:0.678; }
+    body { width:1120px; zoom:0.654; }
     .sec, .footer-sec, .header { break-inside:avoid; page-break-inside:avoid; }
   }
 </style>
@@ -95,7 +95,7 @@
 /* ====== 粘胶带模块（demo） ====== */
 .tape-layer {
   position:absolute; left:0; top:0;
-  width:1080px; pointer-events:none;
+  width:1120px; pointer-events:none;
   z-index:50;
 }
 /* 覆盖态默认样式 —— 100% 不透明 + 暖黄底 + 斜纹纹理（彻底遮挡底字，但仍可一眼识别"这里有胶带"） */
@@ -1255,7 +1255,7 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     updateCount();
   }
 
-  // ===== 横竖屏旋转保险（方案A配套）：布局视口已锁 1080px，旋转只改缩放不改布局；
+  // ===== 横竖屏旋转保险（方案A配套）：布局视口已锁 1120px，旋转只改缩放不改布局；
   // 个别 WebView 旋转后渲染层异常，这里检测横竖切换，从存储状态整层重绘一次 =====
   let tapeRrTimer = null;
   let tapeLastLand = (window.innerWidth > window.innerHeight);
