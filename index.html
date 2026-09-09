@@ -1317,6 +1317,7 @@ function topics(){
   return seen;
 }
 function buildQueue(){
+  ensureSrcFilterFresh();   /* 出处筛选漂移自愈：旧筛选与当前卡零交集 → 重置全选 */
   isTopicTrain = false;
   $('topicTrainBar').style.display = 'none';
   let ids = items().map(it => it.id);
@@ -2283,6 +2284,11 @@ function clearAllCards(){
   if(!confirm('确定清空「' + disp + '」的全部 ' + n + ' 张卡片？\n\n将删除全部卡片及其训练进度，此操作不可恢复！\n\n如需留底，可先到「设置 → 🛟 备份与恢复」做一次快照。')) return;
   bulkRemove(d.items.map(x => x.id));
   manageSel.clear();
+  /* B 方案：清空整科后出处筛选集一并失效
+     — delete 回 undefined（未触碰默认显示全部），若 clear 成空集则只留无出处卡，新导入卡会被滤空 */
+  delete srcFilterSets[cur];
+  delete srcInited[cur];
+  updateSrcBtn();
   rebuildSubjects(); renderManage(); refreshToday(); updateStats(); renderDash();
   toast('已清空 ' + disp + ' 全部 ' + n + ' 张卡片');
 }
@@ -3971,11 +3977,26 @@ function allSrcNames(name){
   return [...seen];
 }
 function updateSrcBtn(){
+  const b = $('srcFilterBtn'); if(!b) return;
   const all = allSrcNames(cur);
   const sf = srcFilterSets[cur];
   const n = sf ? sf.size : 0;
   const allSelected = n > 0 && all.length > 0 && all.every(s => sf.has(s));
-  $('srcFilterBtn').textContent = (n === 0 || allSelected) ? '📄 出处' : '📄 出处(' + n + ')';
+  b.textContent = (n === 0 || allSelected) ? '📄 出处' : '📄 出处(' + n + ')';
+}
+/* 出处筛选集漂移自愈（A方案 2026-09-09）：清空/换库/导入新题后，
+   srcFilterSets 残留旧出处且与当前卡片零交集 → 自动重置为全集，防 buildQueue 全滤空。
+   仅处理 sf.size>0 且零命中；用户主动「重置为空」（空集）与未触碰（undefined）不干扰。 */
+function ensureSrcFilterFresh(){
+  const all = allSrcNames(cur);
+  const sf = srcFilterSets[cur];
+  if(!sf || sf.size === 0 || !all.length) return;
+  const hit = all.some(s => sf.has(s));
+  if(!hit){
+    srcFilterSets[cur] = new Set(all);
+    updateSrcBtn();
+    toast('📋 出处筛选与当前卡片无交集，已自动重置为全选');
+  }
 }
 
 /* ========== 专题练内嵌多选：科目 + 专题 + 出处（勾选弹窗样式） ========== */
