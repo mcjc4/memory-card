@@ -916,6 +916,12 @@ h1{font-size:21px;font-weight:500;text-align:center}
       </div>
       <input type="file" id="bakFilePick" accept=".json,application/json" style="display:none">
     </div>
+    <div style="background:#FBF0F0;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:13px;color:#A32D2D;font-weight:500">📦 本地存储诊断（“存储已满”时查谁占空间）</div>
+      <div class="modalHint">遍历本页 localStorage 全部 key，逐条统计占用与用途。浏览器配额约 5MB，超了会弹“存储已满”且最新改动存不上。删大 key 前请先做一次备份。</div>
+      <button id="bakStorageDiag" style="background:#A32D2D;border-color:#A32D2D;color:#fff">🔍 开始诊断</button>
+      <div id="bakStorageRes" style="margin-top:8px;font-size:12px"></div>
+    </div>
     <div class="row2" style="grid-template-columns:1fr 1fr">
       <button id="bakCfgReset" class="del">恢复备份默认设置</button>
       <button id="bakCfgSave" class="ok">保存备份设置</button>
@@ -3415,6 +3421,81 @@ function saveBakCfgFromUI(){
   toast('已保存备份设置');
   renderBakLists();
 }
+/* 本地存储诊断：逐条统计 localStorage 占用，支持单条删除释放配额 */
+const LS_LABEL = {
+  'wulun_person_v2': '执行人数据（全部卡片+进度，本应用主库）',
+  'wulun_cards_imported': '导入卡库（跨执行人共享）',
+  'wulun_cards_custom': '自定义卡库（跨执行人共享）',
+  'wulun_active_person': '当前执行人标记',
+  'wulun_bak_local': '本地多版本快照（💾 环形 N 份）',
+  'wulun_bak_cfg': '备份设置',
+  'wulun_bak_cloud_day': '云端快照日期标记',
+  'wulun_cloud_cfg': '云端连接配置（Supabase）',
+  'wulun_cloud_sync_at': '云端同步时间戳',
+  'wulun_syncbase_v1': '同步基线（云端最后接受时间）',
+  'wulun_tts_cfg': '朗读/发音设置',
+  'wulun_push_cfg': '推送通道设置（钉钉/飞书/PushPlus）',
+  'wulun_push_last': '上次推送记录',
+  'wulun_fx_cfg': '动效设置（彩带/烟花等）',
+  'wulun_guard_cfg': '专注保护设置'
+};
+/* 高危 key：删前强警告（数据本体或云端配置） */
+const LS_DANGER = ['wulun_person_v2','wulun_cards_imported','wulun_cards_custom','wulun_bak_local','wulun_cloud_cfg','wulun_syncbase_v1'];
+function storageDiag(){
+  const res = $('bakStorageRes');
+  if(!res) return;
+  const items = [];
+  let total = 0;
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k === null) continue;
+    const v = localStorage.getItem(k);
+    const bytes = v === null ? 0 : new Blob([v]).size;
+    total += bytes;
+    items.push({ k, bytes });
+  }
+  items.sort((a, b) => b.bytes - a.bytes);
+  const MB = 1024 * 1024;
+  const pct = total ? (total / MB * 100).toFixed(1) : '0';
+  const usedKB = (total / 1024).toFixed(1);
+  let html = '<div style="background:#fff;border:1px solid #f0c8c8;border-radius:8px;padding:8px 10px;margin-bottom:8px">'
+    + '合计 <b>' + usedKB + ' KB</b>（约浏览器配额 ' + pct + '% @5MB）· 共 ' + items.length + ' 条 key。'
+    + '<span style="color:#A32D2D">先备份再删除，高危项删除后需重新登录云端/拉回数据。</span></div>';
+  if(!items.length){
+    html += '<div style="color:#888">本域暂无 localStorage 数据</div>';
+  } else {
+    items.forEach(it => {
+      const label = LS_LABEL[it.k] || '未知 key（可能非本应用）';
+      const kb = (it.bytes / 1024).toFixed(1);
+      const bar = total ? Math.max(2, Math.round(it.bytes / total * 100)) : 0;
+      const danger = LS_DANGER.includes(it.k);
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed #f0e0e0">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + it.k + '">'
+        + '<b style="color:' + (danger ? '#A32D2D' : '#333') + '">' + kb + ' KB</b> · ' + it.k + '</div>'
+        + '<div style="color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + label + '</div>'
+        + '<div style="background:#f3e6e6;border-radius:3px;height:4px;margin-top:3px;max-width:240px"><div style="background:' + (danger ? '#A32D2D' : '#d99') + ';width:' + bar + '%;height:4px;border-radius:3px"></div></div>'
+        + '</div>'
+        + '<button data-del-key="' + it.k + '" data-del-bytes="' + it.bytes + '" style="flex:none;font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid #e5c5c5;background:#fff;color:#A32D2D;cursor:pointer">🗑 删</button>'
+        + '</div>';
+    });
+  }
+  res.innerHTML = html;
+  Array.from(res.querySelectorAll('button[data-del-key]')).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const k = btn.getAttribute('data-del-key');
+      const by = Number(btn.getAttribute('data-del-bytes'));
+      const kb = (by / 1024).toFixed(1);
+      const danger = LS_DANGER.includes(k);
+      const warn = danger
+        ? '该 key 是数据本体/云端配置，删除后：\n· 主库/快照类 → 本地数据将清空（云端同步可拉回，未同步的会丢）\n· 云端配置 → 云同步将失效，需重新配置\n\n强烈建议先到上方「备份与恢复」做一次全量备份！'
+        : '该 key 为普通设置，删除将恢复默认值，不影响卡片数据。';
+      if(!confirm('确定删除「' + k + '」（' + kb + ' KB）？\n\n' + warn + '\n\n此操作不可撤销。')) return;
+      try { localStorage.removeItem(k); toast('已删除「' + k + '」（' + kb + ' KB）'); } catch(e){ toast('删除失败：' + e.message); }
+      storageDiag();
+    });
+  });
+}
 function bindBakUI(){
   const b = (id) => document.getElementById(id);
   const settingsModal = document.getElementById('settingsModal');
@@ -3427,6 +3508,7 @@ function bindBakUI(){
   const cb = b('bakCloudBtn'); if(cb) cb.addEventListener('click', () => uploadCloudBak(true));
   const cs = b('bakCfgSave'); if(cs) cs.addEventListener('click', saveBakCfgFromUI);
   const rs = b('bakCfgReset'); if(rs) rs.addEventListener('click', () => { saveBakCfg({cloudDays:5, localKeep:7}); renderBakLists(); toast('备份设置已恢复默认（云端 5 天 · 本地 7 份）'); });
+  const sd = b('bakStorageDiag'); if(sd) sd.addEventListener('click', storageDiag);
   const sc = b('settingsModalClose'); if(sc) sc.addEventListener('click', () => $('settingsModal').classList.remove('show'));
   /* 设置面板打开时刷新列表（含云端列表拉取） */
   const sb = b('settingsBtn'); if(sb) sb.addEventListener('click', () => { setTimeout(renderBakLists, 300); });
