@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=1080">
 <title>高三化学信息图 · 铁及其化合物</title>
 <meta name="subject" content="化学">
 <meta name="number" content="化0001">
@@ -431,7 +431,6 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 <div data-page-node-id="E8CndJtGgo2OHXtwoXqiHq" class="tape-fab" data-mode="browse" id="tape-fab" title="单击切换模式 · 长按拖到边缘"><!--pnid:DcoPiFwhQqdYkqgzj3BqKJ-->✋</div>
 <div data-page-node-id="vVUpe4tIlPv6RL13fQxiwG" class="tape-fab-snack" id="tape-fab-snack"><!--pnid:REr4QwLFdAYOckJ6dTGPYT-->浏览模式</div>
 
-<div data-page-node-id="NdIfiP3HDVDpRIx5Z06ARC" class="tape-layer" id="tape-layer"></div>
 <input data-page-node-id="ITXynWM987Jup7gSYvwnwN" accept=".json" id="tape-import-input" type="file" style="display:none">
 <script>
 (function(){
@@ -1179,6 +1178,34 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     });
     updateCount();
   }
+
+  // ===== 横竖屏旋转保险（方案A配套）：布局视口已锁 1080px，旋转只改缩放不改布局；
+  // 个别 WebView 旋转后渲染层异常，这里检测横竖切换，从存储状态整层重绘一次 =====
+  let tapeRrTimer = null;
+  let tapeLastLand = (window.innerWidth > window.innerHeight);
+  function tapeRerender(){
+    if(!layer || layer.querySelector('.tape.dragging')) return;  // 拖动中不重绘
+    layer.innerHTML = '';
+    loadState().forEach(t=>{
+      const el = document.createElement('div');
+      el.className = 'tape' + (t.mask ? '' : ' removed');
+      el.dataset.id = t.id;
+      el.style.left = t.x+'px'; el.style.top = t.y+'px';
+      el.style.width = t.w+'px'; el.style.height = t.h+'px';
+      layer.appendChild(el);
+    });
+    updateCount();
+  }
+  function tapeCheckRotate(){
+    const land = (window.innerWidth > window.innerHeight);
+    if(land !== tapeLastLand){
+      tapeLastLand = land;
+      clearTimeout(tapeRrTimer);
+      tapeRrTimer = setTimeout(tapeRerender, 300);
+    }
+  }
+  window.addEventListener('orientationchange', function(){ setTimeout(tapeCheckRotate, 100); });
+  window.addEventListener('resize', tapeCheckRotate);
 
   // ===== 一键揭开 / 一键覆盖所有胶带（不删 DOM，仅切换 mask） =====
   function setAllMask(mask){
