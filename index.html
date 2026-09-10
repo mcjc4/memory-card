@@ -598,6 +598,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="mClearBtn" class="bulkDel" style="background:#A32D2D;border-color:#A32D2D;color:#fff" title="清空当前科目全部卡片（含训练进度）——更新题库时先清空再导入">🗑 清空全部</button>
       <button id="mDelSubjBtn" class="bulkDel" style="background:#7C1D1D;border-color:#7C1D1D;color:#fff" title="删除当前整个科目（含全部卡片与进度），内置六科不可删">🗑 删除本科目</button>
       <button id="mCleanDirtyBtn" class="bulkDel" style="background:#854F0B;border-color:#854F0B;color:#fff" title="一键删除异常科目：非内置且名字是编号样式（如 che0001、纯英文/数字）——旧版导入 bug 产生的脏科目">🧹 清理异常科目</button>
+      <button id="mFillNoBtn" class="bulkDel" style="background:#1D5C7C;border-color:#1D5C7C;color:#fff" title="为当前科目中编号为空的卡片按已有编号顺序自动续号（如 mat0923 → mat0924）">🔢 补全编号</button>
       <button id="mExpJsonBtn">导出 JSON</button>
       <button id="mExpCsvBtn">导出 CSV</button>
     </div>
@@ -1231,6 +1232,7 @@ bindPerson(loadJ(ACTIVE_KEY, PERSONS[0].key));
 
 /* topic/mode/queue/browseMode 等已在 994 行批量声明；此处仅赋默认值 */
 topic = ""; mode = "order"; onlyWeak = false;
+let topicSet = new Set();   /* 训练页专题多选集合（空 = 全部），配合 topicSel 全功能选择菜单 */
 queue = []; pos = 0; shown = false; combo = 0; markBusy = false;
 retryOrder = [];   /* 本次会话，存 id */
 browseMode = false;
@@ -1328,6 +1330,7 @@ function buildQueue(){
   $('topicTrainBar').style.display = 'none';
   let ids = items().map(it => it.id);
   if(topic) ids = ids.filter(id => { const it = itemById(id); return it && it.t === topic; });
+  else if(topicSet && topicSet.size) ids = ids.filter(id => { const it = itemById(id); return it && it.t && topicSet.has(it.t); });
   const sf = srcFilterSets[cur];
   if(sf && sf.size > 0){
     /* 严格语义：只保留「无出处」或「出处 ∈ 选中集合」的卡 */
@@ -1488,7 +1491,7 @@ function jumpToRetryCard(id){
   const it = itemById(id);
   if(!it) return toast('卡片已删除');
   if(queue.indexOf(id) < 0){
-    if(topic){ topic = ''; $('topicSel').value = ''; }
+    if(topic || topicSet.size){ topic = ''; topicSet = new Set(); ffApplyValues('topicSel', []); }
     buildQueue();
   }
   const idx = queue.indexOf(id);
@@ -1518,8 +1521,8 @@ function enterBrowseSilently(){
 function restoreSubjectPos(name){
   const p = POS[name];
   if(!p) return false;
-  if(p.topic && topics().includes(p.topic)){ topic = p.topic; $('topicSel').value = topic; }
-  else topic = '';
+  if(p.topic && topics().includes(p.topic)){ topic = p.topic; topicSet = new Set([p.topic]); ffApplyValues('topicSel', [p.topic]); }
+  else { topic = ''; topicSet = new Set(); ffApplyValues('topicSel', []); }
   buildQueue();
   let idx = 0;
   if(p.lastId && queue.includes(p.lastId)) idx = queue.indexOf(p.lastId);
@@ -1786,7 +1789,8 @@ function jumpToNextTopic(){
   const t = nextAvailableTopic();
   if(!t) return false;
   topic = t;
-  $('topicSel').value = topic;
+  topicSet = new Set([t]);
+  ffApplyValues('topicSel', [t]);
   onlyWeak = false;
   $('onlyWeak').textContent = '专练没记住和模糊';
   buildQueue(); pos = 0;
@@ -2101,7 +2105,7 @@ function switchSubject(name){
   document.documentElement.style.setProperty('--accent', c);
   document.documentElement.style.setProperty('--badge-bg', c + '26');
   document.documentElement.style.setProperty('--badge-fg', c);
-  topic = ''; onlyWeak = false; combo = 0; seedRetryOrderFor(name);
+  topic = ''; topicSet = new Set(); ffApplyValues('topicSel', []); onlyWeak = false; combo = 0; seedRetryOrderFor(name);
   browseMode = false; isTopicTrain = false; isCrossRetry = false;   /* 从仪表盘进入始终默认训练模式 */
   $('browseBar').style.display = 'none';
   $('browseActions').style.display = 'none';
@@ -2222,13 +2226,13 @@ function renderManage(){
   const c = ALL_SUBJECTS[cur].color;
   document.documentElement.style.setProperty('--accent', c);
   const search = $('mSearch').value.trim().toLowerCase();
-  const mt = $('mTopicSel').value;
-  if(mt){ $('mTopicSel').innerHTML = '<option value="">全部专题</option>'; topics().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); }); $('mTopicSel').value = mt; }
+  const mts = ffSetOf('mTopicSel');   /* 管理页专题多选集合（空 = 全部） */
+  { const mSel = $('mTopicSel'); mSel.innerHTML = '<option value="">全部专题</option>'; topics().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; mSel.appendChild(o); }); }
   const its = items();
   const tbl = $('manageTable');
   tbl.innerHTML = '';
   const filtered = its.filter(it => {
-    if(mt && it.t !== mt) return false;
+    if(mts.size && !(it.t && mts.has(it.t))) return false;
     if(search){ const s = (it.s + it.c + (it.src||'') + (it.note||'') + (it.no||'') + (it.t||'')).toLowerCase(); if(!s.includes(search)) return false; }
     return true;
   });
@@ -2659,8 +2663,7 @@ async function importCross(file){
     }
     const groupNames = Object.keys(groups);
     if(!groupNames.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
-    let noFilledTotal = 0;
-    groupNames.forEach(sn => { noFilledTotal += autoFillNo(groups[sn].items); });
+    let noFilledTotal = 0;   /* 编号补全移到下方按「目标科目库存」续排（追加分支带种子） */
     /* 对每组：存在→追加到 IMPORTED，不存在→自动新建 */
     const stamp = Date.now().toString(36);
     const addedReport = [];   /* [{name, n, action: 'add'|'append'|'new'}] */
@@ -2674,6 +2677,7 @@ async function importCross(file){
           display: fallbackName,
           items: grp.items.map((it, idx) => Object.assign({}, it, {id: fallbackName + '-imp' + idx + '-' + stamp}))
         };
+        noFilledTotal += autoFillNo(grp.items);
         addedReport.push({name: fallbackName, n: grp.items.length, action: 'new-missing'});
         return;
       }
@@ -2685,6 +2689,7 @@ async function importCross(file){
         if(!CUSTOM[subj] && !IMPORTED[subj] && isBuiltin) box;   /* 内置科目的覆盖层 = CUSTOM（按方案 B 同款语义） */
         /* 内置科目：base 取 SUBJECTS.items 避免重复叠加；非内置：base 取现有 items */
         const baseItems = (!CUSTOM[subj] && !IMPORTED[subj] && isBuiltin) ? (SUBJECTS[subj].items || []) : (oldDef.items || []);
+        if(baseItems.length) noFilledTotal += autoFillNo(grp.items, baseItems);   /* 空编号从库存已有编号续排 */
         box[subj] = {
           color: oldDef.color || SUBJ_COLORS[subj] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length],
           display: oldDef.display || subj,
@@ -2692,6 +2697,7 @@ async function importCross(file){
         };
         addedReport.push({name: oldDef.display || subj, n: grp.items.length, action: isBuiltin ? 'append-builtin' : 'append'});
       } else {
+        noFilledTotal += autoFillNo(grp.items);
         IMPORTED[subj] = {
           color: SUBJ_COLORS[subj] || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length],
           display: subj,
@@ -2718,12 +2724,13 @@ async function importCross(file){
   }
 }
 
-/* 编号列空行自动填充：沿用文件内已有编号（最后出现的前缀 + 该前缀最大数字）顺序递增，位数补零 */
-function autoFillNo(items){
+/* 编号列空行自动填充：沿用「种子库存 + 文件内」已有编号（该前缀最大数字）顺序递增，位数补零。
+   seedItems = 目标科目已有库存编号（可选）：文件整列无编号时从科目库存续排（如 mat0923 → mat0924） */
+function autoFillNo(items, seedItems){
   if(!items || !items.length) return 0;
   let lastPat = null;
   const maxByPrefix = {};
-  items.forEach(it => {
+  const scan = arr => (arr || []).forEach(it => {
     const no = String(it.no || '').trim();
     if(!no) return;
     const m = no.match(/^(.*?)(\d+)$/);
@@ -2733,15 +2740,25 @@ function autoFillNo(items){
     const rec = maxByPrefix[m[1]];
     if(!rec || n > rec.n) maxByPrefix[m[1]] = { n: n, digits: m[2].length };
   });
-  if(!lastPat || !maxByPrefix[lastPat.prefix]) return 0;   /* 整列无编号可依 → 保持空 */
+  scan(seedItems);   /* 先扫种子库存；文件内编号后扫，可覆盖 lastPat 并参与取最大 */
+  scan(items);
+  if(!lastPat || !maxByPrefix[lastPat.prefix]) return 0;   /* 无任何编号可依 → 保持空 */
   const base = maxByPrefix[lastPat.prefix];
-  let cur = base.n, filled = 0;
+  let curNo = base.n, filled = 0;
   items.forEach(it => {
     if(String(it.no || '').trim()) return;   /* 已有编号不动 */
-    cur++;
-    it.no = lastPat.prefix + String(cur).padStart(base.digits, '0');
+    curNo++;
+    it.no = lastPat.prefix + String(curNo).padStart(base.digits, '0');
     filled++;
   });
+  return filled;
+}
+/* 整科编号补全（管理页按钮 / 导入后兜底）：对科目全部库存续排空缺编号，返回本次补的条数 */
+function postFillSubjectNos(name){
+  const d = subjDef(name);
+  if(!d || !d.items || !d.items.length) return 0;
+  const filled = autoFillNo(d.items);
+  if(filled) persistSubject(name);
   return filled;
 }
 function buildSubject(rows, fileName){
@@ -2949,7 +2966,8 @@ function doImport(){
     switchSubject(target);
     schedulePush();
     const verb = strategy === 'new' ? '新建并导入' : (strategy === 'replace' ? '整体替换为' : '追加到');
-    const noTip = impParsed.noFilled ? '（自动补编号 ' + impParsed.noFilled + ' 条）' : '';
+    const extraFilled = (typeof target !== 'undefined' && target && subjExists(target)) ? postFillSubjectNos(target) : 0;
+const noTip = (impParsed.noFilled || extraFilled) ? '（自动补编号 ' + ((impParsed.noFilled || 0) + extraFilled) + ' 条）' : '';
     toast('已' + verb + '「' + (oldDef ? oldDef.display : target) + '」共 ' + items.length + ' 条' + noTip);
   }catch(e){ $('impErr').textContent = e.message || String(e); }
 }
@@ -4061,7 +4079,7 @@ function switchPerson(pkey){
   document.documentElement.style.setProperty('--accent', c);
   document.documentElement.style.setProperty('--badge-bg', c + '26');
   document.documentElement.style.setProperty('--badge-fg', c);
-  topic = ''; onlyWeak = false; combo = 0; retryOrder = []; browseMode = false;
+  topic = ''; topicSet = new Set(); ffApplyValues('topicSel', []); onlyWeak = false; combo = 0; retryOrder = []; browseMode = false;
   $('onlyWeak').textContent = '专练没记住和模糊';
   $('trainTitle').textContent = ALL_SUBJECTS[cur].display + ' · ' + ALL_SUBJECTS[cur].items.length + ' 条';
   const sel = $('topicSel'); sel.innerHTML = '<option value="">全部专题</option>';
@@ -4343,13 +4361,12 @@ function topicQuery(){
         if(stSet.has('pass') && v === 1) hit = true;
         if(!hit) return;
       }
-      const bsF = $('tqBrowseStatus').value;
-      if(bsF !== 'all'){
+      const bsS = ffSetOf('tqBrowseStatus');   /* 多选集合（空 = 全部） */
+      if(bsS.size){
         const bmSubj = browseMeta[subjName] || {};
         const bmItem = bmSubj[it.id];
         const isBrowsed = bmItem ? bmItem.browsed : false;
-        if(bsF === 'browsed' && !isBrowsed) return;
-        if(bsF === 'unbrowsed' && isBrowsed) return;
+        if(!((bsS.has('browsed') && isBrowsed) || (bsS.has('unbrowsed') && !isBrowsed))) return;
       }
       seen.add(it.id);
       res.push(it.id);
@@ -4373,23 +4390,21 @@ function relTime(ts){
 function modeClass(m){ return m === '审核' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : 'mTrain'); }
 function getBhFiltered(){
   const kw = $('bhSearch').value.trim().toLowerCase();
-  const subjF = $('bhSubj').value;
-  const modeF = $('bhMode').value;
-  const statusF = $('bhStatus').value;   /* all | fail | half | pass */
+  const subjS = ffSetOf('bhSubj');       /* 多选集合（空 = 全部学科） */
+  const modeS = ffSetOf('bhMode');       /* 多选集合（空 = 全部模式） */
+  const statusS = ffSetOf('bhStatus');   /* fail | half | pass（空 = 全部状态） */
   const ds = $('bhDateStart').value, de = $('bhDateEnd').value;
   const dsT = ds ? new Date(ds).getTime() : null;
   const deT = de ? new Date(de).getTime() + 86399999 : null;
   const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean) : [];
   return browseHistory.filter(e => {
-    if(subjF && e.subject !== subjF) return false;
-    if(modeF && e.mode !== modeF) return false;
+    if(subjS.size && !subjS.has(e.subject)) return false;
+    if(modeS.size && !modeS.has(e.mode)) return false;
     if(dsT && e.ts < dsT) return false;
     if(deT && e.ts > deT) return false;
-    if(statusF !== 'all'){
+    if(statusS.size){
       const v = (state[e.subject] || {})[e.id];
-      if(statusF === 'fail' && v !== 2) return false;
-      if(statusF === 'half' && v !== 3) return false;
-      if(statusF === 'pass' && v !== 1) return false;
+      if(!((statusS.has('fail') && v === 2) || (statusS.has('half') && v === 3) || (statusS.has('pass') && v === 1))) return false;
     }
     if(!kws.length) return true;
     const it = itemById(e.id);
@@ -4443,7 +4458,7 @@ function startBhPractice(){
     filtered.forEach(e => { if(!seen.has(e.id)){ seen.add(e.id); ids.push(e.id); } });
     if(!ids.length){ toast('没有可练习的卡片，请调整筛选条件'); return; }
     queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
-    browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
+    browseMode = false; isTopicTrain = true; topic = ''; topicSet = new Set(); ffApplyValues('topicSel', []); onlyWeak = false;
     $('browseBar').style.display = 'none';
     $('topicTrainBar').style.display = 'flex';
     $('topicTrainPos').textContent = '本次第 1 / ' + queue.length + ' 张';
@@ -4476,8 +4491,9 @@ function openBrowseHistory(){
     sel.innerHTML = '<option value="">全部学科</option>';
     Object.keys(ALL_SUBJECTS).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = ALL_SUBJECTS[n].display; sel.appendChild(o); });
     $('bhSearch').value = '';
-    $('bhMode').value = '';
-    $('bhStatus').value = 'all';
+    ffApplyValues('bhMode', []);
+    ffApplyValues('bhStatus', []);
+    ffApplyValues('bhSubj', []);
     $('bhDateStart').value = '';
     $('bhDateEnd').value = '';
     renderBrowseHistory();
@@ -4917,7 +4933,7 @@ $('modalClose').addEventListener('click', closeCardModal);
 $('modalCancel').addEventListener('click', closeCardModal);
 $('modalOk').addEventListener('click', submitCard);
 $('modalDel').addEventListener('click', () => { if(modalEditId && confirm('确定删除？')){ deleteCard(cur, modalEditId); closeCardModal(); removeFromQueue(modalEditId); afterCardChange(); toast('已删除'); } });
-$('topicSel').addEventListener('change', e => { topic = e.target.value; onlyWeak = false; $('onlyWeak').textContent = '专练没记住和模糊'; buildQueue(); show(); });
+$('topicSel').addEventListener('change', e => { topicSet = ffSetOf('topicSel'); topic = topicSet.size === 1 ? [...topicSet][0] : ''; onlyWeak = false; $('onlyWeak').textContent = '专练没记住和模糊'; buildQueue(); show(); });
 $('modeSel').addEventListener('change', e => { mode = e.target.value; buildQueue(); show(); });
 $('onlyWeak').addEventListener('click', () => { onlyWeak = !onlyWeak; $('onlyWeak').textContent = onlyWeak ? '显示全部' : '专练没记住和模糊'; buildQueue(); show(); });
 $('importBtn').addEventListener('click', () => { importCaller = 'manage'; openImportModal(); });
@@ -4961,6 +4977,12 @@ $('mDelBtn').addEventListener('click', bulkDelete);
 $('mClearBtn').addEventListener('click', clearAllCards);
 $('mDelSubjBtn').addEventListener('click', () => { if(cur) deleteSubject(cur); });
 $('mCleanDirtyBtn').addEventListener('click', cleanDirtySubjects);
+$('mFillNoBtn').addEventListener('click', () => {
+  if(!cur) return;
+  const n = postFillSubjectNos(cur);
+  toast(n ? '🔢 已按已有编号顺序补全 ' + n + ' 条编号' : '当前科目没有编号为空的卡片');
+  if(n) renderManage();
+});
 $('mExpJsonBtn').addEventListener('click', exportJSON);
 $('mExpCsvBtn').addEventListener('click', exportCSV);
 document.addEventListener('keydown', e => {
@@ -5111,6 +5133,163 @@ function resumeLastBrowsed(){
   openModeModal('enter');    /* 刷新恢复也走模式选择弹窗 + 推送逻辑 */
   return true;
 }
+
+/* ================= 全功能选择菜单（弹出 + 勾选 + 全选 + 重置 + 搜索） =================
+   把原生 <select> 增强为全功能选择菜单：
+   - multi=true  多选勾选（选中集合存 sel._ffSet，空 = 全部），含 全选/重置/搜索
+   - multi=false 单选点选（同步 sel.value 并派发 change），含 重置默认/搜索（无全选）
+   API：ffSetOf(id) 取多选集合副本 / ffApplyValues(id, arr) 静默设置 / ffResetMulti(id) 清空 / ffRefresh(id) 刷新按钮
+   选项动态变化由 MutationObserver 自动刷新；原有 change 监听与 sel.value 读取全部兼容 */
+(function ffCss(){
+  if(document.getElementById('ffCss')) return;
+  const st = document.createElement('style'); st.id = 'ffCss';
+  st.textContent = '.ffWrap{max-width:100%}'
+    + '.ffBtn{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151;cursor:pointer;font-family:inherit;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + '.ffBtn::after{content:"▼";font-size:10px;color:#9ca3af;margin-left:auto}'
+    + '.ffBtn.ffActive{border-color:#185FA5;background:#E6F1FB;color:#185FA5}'
+    + '.ffPop{position:absolute;top:calc(100% + 4px);left:0;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:8px;min-width:200px;max-width:320px}'
+    + '.ffSearch{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:6px}'
+    + '.ffBar{display:flex;gap:8px;margin-bottom:6px;border-bottom:1px solid #f0f0f0;padding-bottom:6px}'
+    + '.ffBar button{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 0;font-size:12px;cursor:pointer;color:#374151}'
+    + '.ffBar button:hover{background:#E6F1FB;border-color:#185FA5;color:#185FA5}'
+    + '.ffList{max-height:240px;overflow:auto}'
+    + '.ffItem{display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;padding:5px 4px;border-radius:6px;cursor:pointer}'
+    + '.ffItem:hover{background:#F3F7FB}'
+    + '.ffEmpty{font-size:12px;color:#9ca3af;padding:8px 4px;text-align:center}';
+  document.head.appendChild(st);
+})();
+function ffEnhance(sel, opts){
+  if(!sel || sel._ff) return;
+  sel._ff = true;
+  opts = opts || {};
+  const multi = !!opts.multi;
+  const allLabel = opts.allLabel || null;
+  if(multi && !sel._ffSet) sel._ffSet = new Set();
+  const wrap = document.createElement('span');
+  wrap.className = 'ffWrap';
+  wrap.style.cssText = 'position:relative;display:inline-block;vertical-align:middle;';
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+  sel.style.display = 'none';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ffBtn';
+  btn.style.cssText = sel.getAttribute('style') || '';
+  wrap.appendChild(btn);
+  const pop = document.createElement('div');
+  pop.className = 'ffPop';
+  pop.style.display = 'none';
+  wrap.appendChild(pop);
+  const search = document.createElement('input');
+  search.type = 'text'; search.className = 'ffSearch'; search.placeholder = '🔍 搜索…';
+  pop.appendChild(search);
+  const bar = document.createElement('div'); bar.className = 'ffBar';
+  pop.appendChild(bar);
+  const list = document.createElement('div'); list.className = 'ffList';
+  pop.appendChild(list);
+  let kw = '';
+  const optArr = () => [...sel.options].map(o => ({ v: o.value, t: o.textContent }));
+  const labelOf = v => { const o = [...sel.options].find(x => x.value === v); return o ? o.textContent : v; };
+  function syncBtn(){
+    if(multi){
+      const s = sel._ffSet;
+      if(!s.size){ btn.textContent = allLabel || (optArr()[0] || {}).t || '全部'; btn.classList.remove('ffActive'); }
+      else {
+        const names = [...s].map(labelOf);
+        btn.textContent = names.length <= 2 ? names.join('、') : names[0] + ' 等 ' + names.length + ' 项';
+        btn.classList.add('ffActive');
+      }
+    } else {
+      btn.textContent = (sel.selectedOptions[0] || {}).textContent || sel.value || allLabel || '';
+      btn.classList.toggle('ffActive', !!sel.value);
+    }
+  }
+  sel._ffSync = syncBtn;
+  function renderBar(rows){
+    bar.innerHTML = '';
+    if(multi){
+      const a = document.createElement('button'); a.type = 'button'; a.textContent = '☑ 全选';
+      a.addEventListener('click', () => { rows.forEach(x => sel._ffSet.add(x.v)); apply(); renderList(); });
+      const c = document.createElement('button'); c.type = 'button'; c.textContent = '☐ 重置';
+      c.addEventListener('click', () => { sel._ffSet.clear(); apply(); renderList(); });
+      bar.appendChild(a); bar.appendChild(c);
+    } else {
+      const c = document.createElement('button'); c.type = 'button'; c.textContent = '↺ 重置默认';
+      c.addEventListener('click', () => { const first = optArr()[0]; if(first){ sel.value = first.v; apply(); renderList(); } });
+      bar.appendChild(c);
+    }
+  }
+  function renderList(){
+    const k = kw.trim().toLowerCase();
+    const rows = optArr().filter(x => !k || x.t.toLowerCase().includes(k) || String(x.v).toLowerCase().includes(k));
+    renderBar(rows);
+    list.innerHTML = '';
+    if(!rows.length){ const e = document.createElement('div'); e.className = 'ffEmpty'; e.textContent = '无匹配项'; list.appendChild(e); }
+    rows.forEach(x => {
+      const lab = document.createElement('label'); lab.className = 'ffItem';
+      const cb = document.createElement('input');
+      cb.type = multi ? 'checkbox' : 'radio';
+      cb.name = 'ff_' + (sel.id || 'xff');
+      cb.checked = multi ? sel._ffSet.has(x.v) : sel.value === x.v;
+      cb.addEventListener('change', () => {
+        if(multi){ if(cb.checked) sel._ffSet.add(x.v); else sel._ffSet.delete(x.v); apply(); }
+        else if(sel.value !== x.v){ sel.value = x.v; apply(); close(); }
+        renderList();
+      });
+      const span = document.createElement('span'); span.textContent = x.t;
+      lab.appendChild(cb); lab.appendChild(span);
+      list.appendChild(lab);
+    });
+  }
+  function apply(){
+    if(multi){ [...sel.options].forEach(o => o.selected = sel._ffSet.has(o.value)); }
+    syncBtn();
+    sel.dispatchEvent(new Event('change'));
+  }
+  function open(){ kw = ''; search.value = ''; renderList(); pop.style.display = 'block'; pop.style.minWidth = Math.max(btn.offsetWidth, 200) + 'px'; try{ search.focus(); }catch(_){} }
+  function close(){ pop.style.display = 'none'; }
+  btn.addEventListener('click', e => { e.stopPropagation(); if(pop.style.display === 'block') close(); else open(); });
+  pop.addEventListener('click', e => e.stopPropagation());
+  search.addEventListener('input', () => { kw = search.value; renderList(); });
+  document.addEventListener('click', () => close());
+  new MutationObserver(() => { syncBtn(); if(pop.style.display === 'block') renderList(); }).observe(sel, { childList: true });
+  syncBtn();
+}
+/* 取多选集合副本（未增强或单选 → [sel.value] 兜底） */
+function ffSetOf(id){
+  const sel = $(id);
+  if(!sel) return new Set();
+  if(sel._ffSet) return new Set(sel._ffSet);
+  return sel.value ? new Set([sel.value]) : new Set();
+}
+/* 静默设置（不派发 change）：多选写 _ffSet + 勾选镜像；单选写 value */
+function ffApplyValues(id, arr){
+  const sel = $(id);
+  if(!sel) return;
+  if(sel._ffSet){
+    sel._ffSet = new Set(arr || []);
+    [...sel.options].forEach(o => o.selected = sel._ffSet.has(o.value));
+  } else {
+    sel.value = (arr && arr.length) ? arr[0] : '';
+  }
+  if(sel._ffSync) sel._ffSync();
+}
+function ffResetMulti(id){ ffApplyValues(id, []); }
+function ffRefresh(id){ const sel = $(id); if(sel && sel._ffSync) sel._ffSync(); }
+/* 全功能选择菜单初始化：筛选类多选 / 设置策略类单选 */
+(function ffInitAll(){
+  const FF_LIST = [
+    ['topicSel', {multi: true, allLabel: '全部专题'}],
+    ['mTopicSel', {multi: true, allLabel: '全部专题'}],
+    ['bhSubj', {multi: true, allLabel: '全部学科'}],
+    ['bhMode', {multi: true, allLabel: '全部模式'}],
+    ['bhStatus', {multi: true, allLabel: '全部状态'}],
+    ['tqBrowseStatus', {multi: true, allLabel: '全部状态'}],
+    ['modeSel', {}], ['impMergeSel', {}], ['impStrategy', {}],
+    ['ttsRate', {}], ['ttsEngine', {}], ['ttsVoice', {}], ['fxPalette', {}]
+  ];
+  FF_LIST.forEach(pair => { try{ ffEnhance($(pair[0]), pair[1]); }catch(e){ console.error('ffEnhance ' + pair[0] + ' failed:', e); } });
+})();
 </script>
 </body>
 </html>
