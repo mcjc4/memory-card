@@ -2367,7 +2367,7 @@ function exportJSON(){
 }
 function exportCSV(){
   const esc = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-  const rows = [['章节知识点','编号','题干信号','结论/易错点','出处','备注','原题题干','题目链接']];
+  const rows = [['章节知识点','编号','题干信号','结论/易错点','出处','备注','原题题干','组卷网链接']];
   items().forEach(it => rows.push([it.t||'', it.no||'', it.s||'', it.c||'', it.src||'', it.note||'', it.orig||'', it.link||'']));
   const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n');
   downloadFile(`记忆卡_${cur}_${today()}.csv`, csv, 'text/csv;charset=utf-8');
@@ -2478,7 +2478,7 @@ const XLW = (() => {
 /* ---------- 导入模板下载（含「备注」列；首页跨科导入与管理页导入弹窗共用） ---------- */
 function downloadImpTemplate(){
   try{
-    const headers = ['科目','章节/专题','编号','题干信号','结论/易错点','出处','备注','原题题干','题目链接'];
+    const headers = ['科目','章节/专题','编号','题干信号','结论/易错点','出处','备注','原题题干','组卷网链接'];
     const exRows = [
       ['物理','力学 连接体','P1-02','看到两物体叠放、由绳或杆相连一起运动','想到整体法与隔离法：求外力用整体、求内力用隔离；两物 μ 相同时才可整体','物一轮_必修一P23','易错：μA≠μB 时不可整体列式','示例原题可留空','https://zujuan.xkw.com/…'],
       ['化学','电化学 原电池','H2-01','看到原电池装置图：两种活泼性不同的电极 + 电解质溶液','想到负极失电子被氧化；阳离子移向正极；电子只走导线不经过溶液','课堂笔记 0907','含盐桥的双液电池电流更稳定','','']
@@ -2659,6 +2659,8 @@ async function importCross(file){
     }
     const groupNames = Object.keys(groups);
     if(!groupNames.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
+    let noFilledTotal = 0;
+    groupNames.forEach(sn => { noFilledTotal += autoFillNo(groups[sn].items); });
     /* 对每组：存在→追加到 IMPORTED，不存在→自动新建 */
     const stamp = Date.now().toString(36);
     const addedReport = [];   /* [{name, n, action: 'add'|'append'|'new'}] */
@@ -2708,6 +2710,7 @@ async function importCross(file){
     }).join('；');
     let hint = '已跨科目导入 ' + addedReport.reduce((a,r) => a+r.n, 0) + ' 条卡片（' + addedReport.length + ' 个科目）：\n' + summary;
     if(emptySubjCnt) hint += '\n⚠️ 有 ' + emptySubjCnt + ' 行 A 列无科目名，已归入兜底「未分类_xxxx」，可改名';
+    if(noFilledTotal) hint += '\n🔢 有 ' + noFilledTotal + ' 行编号为空，已按已有编号顺序自动填充';
     toast(hint, 6000);
     renderDash();
   }catch(e){
@@ -2715,6 +2718,32 @@ async function importCross(file){
   }
 }
 
+/* 编号列空行自动填充：沿用文件内已有编号（最后出现的前缀 + 该前缀最大数字）顺序递增，位数补零 */
+function autoFillNo(items){
+  if(!items || !items.length) return 0;
+  let lastPat = null;
+  const maxByPrefix = {};
+  items.forEach(it => {
+    const no = String(it.no || '').trim();
+    if(!no) return;
+    const m = no.match(/^(.*?)(\d+)$/);
+    if(!m) return;
+    lastPat = { prefix: m[1] };
+    const n = parseInt(m[2], 10);
+    const rec = maxByPrefix[m[1]];
+    if(!rec || n > rec.n) maxByPrefix[m[1]] = { n: n, digits: m[2].length };
+  });
+  if(!lastPat || !maxByPrefix[lastPat.prefix]) return 0;   /* 整列无编号可依 → 保持空 */
+  const base = maxByPrefix[lastPat.prefix];
+  let cur = base.n, filled = 0;
+  items.forEach(it => {
+    if(String(it.no || '').trim()) return;   /* 已有编号不动 */
+    cur++;
+    it.no = lastPat.prefix + String(cur).padStart(base.digits, '0');
+    filled++;
+  });
+  return filled;
+}
 function buildSubject(rows, fileName){
   let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
   if(headIdx === -1) headIdx = 0;
@@ -2745,9 +2774,10 @@ function buildSubject(rows, fileName){
     items.push({t: g(ci.t), s, c, src: g(ci.src), note: g(ci.note), no: g(ci.no), orig: g(ci.orig), link: g(ci.link)});
   }
   if(!items.length) throw new Error('没有解析到有效数据（需包含题干信号与结论列）');
+  const noFilled = autoFillNo(items);
   /* 仅做「识别名」推断，不做冲突改名——目标科目与处理方式由导入弹窗显式决策 */
   const name = subjSet.size === 1 ? [...subjSet][0] : (fileName.replace(/\.(xlsx|xls|csv)$/i, '').trim() || '新科目');
-  return {name, items};
+  return {name, items, noFilled};
 }
 async function parseImportFile(file){
   let rows;
@@ -2919,7 +2949,8 @@ function doImport(){
     switchSubject(target);
     schedulePush();
     const verb = strategy === 'new' ? '新建并导入' : (strategy === 'replace' ? '整体替换为' : '追加到');
-    toast('已' + verb + '「' + (oldDef ? oldDef.display : target) + '」共 ' + items.length + ' 条');
+    const noTip = impParsed.noFilled ? '（自动补编号 ' + impParsed.noFilled + ' 条）' : '';
+    toast('已' + verb + '「' + (oldDef ? oldDef.display : target) + '」共 ' + items.length + ' 条' + noTip);
   }catch(e){ $('impErr').textContent = e.message || String(e); }
 }
 
@@ -4520,7 +4551,7 @@ function tqExport(){
       return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')
         + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
     };
-    const headers = ['科目','章节/专题','编号','题干信号','结论/易错点','出处','备注','原题题干','题目链接','训练状态','最近答题','最近浏览','审核'];
+    const headers = ['科目','章节/专题','编号','题干信号','结论/易错点','出处','备注','原题题干','组卷网链接','训练状态','最近答题','最近浏览','审核'];
     const rows = [];
     ids.forEach(id => {
       const subj = subjectOfId(id);
