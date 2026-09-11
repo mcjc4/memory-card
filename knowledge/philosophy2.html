@@ -295,6 +295,7 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 .poster { position:relative; }
 
 </style>
+  <script type="application/json" id="k-meta">{"fig":"knowledge_philosophy_unit2","page":"哲0002","subject":"政治","chapter":"第二单元 · 认识社会与价值选择","points":["认识论（实践与真理）","历史观（社会存在与群众路线）","价值观（价值判断与选择）"],"methods":["排除法","材料对应"],"tags":["📄 原文还原","易错 Top 7","🩹 胶带版"],"date":"2026-09-08"}</script>
 </head>
 <body>
 
@@ -1970,6 +1971,122 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     }).observe(st, {childList:true, characterData:true, subtree:true});
   }
 })();
+</script>
+<script>
+/* 胶带页统计上报套件（第二脚本，动态注入，不侵入既有两段脚本）
+ * 职责：
+ *  1. 计算 total / covered(未揭开=mask=true) / peeled(已揭开=mask=false)
+ *  2. 写同源 localStorage：kstat:<FIG_ID> = JSON{total,covered,peeled,ts}
+ *  3. 自动同步开启且云端配置有效时，防抖 3s upsert Supabase tape_stats 轻表
+ * 挂接：MutationObserver 监听 #tape-layer（childList+attributes） + storage 事件 + 5s 兜底轮询
+ */
+(function(){
+  'use strict';
+  if (window.__kstatReporter) return;
+  window.__kstatReporter = true;
+
+  // FIG_ID：从既有脚本源码提取（与同步套件同法）
+  var FIG = '';
+  (function(){
+    var ss = document.getElementsByTagName('script');
+    for (var i = 0; i < ss.length; i++){
+      var m = (ss[i].textContent || '').match(/const FIG_ID = '([^']+)'/);
+      if (m){ FIG = m[1]; break; }
+    }
+  })();
+  if (!FIG) return;
+
+  var STATE_KEY = 'infographic_mask_' + FIG;
+  var KSTAT_KEY = 'kstat:' + FIG;
+  var AUTO_KEY  = 'tape_auto_sync';
+  var CFG_KEY   = 'tape_cloud_cfg';
+  var DEFAULT_CLOUD = {
+    url: 'https://mixuqjognbdrafrrlivc.supabase.co',
+    key: 'sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX'
+  };
+  var STATS_TABLE = 'tape_stats';
+
+  function readJSON(k, def){ try{ var v = JSON.parse(localStorage.getItem(k)); return (v === null || v === undefined) ? def : v; }catch(e){ return def; } }
+
+  function cloudCfg(){
+    var c = readJSON(CFG_KEY, null);
+    if (c && c.url && c.key && c.url.indexOf('vajgltnfpdjpnsoknoma') < 0) return c;
+    return DEFAULT_CLOUD;
+  }
+  function autoOn(){ try{ return localStorage.getItem(AUTO_KEY) !== '0'; }catch(e){ return true; } }
+
+  function compute(){
+    var arr = readJSON(STATE_KEY, []);
+    if (!Array.isArray(arr)) arr = [];
+    var covered = 0;
+    for (var i = 0; i < arr.length; i++){ if (arr[i] && arr[i].mask) covered++; }
+    return { total: arr.length, covered: covered, peeled: arr.length - covered };
+  }
+
+  var lastLocal = '';
+  var lastCloud = '';
+  var cloudTimer = null;
+  var inFlight = false;
+
+  function report(){
+    var s = compute();
+    var snap = JSON.stringify(s);
+    // 1) 本机同源登记（导航页直接读，零网络）
+    if (snap !== lastLocal){
+      lastLocal = snap;
+      try{ localStorage.setItem(KSTAT_KEY, JSON.stringify({ total:s.total, covered:s.covered, peeled:s.peeled, ts: Date.now() })); }catch(e){}
+    }
+    // 2) 云端轻表（防抖 3s；自动同步关或断网静默跳过）
+    if (snap !== lastCloud && autoOn()){
+      lastCloud = snap;
+      clearTimeout(cloudTimer);
+      cloudTimer = setTimeout(pushCloud, 3000);
+    }
+  }
+
+  function pushCloud(){
+    if (inFlight) { setTimeout(pushCloud, 1500); return; }
+    inFlight = true;
+    var s = compute();
+    var cfg = cloudCfg();
+    var ctl = null, timer = null;
+    try { ctl = new AbortController(); } catch(e){ ctl = null; }
+    var opts = {
+      method: 'POST',
+      headers: {
+        'apikey': cfg.key,
+        'Authorization': 'Bearer ' + cfg.key,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplications,return=minimal'
+      },
+      body: JSON.stringify([{ fig_id: FIG, total: s.total, covered: s.covered, peeled: s.peeled, updated_at: new Date().toISOString() }])
+    };
+    if (ctl){ opts.signal = ctl.signal; timer = setTimeout(function(){ try{ ctl.abort(); }catch(e){} }, 8000); }
+    fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/' + STATS_TABLE, opts)
+      .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); })
+      .catch(function(){ /* 静默降级，下轮变更重试 */ })
+      .then(function(){ if (timer) clearTimeout(timer); inFlight = false; });
+  }
+
+  // ===== 触发：observer + 兜底轮询 =====
+  function watch(){
+    report(); // 初次
+    var layer = document.getElementById('tape-layer');
+    if (layer && window.MutationObserver){
+      var pending = null;
+      var mo = new MutationObserver(function(){
+        clearTimeout(pending); pending = setTimeout(report, 400);
+      });
+      mo.observe(layer, { childList: true, subtree: true, attributes: true, attributeFilter: ['class','style'] });
+    }
+    window.addEventListener('storage', function(e){ if (e.key === STATE_KEY) report(); });
+    window.addEventListener('visibilitychange', function(){ if (!document.hidden) report(); });
+    setInterval(function(){ if (!document.hidden) report(); }, 5000); // 兜底（快照比较，无变化零写入零网络）
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch);
+  else watch();
+})();
+
 </script>
 </body>
 </html>
