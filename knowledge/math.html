@@ -272,11 +272,10 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 
 /* 左上角：模式状态 */
 .tape-status {
-  position:fixed; top:64px; left:14px;
   background:#fffdf4; border:1.5px solid #b8860b; border-radius:12px;
   padding:8px 14px; font-size:12.5px; color:#5a4015;
-  box-shadow:0 4px 14px rgba(120,80,20,.25);
-  z-index:9998; max-width:min(720px, calc(100vw - 28px)); line-height:1.7;
+  box-shadow:0 2px 8px rgba(120,80,20,.18);
+  line-height:1.7; margin:16px 16px 0;
 }
 .tape-backbtn {
   display:inline-block; margin-right:8px; padding:3px 12px;
@@ -1860,6 +1859,25 @@ window.addEventListener('pagehide', resetFabAfterGesture);
   else boot();
 })();
 
+</script>
+<script>
+/* 状态行改文档流：标题栏下方一行 + 页底镜像一行（实时同步） */
+(function(){
+  var st = document.querySelector('.tape-status');
+  var hd = document.querySelector('.poster .header');
+  if(st && hd) hd.parentNode.insertBefore(st, hd.nextSibling);
+  var fs = document.querySelector('.footer-sec');
+  if(st && fs){
+    var mir = st.cloneNode(true);
+    mir.style.margin = '16px 16px';
+    fs.parentNode.insertBefore(mir, fs);
+    var strip = function(el){ el.querySelectorAll('[id]').forEach(function(x){ x.removeAttribute('id'); }); };
+    strip(mir);
+    new MutationObserver(function(){
+      mir.innerHTML = st.innerHTML; strip(mir);
+    }).observe(st, {childList:true, characterData:true, subtree:true});
+  }
+})();
 </script>
 </body>
 </html>
