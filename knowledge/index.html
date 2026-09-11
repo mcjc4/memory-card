@@ -453,8 +453,8 @@
         var ca = a.stats ? a.stats.covered : -1, cb2 = b.stats ? b.stats.covered : -1;
         return (cb2 - ca) || (a.idx - b.idx);
       }
-      if(mode === 'date-desc') return (a.date < b.date ? 1 : a.date > b.date ? -1 : a.idx - b.idx);
-      if(mode === 'date-asc')  return (a.date > b.date ? 1 : a.date < b.date ? -1 : a.idx - b.idx);
+      if(mode === 'date-desc') return ((a.visitTs||0) < (b.visitTs||0) ? 1 : (a.visitTs||0) > (b.visitTs||0) ? -1 : a.idx - b.idx);
+      if(mode === 'date-asc')  return ((a.visitTs||0) > (b.visitTs||0) ? 1 : (a.visitTs||0) < (b.visitTs||0) ? -1 : a.idx - b.idx);
       if(mode === 'subject'){
         var order = ['化学','语文','数学','物理','政治','英语'];
         var d = order.indexOf(a.subject) - order.indexOf(b.subject);
