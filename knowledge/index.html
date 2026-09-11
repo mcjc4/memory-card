@@ -95,7 +95,7 @@
       <select id="fltStat" multiple></select>
       <span class="flabel" style="margin-left:6px">🧻 未揭开 ≥</span>
       <input type="number" id="fltUncover" min="0" step="1" placeholder="0" style="width:60px" title="筛选未揭开胶带数不少于该值的卡片">
-      <span class="flabel" style="margin-left:6px">📅 制作日期</span>
+      <span class="flabel" style="margin-left:6px">🕓 浏览时间</span>
       <input type="date" id="fltFrom" title="起始日期">
       <span style="color:#b6c5d4;font-size:12px">→</span>
       <input type="date" id="fltTo" title="截止日期">
@@ -426,8 +426,8 @@
       return set.has(cv[d.attr]);
     });
     if(!dimsOk) return false;
-    if(fromIpt.value && cv.date && cv.date < fromIpt.value) return false;
-    if(toIpt.value && cv.date && cv.date > toIpt.value) return false;
+    if(fromIpt.value && cv.visitTs && cv.visitTs < new Date(fromIpt.value).getTime()) return false;
+    if(toIpt.value && cv.visitTs && cv.visitTs > new Date(toIpt.value).getTime() + 86399999) return false;
     var n = parseInt(uncoverIpt.value, 10);
     if(n > 0 && !(cv.stats && cv.stats.covered >= n)) return false;
     return true;
@@ -486,8 +486,8 @@
         });
       });
     });
-    if(fromIpt.value) mk('日期 ≥ ' + fromIpt.value, true, function(){ fromIpt.value = ''; applyFilter(); });
-    if(toIpt.value) mk('日期 ≤ ' + toIpt.value, true, function(){ toIpt.value = ''; applyFilter(); });
+    if(fromIpt.value) mk('浏览 ≥ ' + fromIpt.value, true, function(){ fromIpt.value = ''; applyFilter(); });
+    if(toIpt.value) mk('浏览 ≤ ' + toIpt.value, true, function(){ toIpt.value = ''; applyFilter(); });
     if(parseInt(uncoverIpt.value, 10) > 0) mk('未揭开 ≥ ' + uncoverIpt.value, false, function(){ uncoverIpt.value = ''; applyFilter(); });
   }
 
@@ -538,6 +538,7 @@
     if(!s || !s.total){ pill.className = 'pill st-none'; pill.textContent = '🧻 共 0 · 已揭 0 · 未揭 0（未训练）'; }
     else if(s.covered > 0){ pill.className = 'pill st-doing'; pill.textContent = '🧻 共 ' + s.total + ' · 已揭 ' + s.peeled + ' · 未揭 ' + s.covered; }
     else { pill.className = 'pill st-done'; pill.textContent = '✅ 已完成 · 共 ' + s.total + ' 全部揭开'; }
+    if(cv.visitReal) pill.textContent += ' · 🕓 ' + fmtTs(cv.visitReal);
     d.appendChild(pill);
     body.appendChild(d);
   }
@@ -558,6 +559,11 @@
   function applyStats(map){
     statMap = map || {};
     cardVals.forEach(function(cv){
+      var lvR = 0;
+      try{ var v = readLS('kvisit:' + cv.fig); if(v && v.ts) lvR = v.ts; }catch(e){}
+      var clv = (statMap[cv.fig] && statMap[cv.fig].visit) || 0;
+      cv.visitReal = Math.max(lvR, clv) || 0;
+      cv.visitTs = cv.visitReal || (cv.date ? (new Date(cv.date).getTime() || 0) : 0);
       cv.stats = statMap[cv.fig] || null;
       cv.status = statusOf(cv.stats);
       cv.el.setAttribute('data-status', cv.status);
@@ -573,7 +579,7 @@
     var ctl = ('AbortController' in window) ? new AbortController() : null;
     var timer = ctl ? setTimeout(function(){ ctl.abort(); }, 15000) : null;
     statMetaEl.textContent = '统计：刷新中…';
-    fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/tape_stats?select=fig_id,total,covered,peeled,updated_at',
+    fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/tape_stats?select=*',
       { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }, signal: ctl ? ctl.signal : undefined })
       .then(function(r){ if(timer) clearTimeout(timer); if(!r.ok) throw new Error('http ' + r.status); return r.json(); })
       .then(function(rows){
@@ -582,7 +588,7 @@
           if(!r || !r.fig_id) return;
           var ts = r.updated_at ? (new Date(r.updated_at).getTime() || 0) : 0;
           if(!out[r.fig_id] || (out[r.fig_id].ts || 0) < ts){
-            out[r.fig_id] = { total: r.total || 0, covered: r.covered || 0, peeled: r.peeled || 0, ts: ts };
+            out[r.fig_id] = { total: r.total || 0, covered: r.covered || 0, peeled: r.peeled || 0, ts: ts, visit: r.last_visit ? (new Date(r.last_visit).getTime() || 0) : 0 };
           }
         });
         try{ localStorage.setItem(STAT_CACHE, JSON.stringify({ ts: Date.now(), rows: out })); }catch(e){}
