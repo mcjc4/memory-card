@@ -378,7 +378,10 @@
   }
 
   /* ---- 3. 初始化：4 个筛选维度（多选） + 排序（单选） ---- */
-  DIMS.forEach(function(d){ ffEnhance(document.getElementById(d.id), { multi:true, allLabel:d.all }); });
+  DIMS.forEach(function(d){
+    ffEnhance(document.getElementById(d.id), { multi:true, allLabel:d.all });
+    document.getElementById(d.id).addEventListener('change', applyFilter);
+  });
   ffEnhance(document.getElementById('sortSel'), {});
 
   var fromIpt = document.getElementById('fltFrom');
