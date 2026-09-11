@@ -100,8 +100,8 @@
       <span style="color:#b6c5d4;font-size:12px">→</span>
       <input type="date" id="fltTo" title="截止日期">
       <select id="sortSel">
-        <option value="date-desc">制作日期 倒序</option>
-        <option value="date-asc">制作日期 正序</option>
+        <option value="date-desc">浏览时间 倒序</option>
+        <option value="date-asc">浏览时间 正序</option>
         <option value="subject">按学科</option>
         <option value="title">按标题</option>
       </select>
@@ -571,7 +571,8 @@
     });
     rebuildStatOptions();
     applyFilter();
-    if(document.getElementById('sortSel').value === 'uncover-desc') applySort();
+    var m0 = document.getElementById('sortSel').value;
+    if(m0 === 'uncover-desc' || m0 === 'date-desc' || m0 === 'date-asc') applySort();
   }
   function fetchCloud(isRetry){
     var cfg = CLOUD_DEFAULT;
