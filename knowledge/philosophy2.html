@@ -2005,6 +2005,7 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     key: 'sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX'
   };
   var STATS_TABLE = 'tape_stats';
+  var VTS = 0; // 本次打开页面的浏览时间戳
 
   function readJSON(k, def){ try{ var v = JSON.parse(localStorage.getItem(k)); return (v === null || v === undefined) ? def : v; }catch(e){ return def; } }
 
@@ -2059,7 +2060,7 @@ window.addEventListener('pagehide', resetFabAfterGesture);
         'Content-Type': 'application/json',
         'Prefer': 'resolution=merge-duplications,return=minimal'
       },
-      body: JSON.stringify([{ fig_id: FIG, total: s.total, covered: s.covered, peeled: s.peeled, updated_at: new Date().toISOString() }])
+      body: JSON.stringify([{ fig_id: FIG, total: s.total, covered: s.covered, peeled: s.peeled, updated_at: new Date().toISOString(), last_visit: VTS ? new Date(VTS).toISOString() : null }])
     };
     if (ctl){ opts.signal = ctl.signal; timer = setTimeout(function(){ try{ ctl.abort(); }catch(e){} }, 8000); }
     fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/' + STATS_TABLE, opts)
@@ -2070,6 +2071,8 @@ window.addEventListener('pagehide', resetFabAfterGesture);
 
   // ===== 触发：observer + 兜底轮询 =====
   function watch(){
+    VTS = Date.now();
+    try{ localStorage.setItem('kvisit:' + FIG, JSON.stringify({ ts: VTS })); }catch(e){}
     report(); // 初次
     var layer = document.getElementById('tape-layer');
     if (layer && window.MutationObserver){
