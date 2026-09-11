@@ -22,25 +22,47 @@
   .howto{margin-top:22px;background:#fff;border:1px solid #e3edf7;border-radius:18px;padding:18px 22px;box-shadow:0 10px 30px -12px rgba(31,66,135,.16);font-size:14px;color:#42526b}
   .howto b{color:#1f2d3d}
   .howto .k{display:inline-block;background:#fff4e6;color:#d98512;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;margin:0 2px}
+  /* ---- 筛选面板 ---- */
+  .filter{margin-top:18px;background:#fff;border:1px solid #e3edf7;border-radius:18px;padding:16px 20px 14px;box-shadow:0 10px 30px -12px rgba(31,66,135,.16)}
+  .filter .frow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .filter .flabel{font-size:13px;font-weight:700;color:#42526b;margin-right:2px}
+  .filter select{display:none} /* 由 FFSelect 接管渲染 */
+  .filter input[type=date]{font-size:13px;padding:5px 8px;border:1px solid #d1d5db;border-radius:8px;color:#374151;font-family:inherit;background:#fff}
+  .filter .fcount{margin-left:auto;font-size:12px;color:#7a8ba0}
+  .filter .fcount b{color:#2a6df4;font-size:15px}
+  .fchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .fchips:empty{display:none}
+  .fchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:2px 9px;border-radius:999px;background:#eef3ff;color:#2a6df4;border:1px solid #cfe0ff}
+  .fchip.date{background:#f0fdf6;color:#0f8a5f;border-color:#c3ecd9}
+  .fchip button{border:none;background:none;color:inherit;font-size:13px;cursor:pointer;padding:0 1px;line-height:1}
+  .fchip button:hover{color:#d33}
+  .fclear{margin-left:4px;font-size:12px;color:#b3541e;background:#fdf2ea;border:1px solid #f3d9c8;border-radius:999px;padding:2px 10px;cursor:pointer}
+  .fclear:hover{background:#fae4d5}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-top:18px}
   .card{display:flex;gap:14px;background:#fff;border:1px solid #e3edf7;border-radius:20px;padding:20px 18px;text-decoration:none;color:inherit;box-shadow:0 10px 30px -12px rgba(31,66,135,.16);transition:transform .18s ease,box-shadow .18s ease}
   .card:hover{transform:translateY(-3px);box-shadow:0 16px 36px -12px rgba(31,66,135,.26)}
+  .card.hide{display:none}
   .badge{flex:none;width:44px;height:44px;border-radius:12px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
   .card-body{min-width:0;flex:1}
   .card-body h3{font-size:16px;color:#1f2d3d}
   .card-body .sub{font-size:13px;color:#5c7185;margin-top:5px;line-height:1.55}
+  .card-body .cdate{font-size:11px;color:#93a7ba;margin-top:3px}
   .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tag-chip{font-size:11px;padding:2px 9px;border-radius:999px;background:#eef3ff;color:#2a6df4}
   .tag-chip.err{background:#fdeee2;color:#b3541e;font-weight:700}
   .tape-chip{font-size:11px;padding:2px 9px;border-radius:999px;background:#fdf2d0;color:#a4740f;font-weight:700}
   .go{display:inline-block;margin-top:10px;font-size:13px;color:#fff;background:linear-gradient(120deg,#4f8ef7,#22c3a6);padding:5px 14px;border-radius:999px}
+  .empty{display:none;margin-top:26px;text-align:center;font-size:14px;color:#93a7ba;padding:34px 0;background:#fff;border:1px dashed #d7e3ef;border-radius:18px}
   .foot{text-align:center;margin-top:34px;font-size:12px;color:#93a7ba}
+  /* ---- FFSelect 深度微调（适配本页浅色风） ---- */
+  .ffBtn{border-radius:999px !important;border-color:#d7e3ef !important;background:#f6faff !important;font-weight:600}
+  .ffBtn.ffActive{border-color:#2a6df4 !important;background:#eef3ff !important;color:#2a6df4 !important}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="hero">
-    <span class="tag">1080px 知识结构海报 · 胶带遮盖版 · 单文件离线可用</span>
+    <span class="tag">1120px 知识结构海报 · 胶带遮盖版 · 单文件离线可用</span>
     <h1>昕言各科知识结构体系库</h1>
     <p>按《学科信息图生成 SOP》v1.0 生成的高三六科知识结构信息图（胶带遮盖版）：核心概念 → 方法步骤 → 辨析对照 → 易错点，先背再揭开核对。胶带状态本地保存 + 云端同步。</p>
     <div class="stat">
@@ -52,84 +74,404 @@
   </div>
 
   <div class="howto">
-    <b>📖 使用方法</b>：点 <span class="k">✋浏览</span> 模式可正常滚动缩放；点右下角模式球切到 <span class="k">✏️框选</span>，单指画矩形贴胶带挡住内容；回浏览模式<b>短按胶带揭开 / 贴回</b>，<b>长按 0.4s 删除或移动</b>；工具栏一键揭开 / 覆盖、导出导入、☁️ 上传 / 下载手动同步。
+    <b>📖 使用方法</b>：点 <span class="k">✋浏览</span> 模式可正常滚动缩放；点右下角模式球切到 <span class="k">✏️框选</span>，单指画矩形贴胶带挡住内容；回浏览模式<b>短按胶带揭开 / 贴回</b>，<b>长按 0.4s 删除或移动</b>；工具栏一键揭开 / 覆盖、导出导入、🛟 备份手动同步。
   </div>
 
-  <div class="grid">
-    <a class="card" href="chemistry.html" target="_blank" rel="noopener">
+  <div class="filter" id="filterPanel">
+    <div class="frow">
+      <span class="flabel">🔍 筛选</span>
+      <select id="fltSubj" multiple></select>
+      <select id="fltChapter" multiple></select>
+      <select id="fltPoint" multiple></select>
+      <select id="fltTag" multiple></select>
+      <span class="flabel" style="margin-left:6px">📅 制作日期</span>
+      <input type="date" id="fltFrom" title="起始日期">
+      <span style="color:#b6c5d4;font-size:12px">→</span>
+      <input type="date" id="fltTo" title="截止日期">
+      <select id="sortSel">
+        <option value="date-desc">制作日期 倒序</option>
+        <option value="date-asc">制作日期 正序</option>
+        <option value="subject">按学科</option>
+        <option value="title">按标题</option>
+      </select>
+      <button class="fclear" id="fltClear" type="button">✕ 清空筛选</button>
+      <span class="fcount">共 <b id="fltCount">8</b> 张</span>
+    </div>
+    <div class="fchips" id="fltChips"></div>
+  </div>
+
+  <div class="grid" id="cardGrid">
+    <a class="card" href="chemistry.html" target="_blank" rel="noopener"
+       data-page="化0001" data-subject="化学" data-chapter="铁及其化合物" data-date="2026-09-07"
+       data-points="亚铁检验,铁盐配制,晶体提取,铁三角SVG,氢氧化亚铁制备,腐蚀与防护" data-tags="易错 Top 6,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#0b3c6e,#1b77c9)">化0001</span>
       <div class="card-body">
         <h3>化学 · 铁及其化合物</h3>
         <p class="sub">亚铁检验 · 铁盐配制 · 晶体提取 · 铁三角 SVG · 氢氧化亚铁制备 · 腐蚀与防护｜易错 6 条</p>
+        <div class="cdate">📅 2026-09-07</div>
         <div class="tags"><span class="tag-chip">化学</span><span class="tag-chip err">易错 Top 6</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
-    <a class="card" href="chinese.html" target="_blank" rel="noopener">
+    <a class="card" href="chinese.html" target="_blank" rel="noopener"
+       data-page="语0001" data-subject="语文" data-chapter="文言文词类活用" data-date="2026-09-07"
+       data-points="《劝学》易错字,成分分析法,活用七类总表,特殊语法,真题四例" data-tags="易错 Top 5,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#123f33,#2e8b6e)">语0001</span>
       <div class="card-body">
         <h3>语文 · 文言文词类活用</h3>
         <p class="sub">《劝学》易错字 · 成分分析法 · 活用七类总表 · 特殊语法 · 真题四例｜易错 5 条</p>
+        <div class="cdate">📅 2026-09-07</div>
         <div class="tags"><span class="tag-chip">语文</span><span class="tag-chip err">易错 Top 5</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
-    <a class="card" href="math.html" target="_blank" rel="noopener">
+    <a class="card" href="math.html" target="_blank" rel="noopener"
+       data-page="数0007" data-subject="数学" data-chapter="三角函数性质与变换" data-date="2026-09-07"
+       data-points="整体处理原图对照,奇变偶不变,对称性,同增异减,书写规范红线" data-tags="易错 Top 6,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#2c1a52,#6c3fa0)">数0007</span>
       <div class="card-body">
         <h3>数学 · 三角函数性质与变换</h3>
         <p class="sub">整体处理原图对照 · 奇变偶不变 · 对称性 · 同增异减 · 书写规范红线｜易错 6 条</p>
+        <div class="cdate">📅 2026-09-07</div>
         <div class="tags"><span class="tag-chip">数学</span><span class="tag-chip err">易错 Top 6</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
-    <a class="card" href="physics.html" target="_blank" rel="noopener">
+    <a class="card" href="physics.html" target="_blank" rel="noopener"
+       data-page="物0008" data-subject="物理" data-chapter="运动学实验与追及相遇" data-date="2026-09-07"
+       data-points="刹车陷阱,双解取舍,相距最远,打点计时器,逐差法,图像规范" data-tags="易错 Top 6,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#5c2e0e,#c96a1e)">物0008</span>
       <div class="card-body">
         <h3>物理 · 运动学实验与追及相遇</h3>
         <p class="sub">刹车陷阱 · 双解取舍 · 相距最远 · 打点计时器 · 逐差法 · 图像规范｜易错 6 条</p>
+        <div class="cdate">📅 2026-09-07</div>
         <div class="tags"><span class="tag-chip">物理</span><span class="tag-chip err">易错 Top 6</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
-    <a class="card" href="politics.html" target="_blank" rel="noopener">
-      <span class="badge" style="background:linear-gradient(135deg,#6e1a12,#b03a2e)">政0001</span>
-      <div class="card-body">
-        <h3>政治 · 唯物辩证法联系观</h3>
-        <p class="sub">知识框架 · 原理材料化 · 大切口答题 · 原理默写卡 · 系统优化｜易错 5 条</p>
-        <div class="tags"><span class="tag-chip">政治</span><span class="tag-chip err">易错 Top 5</span><span class="tape-chip">🩹 胶带版</span></div>
-        <span class="go">打开信息图 →</span>
-      </div>
-    </a>
-    <a class="card" href="philosophy1.html" target="_blank" rel="noopener">
+    <a class="card" href="philosophy1.html" target="_blank" rel="noopener"
+       data-page="哲0001" data-subject="政治" data-chapter="第一单元 · 探索世界与把握规律" data-date="2026-09-08"
+       data-points="时代精神的精华,探究世界的本质,把握世界的规律（矛盾观）" data-tags="📄 原文还原,易错 Top 8,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#5c1230,#a03a2e)">哲0001</span>
       <div class="card-body">
         <h3>哲学 · 第一单元 探索世界与把握规律</h3>
         <p class="sub">提纲原文还原版：时代精神的精华 · 探究世界的本质 · 把握世界的规律（矛盾观 1~8 条全文）｜9 节原文 + 易错 8 条</p>
+        <div class="cdate">📅 2026-09-08</div>
         <div class="tags"><span class="tag-chip">政治·哲学</span><span class="tag-chip">📄 原文还原</span><span class="tag-chip err">易错 Top 8</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
-    <a class="card" href="philosophy2.html" target="_blank" rel="noopener">
+    <a class="card" href="philosophy2.html" target="_blank" rel="noopener"
+       data-page="哲0002" data-subject="政治" data-chapter="第二单元 · 认识社会与价值选择" data-date="2026-09-08"
+       data-points="认识论（实践与真理）,历史观（社会存在与群众路线）,价值观（价值判断与选择）" data-tags="📄 原文还原,易错 Top 7,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#6e1a12,#b3541e)">哲0002</span>
       <div class="card-body">
         <h3>哲学 · 第二单元 认识社会与价值选择</h3>
         <p class="sub">提纲原文还原版：认识论（实践与真理） · 历史观（社会存在与群众路线） · 价值观（价值判断与选择）｜9 节原文 + 易错 7 条</p>
+        <div class="cdate">📅 2026-09-08</div>
         <div class="tags"><span class="tag-chip">政治·哲学</span><span class="tag-chip">📄 原文还原</span><span class="tag-chip err">易错 Top 7</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
-    <a class="card" href="english.html" target="_blank" rel="noopener">
+    <a class="card" href="politics.html" target="_blank" rel="noopener"
+       data-page="政0001" data-subject="政治" data-chapter="唯物辩证法联系观" data-date="2026-09-07"
+       data-points="知识框架,原理材料化,大切口答题,原理默写卡,系统优化" data-tags="易错 Top 5,🩹 胶带版">
+      <span class="badge" style="background:linear-gradient(135deg,#6e1a12,#b03a2e)">政0001</span>
+      <div class="card-body">
+        <h3>政治 · 唯物辩证法联系观</h3>
+        <p class="sub">知识框架 · 原理材料化 · 大切口答题 · 原理默写卡 · 系统优化｜易错 5 条</p>
+        <div class="cdate">📅 2026-09-07</div>
+        <div class="tags"><span class="tag-chip">政治</span><span class="tag-chip err">易错 Top 5</span><span class="tape-chip">🩹 胶带版</span></div>
+        <span class="go">打开信息图 →</span>
+      </div>
+    </a>
+    <a class="card" href="english.html" target="_blank" rel="noopener"
+       data-page="英0001" data-subject="英语" data-chapter="阅读与写作专项" data-date="2026-09-07"
+       data-points="熟词僻义,动作链四句型,实验报告结构,七选五策略,例证题" data-tags="易错 Top 5,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#083a42,#17858a)">英0001</span>
       <div class="card-body">
         <h3>英语 · 阅读与写作专项</h3>
         <p class="sub">熟词僻义 · 动作链四句型 · 实验报告结构 · 七选五策略 · 例证题｜易错 5 条</p>
+        <div class="cdate">📅 2026-09-07</div>
         <div class="tags"><span class="tag-chip">英语</span><span class="tag-chip err">易错 Top 5</span><span class="tape-chip">🩹 胶带版</span></div>
         <span class="go">打开信息图 →</span>
       </div>
     </a>
   </div>
+  <div class="empty" id="emptyHint">🔍 没有符合条件的信息图，试试清除部分筛选条件</div>
   <div class="foot">昕言知识结构体系库 · 按《学科信息图生成 SOP》v1.0 生成 · 整理：小宇 · 生成模型：GLM-5.3 · GitHub Pages</div>
 </div>
+
+<script>
+/* ============================================================
+ * 导航页筛选 + 排序（FFSelect 全功能选择菜单版）
+ * 菜单选项全部从卡片 data-* 扫描生成 —— 菜单数值与卡片标签天然同库
+ * ============================================================ */
+(function(){
+  'use strict';
+  var grid = document.getElementById('cardGrid');
+  var cards = Array.prototype.slice.call(grid.querySelectorAll('.card'));
+  var DIMS = [
+    { id:'fltSubj',    attr:'subject', label:'学科', all:'全部学科' },
+    { id:'fltChapter', attr:'chapter', label:'章节', all:'全部章节' },
+    { id:'fltPoint',   attr:'points',  label:'知识点', all:'全部知识点' },
+    { id:'fltTag',     attr:'tags',    label:'标签', all:'全部标签' }
+  ];
+  var cardVals = cards.map(function(c){
+    return {
+      el: c,
+      subject: c.getAttribute('data-subject'),
+      chapter: c.getAttribute('data-chapter'),
+      points: (c.getAttribute('data-points')||'').split(',').filter(Boolean),
+      tags: (c.getAttribute('data-tags')||'').split(',').filter(Boolean),
+      date: c.getAttribute('data-date') || '',
+      title: (c.querySelector('h3')||{}).textContent || '',
+      idx: 0
+    };
+  });
+  cards.forEach(function(c,i){ cardVals[i].idx = i; });
+
+  /* ---- 1. 从卡片数据生成各维度下拉选项（保持首次出现顺序，天然与卡片同库） ---- */
+  DIMS.forEach(function(d){
+    var sel = document.getElementById(d.id);
+    var seen = [];
+    cardVals.forEach(function(cv){
+      (d.attr === 'points' || d.attr === 'tags' ? cv[d.attr] : [cv[d.attr]]).forEach(function(v){
+        if(v && seen.indexOf(v) < 0) seen.push(v);
+      });
+    });
+    seen.forEach(function(v){
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  });
+
+  /* ---- 2. FFSelect 全功能选择菜单组件（零依赖，复制自 full-function-select 技能） ---- */
+  (function ffCss(){
+    if(document.getElementById('ffCss')) return;
+    var st = document.createElement('style'); st.id = 'ffCss';
+    st.textContent = '.ffWrap{max-width:100%}'
+      + '.ffBtn{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151;cursor:pointer;font-family:inherit;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+      + '.ffBtn::after{content:"▼";font-size:10px;color:#9ca3af;margin-left:auto}'
+      + '.ffBtn.ffActive{border-color:#185FA5;background:#E6F1FB;color:#185FA5}'
+      + '.ffPop{position:absolute;top:calc(100% + 4px);left:0;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:8px;min-width:200px;max-width:320px}'
+      + '.ffSearch{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:6px}'
+      + '.ffBar{display:flex;gap:8px;margin-bottom:6px;border-bottom:1px solid #f0f0f0;padding-bottom:6px}'
+      + '.ffBar button{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 0;font-size:12px;cursor:pointer;color:#374151}'
+      + '.ffBar button:hover{background:#E6F1FB;border-color:#185FA5;color:#185FA5}'
+      + '.ffList{max-height:240px;overflow:auto}'
+      + '.ffItem{display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;padding:5px 4px;border-radius:6px;cursor:pointer}'
+      + '.ffItem:hover{background:#F3F7FB}'
+      + '.ffEmpty{font-size:12px;color:#9ca3af;padding:8px 4px;text-align:center}';
+    document.head.appendChild(st);
+  })();
+  function ffEnhance(sel, opts){
+    if(!sel || sel._ff) return;
+    sel._ff = true;
+    opts = opts || {};
+    var multi = !!opts.multi;
+    var allLabel = opts.allLabel || null;
+    if(multi && !sel._ffSet) sel._ffSet = new Set();
+    var wrap = document.createElement('span');
+    wrap.className = 'ffWrap';
+    wrap.style.cssText = 'position:relative;display:inline-block;vertical-align:middle;';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+    sel.style.display = 'none';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ffBtn';
+    wrap.appendChild(btn);
+    var pop = document.createElement('div');
+    pop.className = 'ffPop';
+    pop.style.display = 'none';
+    wrap.appendChild(pop);
+    var search = document.createElement('input');
+    search.type = 'text'; search.className = 'ffSearch'; search.placeholder = '🔍 搜索…';
+    pop.appendChild(search);
+    var bar = document.createElement('div'); bar.className = 'ffBar';
+    pop.appendChild(bar);
+    var list = document.createElement('div'); list.className = 'ffList';
+    pop.appendChild(list);
+    var kw = '';
+    var optArr = function(){ return Array.prototype.slice.call(sel.options).map(function(o){ return { v:o.value, t:o.textContent }; }); };
+    var labelOf = function(v){ var o = Array.prototype.slice.call(sel.options).filter(function(x){ return x.value === v; })[0]; return o ? o.textContent : v; };
+    function syncBtn(){
+      if(multi){
+        var s = sel._ffSet;
+        if(!s.size){ btn.textContent = allLabel || (optArr()[0]||{}).t || '全部'; btn.classList.remove('ffActive'); }
+        else{
+          var names = Array.from(s).map(labelOf);
+          btn.textContent = names.length <= 2 ? names.join('、') : names[0] + ' 等 ' + names.length + ' 项';
+          btn.classList.add('ffActive');
+        }
+      } else {
+        btn.textContent = (sel.selectedOptions[0]||{}).textContent || sel.value || allLabel || '';
+        btn.classList.toggle('ffActive', !!sel.value);
+      }
+    }
+    sel._ffSync = syncBtn;
+    function renderBar(rows){
+      bar.innerHTML = '';
+      if(multi){
+        var a = document.createElement('button'); a.type='button'; a.textContent='☑ 全选';
+        a.addEventListener('click', function(){ rows.forEach(function(x){ sel._ffSet.add(x.v); }); apply(); renderList(); });
+        var c = document.createElement('button'); c.type='button'; c.textContent='☐ 重置';
+        c.addEventListener('click', function(){ sel._ffSet.clear(); apply(); renderList(); });
+        bar.appendChild(a); bar.appendChild(c);
+      } else {
+        var r = document.createElement('button'); r.type='button'; r.textContent='↺ 重置默认';
+        r.addEventListener('click', function(){ var f = optArr()[0]; if(f){ sel.value = f.v; apply(); renderList(); } });
+        bar.appendChild(r);
+      }
+    }
+    function renderList(){
+      var k = kw.trim().toLowerCase();
+      var rows = optArr().filter(function(x){ return !k || x.t.toLowerCase().indexOf(k) >= 0 || String(x.v).toLowerCase().indexOf(k) >= 0; });
+      renderBar(rows);
+      list.innerHTML = '';
+      if(!rows.length){ var e = document.createElement('div'); e.className='ffEmpty'; e.textContent='无匹配项'; list.appendChild(e); }
+      rows.forEach(function(x){
+        var lab = document.createElement('label'); lab.className='ffItem';
+        var cb = document.createElement('input');
+        cb.type = multi ? 'checkbox' : 'radio';
+        cb.name = 'ff_' + (sel.id || 'xff');
+        cb.checked = multi ? sel._ffSet.has(x.v) : sel.value === x.v;
+        cb.addEventListener('change', function(){
+          if(multi){ if(cb.checked) sel._ffSet.add(x.v); else sel._ffSet.delete(x.v); apply(); }
+          else if(sel.value !== x.v){ sel.value = x.v; apply(); close(); }
+          renderList();
+        });
+        var span = document.createElement('span'); span.textContent = x.t;
+        lab.appendChild(cb); lab.appendChild(span);
+        list.appendChild(lab);
+      });
+    }
+    function apply(){
+      if(multi){ Array.prototype.slice.call(sel.options).forEach(function(o){ o.selected = sel._ffSet.has(o.value); }); }
+      syncBtn();
+      sel.dispatchEvent(new Event('change'));
+    }
+    function open(){ kw=''; search.value=''; renderList(); pop.style.display='block'; pop.style.minWidth = Math.max(btn.offsetWidth,200)+'px'; try{ search.focus(); }catch(_){} }
+    function close(){ pop.style.display='none'; }
+    btn.addEventListener('click', function(e){ e.stopPropagation(); if(pop.style.display==='block') close(); else open(); });
+    pop.addEventListener('click', function(e){ e.stopPropagation(); });
+    search.addEventListener('input', function(){ kw = search.value; renderList(); });
+    document.addEventListener('click', function(){ close(); });
+    syncBtn();
+  }
+  function ffSetOf(id){
+    var sel = document.getElementById(id);
+    if(!sel) return new Set();
+    if(sel._ffSet) return new Set(sel._ffSet);
+    return sel.value ? new Set([sel.value]) : new Set();
+  }
+  function ffApplyValues(id, arr){
+    var sel = document.getElementById(id);
+    if(!sel) return;
+    if(sel._ffSet){
+      sel._ffSet = new Set(arr || []);
+      Array.prototype.slice.call(sel.options).forEach(function(o){ o.selected = sel._ffSet.has(o.value); });
+    } else { sel.value = (arr && arr.length) ? arr[0] : ''; }
+    if(sel._ffSync) sel._ffSync();
+  }
+
+  /* ---- 3. 初始化：4 个筛选维度（多选） + 排序（单选） ---- */
+  DIMS.forEach(function(d){ ffEnhance(document.getElementById(d.id), { multi:true, allLabel:d.all }); });
+  ffEnhance(document.getElementById('sortSel'), {});
+
+  var fromIpt = document.getElementById('fltFrom');
+  var toIpt = document.getElementById('fltTo');
+  var countEl = document.getElementById('fltCount');
+  var chipsEl = document.getElementById('fltChips');
+  var emptyEl = document.getElementById('emptyHint');
+  fromIpt.addEventListener('change', applyFilter);
+  toIpt.addEventListener('change', applyFilter);
+  document.getElementById('sortSel').addEventListener('change', applySort);
+  document.getElementById('fltClear').addEventListener('click', clearAll);
+
+  function pass(cv){
+    var dimsOk = DIMS.every(function(d){
+      var set = ffSetOf(d.id);
+      if(!set.size) return true;
+      if(d.attr === 'points' || d.attr === 'tags'){
+        return cv[d.attr].some(function(v){ return set.has(v); });
+      }
+      return set.has(cv[d.attr]);
+    });
+    if(!dimsOk) return false;
+    if(fromIpt.value && cv.date && cv.date < fromIpt.value) return false;
+    if(toIpt.value && cv.date && cv.date > toIpt.value) return false;
+    return true;
+  }
+
+  function applyFilter(){
+    var shown = 0;
+    cardVals.forEach(function(cv){
+      var ok = pass(cv);
+      cv.el.classList.toggle('hide', !ok);
+      if(ok) shown++;
+    });
+    countEl.textContent = shown;
+    emptyEl.style.display = shown ? 'none' : 'block';
+    renderChips();
+  }
+
+  function applySort(){
+    var mode = document.getElementById('sortSel').value;
+    var arr = cardVals.slice();
+    arr.sort(function(a,b){
+      if(mode === 'date-desc') return (a.date < b.date ? 1 : a.date > b.date ? -1 : a.idx - b.idx);
+      if(mode === 'date-asc')  return (a.date > b.date ? 1 : a.date < b.date ? -1 : a.idx - b.idx);
+      if(mode === 'subject'){
+        var order = ['化学','语文','数学','物理','政治','英语'];
+        var d = order.indexOf(a.subject) - order.indexOf(b.subject);
+        return d !== 0 ? d : a.idx - b.idx;
+      }
+      return a.title.localeCompare(b.title, 'zh-Hans-CN') || (a.idx - b.idx);
+    });
+    arr.forEach(function(cv){ grid.appendChild(cv.el); });
+  }
+
+  function renderChips(){
+    chipsEl.innerHTML = '';
+    var mk = function(text, isDate, onDel){
+      var chip = document.createElement('span');
+      chip.className = 'fchip' + (isDate ? ' date' : '');
+      chip.textContent = text;
+      var x = document.createElement('button');
+      x.type = 'button'; x.textContent = '✕'; x.title = '移除该条件';
+      x.addEventListener('click', onDel);
+      chip.appendChild(x);
+      chipsEl.appendChild(chip);
+    };
+    DIMS.forEach(function(d){
+      ffSetOf(d.id).forEach(function(v){
+        mk(d.label + ' · ' + v, false, function(){
+          var rest = Array.from(ffSetOf(d.id)).filter(function(z){ return z !== v; });
+          ffApplyValues(d.id, rest);
+          applyFilter();
+        });
+      });
+    });
+    if(fromIpt.value) mk('日期 ≥ ' + fromIpt.value, true, function(){ fromIpt.value = ''; applyFilter(); });
+    if(toIpt.value) mk('日期 ≤ ' + toIpt.value, true, function(){ toIpt.value = ''; applyFilter(); });
+  }
+
+  function clearAll(){
+    DIMS.forEach(function(d){ ffApplyValues(d.id, []); });
+    fromIpt.value = ''; toIpt.value = '';
+    applyFilter();
+  }
+
+  applyFilter();
+  applySort();
+  /* 轻量调试钩子（自动化测试/控制台排障用） */
+  window.__flt = { applyFilter: applyFilter, applySort: applySort,
+    setDim: function(id, arr){ ffApplyValues(id, arr); applyFilter(); },
+    count: function(){ return cardVals.filter(pass).length; } };
+})();
+</script>
 </body>
 </html>
