@@ -2064,7 +2064,7 @@ window.addEventListener('pagehide', resetFabAfterGesture);
     if (ctl){ opts.signal = ctl.signal; timer = setTimeout(function(){ try{ ctl.abort(); }catch(e){} }, 8000); }
     fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/' + STATS_TABLE, opts)
       .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); })
-      .catch(function(){ /* 静默降级，下轮变更重试 */ })
+      .catch(function(){ lastCloud = ''; /* 失败重置，5s 兜底轮询自动补报 */ })
       .then(function(){ if (timer) clearTimeout(timer); inFlight = false; });
   }
 
