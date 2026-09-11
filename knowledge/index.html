@@ -57,6 +57,13 @@
   /* ---- FFSelect 深度微调（适配本页浅色风） ---- */
   .ffBtn{border-radius:999px !important;border-color:#d7e3ef !important;background:#f6faff !important;font-weight:600}
   .ffBtn.ffActive{border-color:#2a6df4 !important;background:#eef3ff !important;color:#2a6df4 !important}
+  /* ---- 训练统计徽章（2026-09-11） ---- */
+  .cstat{margin-top:8px}
+  .cstat .pill{display:inline-block;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;line-height:1.4}
+  .cstat .st-done{background:#e6f6ea;color:#1b7a3d;border:1px solid #bfe6cb}
+  .cstat .st-doing{background:#fff3e0;color:#b3541e;border:1px solid #ffd9a0}
+  .cstat .st-none{background:#f1f4f8;color:#8a9bb0;border:1px solid #dbe4ee}
+  #fltUncover{padding:6px 8px;border:1px solid #d7e3ef;border-radius:999px;font-size:13px;font-family:inherit}
 </style>
 </head>
 <body>
@@ -84,6 +91,10 @@
       <select id="fltChapter" multiple></select>
       <select id="fltPoint" multiple></select>
       <select id="fltTag" multiple></select>
+      <select id="fltMethod" multiple></select>
+      <select id="fltStat" multiple></select>
+      <span class="flabel" style="margin-left:6px">🧻 未揭开 ≥</span>
+      <input type="number" id="fltUncover" min="0" step="1" placeholder="0" style="width:60px" title="筛选未揭开胶带数不少于该值的卡片">
       <span class="flabel" style="margin-left:6px">📅 制作日期</span>
       <input type="date" id="fltFrom" title="起始日期">
       <span style="color:#b6c5d4;font-size:12px">→</span>
@@ -95,14 +106,15 @@
         <option value="title">按标题</option>
       </select>
       <button class="fclear" id="fltClear" type="button">✕ 清空筛选</button>
-      <span class="fcount">共 <b id="fltCount">8</b> 张</span>
+      <button class="fclear" id="statRefresh" type="button">🔄 刷新统计</button>
+      <span class="fcount">共 <b id="fltCount">8</b> 张 · <span id="statMeta"></span></span>
     </div>
     <div class="fchips" id="fltChips"></div>
   </div>
 
   <div class="grid" id="cardGrid">
     <a class="card" href="chemistry.html" target="_blank" rel="noopener"
-       data-page="化0001" data-subject="化学" data-chapter="铁及其化合物" data-date="2026-09-07"
+       data-page="化0001" data-fig="knowledge_chem_fe" data-methods="实验题,离子检验,排除法" data-subject="化学" data-chapter="铁及其化合物" data-date="2026-09-07"
        data-points="亚铁检验,铁盐配制,晶体提取,铁三角SVG,氢氧化亚铁制备,腐蚀与防护" data-tags="易错 Top 6,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#0b3c6e,#1b77c9)">化0001</span>
       <div class="card-body">
@@ -114,7 +126,7 @@
       </div>
     </a>
     <a class="card" href="chinese.html" target="_blank" rel="noopener"
-       data-page="语0001" data-subject="语文" data-chapter="文言文词类活用" data-date="2026-09-07"
+       data-page="语0001" data-fig="knowledge_chinese_classical" data-methods="成分分析法,语境代入" data-subject="语文" data-chapter="文言文词类活用" data-date="2026-09-07"
        data-points="《劝学》易错字,成分分析法,活用七类总表,特殊语法,真题四例" data-tags="易错 Top 5,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#123f33,#2e8b6e)">语0001</span>
       <div class="card-body">
@@ -126,7 +138,7 @@
       </div>
     </a>
     <a class="card" href="math.html" target="_blank" rel="noopener"
-       data-page="数0007" data-subject="数学" data-chapter="三角函数性质与变换" data-date="2026-09-07"
+       data-page="数0007" data-fig="knowledge_math_trig" data-methods="整体代换,图像法,诱导公式" data-subject="数学" data-chapter="三角函数性质与变换" data-date="2026-09-07"
        data-points="整体处理原图对照,奇变偶不变,对称性,同增异减,书写规范红线" data-tags="易错 Top 6,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#2c1a52,#6c3fa0)">数0007</span>
       <div class="card-body">
@@ -139,6 +151,7 @@
     </a>
     <a class="card" href="physics.html" target="_blank" rel="noopener"
        data-page="物0008" data-subject="物理" data-chapter="运动学实验与追及相遇" data-date="2026-09-07"
+       data-fig="knowledge_physics_kinematics" data-methods="过程拆解,逐差法,图像法"
        data-points="刹车陷阱,双解取舍,相距最远,打点计时器,逐差法,图像规范" data-tags="易错 Top 6,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#5c2e0e,#c96a1e)">物0008</span>
       <div class="card-body">
@@ -150,7 +163,7 @@
       </div>
     </a>
     <a class="card" href="philosophy1.html" target="_blank" rel="noopener"
-       data-page="哲0001" data-subject="政治" data-chapter="第一单元 · 探索世界与把握规律" data-date="2026-09-08"
+       data-page="哲0001" data-fig="knowledge_philosophy_unit1" data-methods="排除法,材料对应" data-subject="政治" data-chapter="第一单元 · 探索世界与把握规律" data-date="2026-09-08"
        data-points="时代精神的精华,探究世界的本质,把握世界的规律（矛盾观）" data-tags="📄 原文还原,易错 Top 8,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#5c1230,#a03a2e)">哲0001</span>
       <div class="card-body">
@@ -162,7 +175,7 @@
       </div>
     </a>
     <a class="card" href="philosophy2.html" target="_blank" rel="noopener"
-       data-page="哲0002" data-subject="政治" data-chapter="第二单元 · 认识社会与价值选择" data-date="2026-09-08"
+       data-page="哲0002" data-fig="knowledge_philosophy_unit2" data-methods="排除法,材料对应" data-subject="政治" data-chapter="第二单元 · 认识社会与价值选择" data-date="2026-09-08"
        data-points="认识论（实践与真理）,历史观（社会存在与群众路线）,价值观（价值判断与选择）" data-tags="📄 原文还原,易错 Top 7,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#6e1a12,#b3541e)">哲0002</span>
       <div class="card-body">
@@ -174,7 +187,7 @@
       </div>
     </a>
     <a class="card" href="politics.html" target="_blank" rel="noopener"
-       data-page="政0001" data-subject="政治" data-chapter="唯物辩证法联系观" data-date="2026-09-07"
+       data-page="政0001" data-fig="knowledge_politics_connection" data-methods="大切口答题,原理材料化" data-subject="政治" data-chapter="唯物辩证法联系观" data-date="2026-09-07"
        data-points="知识框架,原理材料化,大切口答题,原理默写卡,系统优化" data-tags="易错 Top 5,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#6e1a12,#b03a2e)">政0001</span>
       <div class="card-body">
@@ -187,6 +200,7 @@
     </a>
     <a class="card" href="english.html" target="_blank" rel="noopener"
        data-page="英0001" data-subject="英语" data-chapter="阅读与写作专项" data-date="2026-09-07"
+       data-fig="knowledge_english_reading" data-methods="定位法,结构识别"
        data-points="熟词僻义,动作链四句型,实验报告结构,七选五策略,例证题" data-tags="易错 Top 5,🩹 胶带版">
       <span class="badge" style="background:linear-gradient(135deg,#083a42,#17858a)">英0001</span>
       <div class="card-body">
@@ -215,7 +229,9 @@
     { id:'fltSubj',    attr:'subject', label:'学科', all:'全部学科' },
     { id:'fltChapter', attr:'chapter', label:'章节', all:'全部章节' },
     { id:'fltPoint',   attr:'points',  label:'知识点', all:'全部知识点' },
-    { id:'fltTag',     attr:'tags',    label:'标签', all:'全部标签' }
+    { id:'fltMethod',  attr:'methods', label:'解题方法', all:'全部方法' },
+    { id:'fltTag',     attr:'tags',    label:'标签', all:'全部标签' },
+    { id:'fltStat',    attr:'status',  label:'训练状态', all:'全部状态' }
   ];
   var cardVals = cards.map(function(c){
     return {
@@ -224,7 +240,11 @@
       chapter: c.getAttribute('data-chapter'),
       points: (c.getAttribute('data-points')||'').split(',').filter(Boolean),
       tags: (c.getAttribute('data-tags')||'').split(',').filter(Boolean),
+      methods: (c.getAttribute('data-methods')||'').split(',').filter(Boolean),
       date: c.getAttribute('data-date') || '',
+      fig: c.getAttribute('data-fig') || '',
+      status: c.getAttribute('data-status') || '',
+      stats: null,
       title: (c.querySelector('h3')||{}).textContent || '',
       idx: 0
     };
@@ -236,7 +256,7 @@
     var sel = document.getElementById(d.id);
     var seen = [];
     cardVals.forEach(function(cv){
-      (d.attr === 'points' || d.attr === 'tags' ? cv[d.attr] : [cv[d.attr]]).forEach(function(v){
+      (d.attr === 'points' || d.attr === 'tags' || d.attr === 'methods' ? cv[d.attr] : [cv[d.attr]]).forEach(function(v){
         if(v && seen.indexOf(v) < 0) seen.push(v);
       });
     });
@@ -386,11 +406,13 @@
 
   var fromIpt = document.getElementById('fltFrom');
   var toIpt = document.getElementById('fltTo');
+  var uncoverIpt = document.getElementById('fltUncover');
   var countEl = document.getElementById('fltCount');
   var chipsEl = document.getElementById('fltChips');
   var emptyEl = document.getElementById('emptyHint');
   fromIpt.addEventListener('change', applyFilter);
   toIpt.addEventListener('change', applyFilter);
+  uncoverIpt.addEventListener('input', applyFilter);
   document.getElementById('sortSel').addEventListener('change', applySort);
   document.getElementById('fltClear').addEventListener('click', clearAll);
 
@@ -398,7 +420,7 @@
     var dimsOk = DIMS.every(function(d){
       var set = ffSetOf(d.id);
       if(!set.size) return true;
-      if(d.attr === 'points' || d.attr === 'tags'){
+      if(d.attr === 'points' || d.attr === 'tags' || d.attr === 'methods'){
         return cv[d.attr].some(function(v){ return set.has(v); });
       }
       return set.has(cv[d.attr]);
@@ -406,6 +428,8 @@
     if(!dimsOk) return false;
     if(fromIpt.value && cv.date && cv.date < fromIpt.value) return false;
     if(toIpt.value && cv.date && cv.date > toIpt.value) return false;
+    var n = parseInt(uncoverIpt.value, 10);
+    if(n > 0 && !(cv.stats && cv.stats.covered >= n)) return false;
     return true;
   }
 
@@ -425,6 +449,10 @@
     var mode = document.getElementById('sortSel').value;
     var arr = cardVals.slice();
     arr.sort(function(a,b){
+      if(mode === 'uncover-desc'){
+        var ca = a.stats ? a.stats.covered : -1, cb2 = b.stats ? b.stats.covered : -1;
+        return (cb2 - ca) || (a.idx - b.idx);
+      }
       if(mode === 'date-desc') return (a.date < b.date ? 1 : a.date > b.date ? -1 : a.idx - b.idx);
       if(mode === 'date-asc')  return (a.date > b.date ? 1 : a.date < b.date ? -1 : a.idx - b.idx);
       if(mode === 'subject'){
@@ -460,20 +488,137 @@
     });
     if(fromIpt.value) mk('日期 ≥ ' + fromIpt.value, true, function(){ fromIpt.value = ''; applyFilter(); });
     if(toIpt.value) mk('日期 ≤ ' + toIpt.value, true, function(){ toIpt.value = ''; applyFilter(); });
+    if(parseInt(uncoverIpt.value, 10) > 0) mk('未揭开 ≥ ' + uncoverIpt.value, false, function(){ uncoverIpt.value = ''; applyFilter(); });
   }
 
   function clearAll(){
     DIMS.forEach(function(d){ ffApplyValues(d.id, []); });
-    fromIpt.value = ''; toIpt.value = '';
+    fromIpt.value = ''; toIpt.value = ''; uncoverIpt.value = '';
     applyFilter();
   }
+
+  /* ---- 4. 训练统计（2026-09-11）：同源 localStorage(kstat:*) 即时 + Supabase tape_stats 跨设备，缓存兜底 ---- */
+  var STAT_CACHE = 'nav_stats_cache';
+  var CLOUD_DEFAULT = {
+    url: 'https://mixuqjognbdrafrrlivc.supabase.co',
+    key: 'sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX'
+  };
+  var statMap = {};
+  var statMetaEl = document.getElementById('statMeta');
+  function readLS(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+  function statusOf(s){
+    if(!s || !s.total) return '未开始';
+    return s.covered > 0 ? '训练中' : '已完成';
+  }
+  function fmtTs(ts){
+    var d = new Date(ts);
+    return (d.getMonth()+1)+'月'+d.getDate()+'日 '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+  function collectLocal(){
+    var out = {};
+    try{
+      for(var i = 0; i < localStorage.length; i++){
+        var k = localStorage.key(i);
+        if(k && k.indexOf('kstat:') === 0){
+          var v = readLS(k);
+          if(v && typeof v.total === 'number') out[k.slice(6)] = v;
+        }
+      }
+    }catch(e){}
+    return out;
+  }
+  function renderBadge(cv){
+    var body = cv.el.querySelector('.card-body');
+    if(!body) return;
+    var old = body.querySelector('.cstat');
+    if(old) old.remove();
+    var d = document.createElement('div'); d.className = 'cstat';
+    var pill = document.createElement('span');
+    var s = cv.stats;
+    if(!s || !s.total){ pill.className = 'pill st-none'; pill.textContent = '🧻 未开始训练'; }
+    else if(s.covered > 0){ pill.className = 'pill st-doing'; pill.textContent = '🧻 共 ' + s.total + ' · 已揭 ' + s.peeled + ' · 未揭 ' + s.covered; }
+    else { pill.className = 'pill st-done'; pill.textContent = '✅ 已完成 · 共 ' + s.total + ' 全部揭开'; }
+    d.appendChild(pill);
+    body.appendChild(d);
+  }
+  function rebuildStatOptions(){
+    var sel = document.getElementById('fltStat');
+    var valid = ['未开始','训练中','已完成'];
+    var keep = sel._ffSet ? Array.from(sel._ffSet).filter(function(v){ return valid.indexOf(v) >= 0; }) : [];
+    sel.innerHTML = '';
+    valid.forEach(function(v){
+      var o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+    if(sel._ffSet){
+      sel._ffSet = new Set(keep);
+      Array.prototype.slice.call(sel.options).forEach(function(o){ o.selected = sel._ffSet.has(o.value); });
+      if(sel._ffSync) sel._ffSync();
+    }
+  }
+  function applyStats(map){
+    statMap = map || {};
+    cardVals.forEach(function(cv){
+      cv.stats = statMap[cv.fig] || null;
+      cv.status = statusOf(cv.stats);
+      cv.el.setAttribute('data-status', cv.status);
+      renderBadge(cv);
+    });
+    rebuildStatOptions();
+    applyFilter();
+    if(document.getElementById('sortSel').value === 'uncover-desc') applySort();
+  }
+  function fetchCloud(){
+    var cfg = CLOUD_DEFAULT;
+    try{ var c = readLS('tape_cloud_cfg'); if(c && c.url && c.key && c.url.indexOf('vajgltnfpdjpnsoknoma') < 0) cfg = c; }catch(e){}
+    var ctl = ('AbortController' in window) ? new AbortController() : null;
+    var timer = ctl ? setTimeout(function(){ ctl.abort(); }, 6000) : null;
+    statMetaEl.textContent = '统计：刷新中…';
+    fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/tape_stats?select=fig_id,total,covered,peeled,updated_at',
+      { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }, signal: ctl ? ctl.signal : undefined })
+      .then(function(r){ if(timer) clearTimeout(timer); if(!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function(rows){
+        var out = collectLocal(); // 云优先，但比本机 kstat 旧的不回退
+        (rows || []).forEach(function(r){
+          if(!r || !r.fig_id) return;
+          var ts = r.updated_at ? (new Date(r.updated_at).getTime() || 0) : 0;
+          if(!out[r.fig_id] || (out[r.fig_id].ts || 0) < ts){
+            out[r.fig_id] = { total: r.total || 0, covered: r.covered || 0, peeled: r.peeled || 0, ts: ts };
+          }
+        });
+        try{ localStorage.setItem(STAT_CACHE, JSON.stringify({ ts: Date.now(), rows: out })); }catch(e){}
+        statMetaEl.textContent = '统计：云端 ' + fmtTs(Date.now());
+        applyStats(out);
+      })
+      .catch(function(){
+        if(timer) clearTimeout(timer);
+        var cached = readLS(STAT_CACHE);
+        if(cached && cached.rows){
+          statMetaEl.textContent = '统计：缓存 截至 ' + fmtTs(cached.ts);
+          applyStats(cached.rows);
+        } else {
+          statMetaEl.textContent = '统计：本机数据（离线/未同步）';
+          applyStats(collectLocal());
+        }
+      });
+  }
+  document.getElementById('statRefresh').addEventListener('click', fetchCloud);
+  /* 启动：缓存/本机即时渲染 → 云端覆盖 */
+  (function(){
+    var cached = readLS(STAT_CACHE);
+    var initial = (cached && cached.rows) ? cached.rows : collectLocal();
+    if(cached && cached.ts) statMetaEl.textContent = '统计：缓存 截至 ' + fmtTs(cached.ts);
+    applyStats(initial);
+    fetchCloud();
+  })();
 
   applyFilter();
   applySort();
   /* 轻量调试钩子（自动化测试/控制台排障用） */
   window.__flt = { applyFilter: applyFilter, applySort: applySort,
     setDim: function(id, arr){ ffApplyValues(id, arr); applyFilter(); },
-    count: function(){ return cardVals.filter(pass).length; } };
+    count: function(){ return cardVals.filter(pass).length; },
+    stats: function(){ return statMap; },
+    collect: function(){ applyStats(collectLocal()); return statMap; } };
 })();
 </script>
 </body>
