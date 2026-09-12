@@ -315,191 +315,183 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   </div>
   <div class="wrap">
 
-  <!-- 1 本质与类型 -->
-  <div class="sec">
-    <div class="sec-head"><div class="sec-num">1</div><div class="sec-title">离子反应的本质：微粒视角</div><div class="sec-note">判断一切离子反应的总开关</div></div>
-    <div class="memo">本质只有一句话：<b>体系中某些自由移动的离子减少了</b>。书写时要有「超级显微镜」视角——先想清楚体系里有哪些微粒、谁能跟谁反应，再动笔，不死背结论。</div>
-    <table class="tb">
-      <tr><th style="width:16%">类型</th><th style="width:34%">驱动力（离子为何减少）</th><th>课堂例证</th></tr>
-      <tr><td><b>复分解</b></td><td>生成沉淀 / 气体 / 水 / 弱电解质</td><td>H⁺ + CO₃²⁻ = H₂O + CO₂↑</td></tr>
-      <tr><td><b>氧化还原</b></td><td>电子转移消耗离子（不一定生成沉淀气体）</td><td>HClO + H₂SO₃ → 两强酸：两个「弱酸」不拆也能反应</td></tr>
-      <tr><td><b>络合</b></td><td>生成配合物，自由离子减少</td><td>Fe³⁺ + 3SCN⁻ → Fe(SCN)₃（血红色）</td></tr>
-      <tr><td><b>双水解</b></td><td>水解互相促进，进行到底</td><td>Al³⁺ + HCO₃⁻ → Al(OH)₃↓ + CO₂↑（泡沫灭火器）</td></tr>
-    </table>
-    <div class="kv" style="margin-top:12px">
-      <div class="blk"><h4>泡沫灭火器双水解（09-10）</h4>
-        <ul><li>内装 <b>Al₂(SO₄)₃</b> 与 <b>NaHCO₃</b> 两液</li>
-        <li>Al³⁺ 水解 → Al(OH)₃↓；HCO₃⁻ 水解 → H₂CO₃ → CO₂↑</li>
-        <li><span class="imp">沉淀与气体互相促进</span> → 水解彻底</li></ul></div>
-      <div class="blk"><h4>电解饱和食盐水（09-10）</h4>
-        <ul><li>属离子反应，实质是 <b>Cl⁻ 与水</b>在反应</li>
-        <li>产物：Cl₂↑、H₂↑、NaOH</li>
-        <li>固体 CO₂ 的反应<span class="imp">不属于</span>离子反应（无自由离子参与）</li></ul></div>
-    </div>
-  </div>
 
-  <!-- 2 拆写规则 -->
+  <!-- 0 总览关系图 -->
   <div class="sec">
-    <div class="sec-head"><div class="sec-num">2</div><div class="sec-title">拆写规则：该拆则拆，不该拆不拆</div><div class="sec-note">离子方程式书写的第一道门槛</div></div>
+    <div class="sec-head"><div class="sec-num">1</div><div class="sec-title">总览：一张图看懂离子反应</div><div class="sec-note">四条解题主线，全从一句话长出</div></div>
+    <div class="memo">所有离子反应的<b>根</b>只有一句：体系里自由移动的离子有没有减少。减少的途径有四条——生成沉淀/气体/弱电解质（复分解）、电子转移（氧化还原）、生成配合物（络合）、双水解。下面四讲内容都挂在它上面。</div>
+    <div class="blk" style="text-align:center;background:linear-gradient(135deg,#0b3c6e,#1b77c9);color:#fff;font-size:17px;font-weight:800;letter-spacing:1px;">自由移动的离子是否减少 ？  &rarr;  是，则发生离子反应</div>
     <div class="kv">
-      <div class="blk"><h4>✂️ 要拆（强电解质、溶液中全电离）</h4>
-        <ul><li>强酸：HCl、H₂SO₄、HNO₃</li>
-        <li>强碱：NaOH、KOH、Ba(OH)₂</li>
-        <li>可溶性盐：Na₂CO₃、CuSO₄…</li></ul></div>
-      <div class="blk"><h4>🔒 不拆（保留化学式）</h4>
-        <ul><li>弱电解质：弱酸（CH₃COOH、H₂CO₃）、弱碱（NH₃·H₂O）、水</li>
-        <li>沉淀：CaCO₃、BaSO₄、AgCl…</li>
-        <li>气体、氧化物（Fe₂O₃ 等）、浓硫酸</li></ul></div>
+      <div class="blk"><h4>① 判断能否发生</h4>四类型本质 &middot; 强弱酸制取规律与特例</div>
+      <div class="blk"><h4>② 书写离子方程式</h4>拆写规则 &middot; 量对产物 &middot; 三大特例 &middot; 守恒配平</div>
+      <div class="blk"><h4>③ 实验与检验</h4>常见离子检验 &middot; 离子共存判断</div>
+      <div class="blk"><h4>④ 化工流程应用</h4>粗盐提纯顺序 &middot; 结晶方法 &middot; 成分去向</div>
+    </div>
+  </div>
+
+  <!-- 1 题型一 判断 -->
+  <div class="sec">
+    <div class="sec-head"><div class="sec-num">2</div><div class="sec-title">题型一 &middot; 判断离子反应能否发生</div><div class="sec-note">先判"减不减少"，再归类型</div></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin:8px 0;">
+      <div style="background:#fff;border:2px solid #1b77c9;border-radius:10px;padding:8px 16px;font-weight:700;color:#0b3c6e;font-size:14.5px;">列出体系里所有微粒（离子 + 分子）</div>
+      <div style="color:#1b77c9;font-weight:800;font-size:18px;margin:2px 0;">&#8595;</div>
+      <div style="background:#fff;border:2px solid #1b77c9;border-radius:10px;padding:8px 16px;font-weight:700;color:#0b3c6e;font-size:14.5px;">微粒之间会不会反应使其减少？</div>
+      <div style="color:#1b77c9;font-weight:800;font-size:18px;margin:2px 0;">&#8595;</div>&#8595; 会
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <div class="blk"><h4>复分解</h4>水/沉淀/气体/弱电解质</div>
+        <div class="blk"><h4>氧化还原</h4>电子转移</div>
+        <div class="blk"><h4>络合</h4>生成配合物</div>
+        <div class="blk"><h4>双水解</h4>互促彻底</div>
+      </div>
     </div>
     <table class="tb">
-      <tr><th style="width:30%">易混场景</th><th>处理方式</th></tr>
-      <tr><td><b>石灰乳 vs 澄清石灰水</b></td><td>石灰乳（悬浊液）中 Ca(OH)₂ 以固体为主<span class="imp">不拆</span>；澄清石灰水中<span class="imp">要拆</span>——状态决定拆写</td></tr>
-      <tr><td><b>产物中的固体</b></td><td>漂白粉制备：Cl₂ 通入石灰乳，产物 Ca(ClO)₂ 也是固体形式，<span class="imp">不拆</span></td></tr>
-      <tr><td><b>铵根体系电荷守恒</b></td><td>有氨水/铵盐时配平电荷<span class="imp">直接用 NH₄⁺</span>，不写 H⁺（H⁺ 会先与氨水反应）</td></tr>
-      <tr><td><b>名称陷阱</b></td><td>小苏打 = <b>NaHCO₃</b>（碳酸氢钠）；Fe₂O₃（铁锈）不与碱反应，用 NaOH 除铁锈是错的</td></tr>
+      <tr><th>类型</th><th>离子减少的途径</th><th>典型例子</th></tr>
+      <tr><td><b>复分解</b></td><td>生成水 / 沉淀 / 气体 / 弱电解质</td><td>H&#8314;+OH&#8315;=H&#8322;O；Ag&#8314;+Cl&#8315;=AgCl&#8595;</td></tr>
+      <tr><td><b>氧化还原</b></td><td>电子转移使离子价态改变</td><td>HClO(弱)+H&#8322;SO&#8323;(弱)&rarr;H&#8322;SO&#8324;+HCl（虽都弱酸不拆，但氧还成立）</td></tr>
+      <tr><td><b>络合</b></td><td>生成稳定配合物，自由离子减少</td><td>Fe&#179;&#8314; + SCN&#8315; &rarr; [Fe(SCN)]&#178;&#8314; 血红色</td></tr>
+      <tr><td><b>双水解</b></td><td>水解互相促进，彻底生成沉淀+气体</td><td>Al&#179;&#8314; + 3HCO&#8323;&#8315; &rarr; Al(OH)&#8323;&#8595; + 3CO&#8322;&uarr;（泡沫灭火器）</td></tr>
     </table>
-    <div class="memo">守恒双检：配平同时满足<b>原子守恒 + 电荷守恒</b>，缺一不可；变价元素留意归中与分解产物。</div>
+    <div class="memo">&#9888;&#65039; 固体 CO&#8322;（干冰）与水、CaCO&#8323; 与 CO&#8322; 水溶液等<b>无自由离子参与</b>的，不算离子反应。</div>
+
+    <h3 style="font-size:18px;color:#0b3c6e;margin:18px 0 8px;border-left:5px solid #1b77c9;padding-left:10px;">强弱酸制取规律与特例</h3>
+    <div class="kv">
+      <div class="blk"><h4>一般规律</h4>强酸制弱酸。弱酸不能制强酸——如 SO&#8322; 与 BaCl&#8322; 不反应（假设生成的 BaSO&#8323; 会被 HCl 拉回）。</div>
+      <div class="blk"><h4>特例&#9312; 弱制强（沉淀驱动）</h4>H&#8322;S(弱)+CuSO&#8324;&rarr;CuS&#8595;+H&#8322;SO&#8324;；AgNO&#8323;+HCl&rarr;AgCl&#8595;。沉淀无法逆向，反应成立。</div>
+    </div>
+    <div class="kv">
+      <div class="blk"><h4>特例&#9313; 难挥发制易挥发</h4>浓 H&#8322;SO&#8324;(高沸)+NaCl(固)&rarr;Na&#8322;SO&#8324;+HCl&#8593;（加热）。</div>
+      <div class="blk"><h4>记忆锚点</h4>规律看"产物更弱 / 更难溶 / 更易逸出"；三特例本质是<b>沉淀</b>或<b>气体</b>把平衡拽过去。</div>
+    </div>
   </div>
 
-  <!-- 3 强弱酸规律 -->
+  <!-- 2 题型二 书写 -->
   <div class="sec">
-    <div class="sec-head"><div class="sec-num">3</div><div class="sec-title">「强酸制弱酸」——规律与三大特例</div><div class="sec-note">会证伪，比会背诵更重要</div></div>
+    <div class="sec-head"><div class="sec-num">3</div><div class="sec-title">题型二 &middot; 书写离子方程式</div><div class="sec-note">该拆拆，不该拆不拆；量决定产物</div></div>
     <table class="tb">
-      <tr><th style="width:20%">情形</th><th style="width:32%">条件</th><th>例证</th></tr>
-      <tr><td><b>一般规律</b></td><td>强酸 + 弱酸盐 → 弱酸</td><td>SO₂ + BaCl₂ <b>不反应</b>：假设生成 BaSO₃，也会被盐酸溶回原物（弱酸不能制强酸）</td></tr>
-      <tr><td><b>特例① 弱酸制强酸</b></td><td>生成<span class="imp">不溶于酸的沉淀</span>，逆向被切断</td><td>H₂S（弱）+ CuSO₄ → CuS↓ + H₂SO₄（强）；AgNO₃ + HCl → AgCl↓ 同理</td></tr>
-      <tr><td><b>特例② 难挥发制易挥发</b></td><td>高沸点酸制低沸点酸（Δ 加热）</td><td>浓硫酸 + NaCl(固) →Δ→ Na₂SO₄ + HCl↑</td></tr>
-      <tr><td><b>特例③ 氧化还原超越酸性强弱</b></td><td>电子转移主导</td><td>HClO + H₂SO₃ → H₂SO₄ + HCl：弱酸变强酸照样反应</td></tr>
+      <tr><th>类别</th><th>拆成离子</th><th>保留化学式</th></tr>
+      <tr><td><b>该拆</b></td><td>强酸、强碱、可溶性盐</td><td>&mdash;</td></tr>
+      <tr><td><b>不拆</b></td><td>&mdash;</td><td>弱酸/弱碱/水(弱电解质)、沉淀、气体、氧化物、浓硫酸、石灰乳(悬浊)</td></tr>
     </table>
-    <div class="memo">证伪思维：判断「A + B 能否反应」，先假设能反应写出产物，再检查产物会不会<span class="imp">反向变回去</span>——会变回去的就不反应。</div>
-  </div>
+    <div class="memo">&#129504;&#65039; 同一物质状态不同拆法不同：<b>澄清石灰水</b>（Ca(OH)&#8322; 溶）要拆；<b>石灰乳</b>（悬浊）不拆；生成的<b>漂白粉</b>是固体也不拆。</div>
 
-  <!-- 4 量对产物 -->
-  <div class="sec">
-    <div class="sec-head"><div class="sec-num">4</div><div class="sec-title">「量」决定产物：CO₂ 体系三连</div><div class="sec-note">相对用量 + 酸性强弱双分析</div></div>
-    <table class="tb">
-      <tr><th style="width:24%">CO₂ 通入…</th><th style="width:38%">产物</th><th>决定因素</th></tr>
-      <tr><td><b>NaOH / 一水合氨</b></td><td>碱过量 → CO₃²⁻（正盐）；CO₂ 过量 → HCO₃⁻（酸式盐）</td><td><span class="imp">相对用量</span>，需配平比对</td></tr>
-      <tr><td><b>苯酚钠 C₆H₅ONa</b></td><td>无论 CO₂ 多少，<b>都是 HCO₃⁻</b></td><td>酸性 H₂CO₃ &gt; C₆H₅OH &gt; HCO₃⁻，苯酚弱于碳酸、强于碳酸氢根，抢不出 CO₃²⁻</td></tr>
-      <tr><td><b>NaClO</b></td><td>→ HCO₃⁻</td><td>酸性 H₂CO₃ &gt; HClO</td></tr>
-      <tr><td><b>Ca(ClO)₂</b></td><td>→ <b>CaCO₃↓</b></td><td>Ca²⁺ 与 CO₃²⁻ 结合成难溶物，把反应拉向沉淀方向</td></tr>
-    </table>
-    <div class="fml">酸性顺序：H₂CO₃ &gt; C₆H₅OH（苯酚） &gt; HCO₃⁻</div>
-    <div class="memo">方法：先比<span class="imp">酸性强弱</span>定「制得出制不出」，再看<span class="imp">相对用量</span>定正盐/酸式盐，最后查有没有<span class="imp">沉淀拉偏</span>。</div>
-  </div>
-
-  <!-- 5 离子检验 -->
-  <div class="sec">
-    <div class="sec-head"><div class="sec-num">5</div><div class="sec-title">常见离子检验一览</div><div class="sec-note">操作 → 现象 → 易错，一表通关</div></div>
-    <table class="tb">
-      <tr><th style="width:14%">离子</th><th style="width:34%">操作</th><th style="width:24%">现象</th><th>易错提醒</th></tr>
-      <tr><td><b>Na⁺ / K⁺</b></td><td>焰色试验：铂丝（铁丝）蘸液灼烧</td><td>Na 黄色；K 紫色</td><td>K 必须透过<b>蓝色钴玻璃</b>滤黄光；玻璃棒含 Na₂SiO₃ 不能替代铂丝；黄色火焰只证明含<b>钠元素</b>（未必是钠盐）</td></tr>
-      <tr><td><b>Fe³⁺</b></td><td>滴 KSCN 溶液 / 铁氰化钾</td><td>变红 / 蓝色沉淀</td><td>两个方法二选一，现象都唯一</td></tr>
-      <tr><td><b>NH₄⁺</b></td><td>浓 NaOH + <b>加热</b>，湿润红色石蕊试纸验气</td><td>试纸变蓝</td><td>必须<b>浓碱并加热</b>——NH₃ 极易溶于水，稀碱常温难逸出</td></tr>
-      <tr><td><b>Cl⁻ / Br⁻ / I⁻</b></td><td>HNO₃ 酸化 + AgNO₃</td><td>AgCl 白↓ / AgBr 淡黄↓ / AgI 黄↓</td><td>I⁻ 备选：H₂O₂ 氧化 + 淀粉变蓝；严谨方案：<span class="imp">先加淀粉无变化 → 再加氧化剂变蓝</span>，排除原溶液含 I₂ 的干扰</td></tr>
-      <tr><td><b>SO₄²⁻</b></td><td>先盐酸酸化，再加 BaCl₂</td><td>白色沉淀</td><td>先酸化排除 Ag⁺ 等干扰，<span class="imp">酸化与沉淀试剂分开加</span></td></tr>
-      <tr><td><b>SO₃²⁻</b></td><td>加盐酸，气体通入品红</td><td>品红褪色</td><td>正盐/酸式盐（CO₃²⁻ vs HCO₃⁻）<span class="imp">加酸产气现象相同</span>，无法据此区分；混有 Na₂S₂O₃ 先加过量盐酸（出 S↓ + SO₂）过滤取清液</td></tr>
-    </table>
-  </div>
-
-  <!-- 6 离子共存 -->
-  <div class="sec">
-    <div class="sec-head"><div class="sec-num">6</div><div class="sec-title">离子共存判断逻辑</div><div class="sec-note">先问能不能反应，再抠隐含条件</div></div>
+    <h3 style="font-size:18px;color:#0b3c6e;margin:18px 0 8px;border-left:5px solid #1b77c9;padding-left:10px;">量决定产物：CO&#8322; 三连</h3>
+    <div class="fml">酸性顺序：碳酸 &gt; 苯酚 &gt; 碳酸氢根　&rarr;　苯酚钠 + CO&#8322; 恒得 HCO&#8323;&#8315;（得不到 CO&#8323;&#178;&#8315;）</div>
     <div class="flow">
-      <div class="stp">共存的离子<br>互不反应</div><div class="arr">⇄</div>
-      <div class="stp">沉淀 / 气体 / 弱电解质</div><div class="arr">＋</div>
-      <div class="stp">氧化还原 / 络合</div><div class="arr">→</div>
-      <div class="stp" style="border-color:var(--c-warn);color:var(--c-warn)">不共存</div>
+      <div class="stp">碱过量</div><div class="arr">&rarr;</div><div class="stp">正盐 CO&#8323;&#178;&#8315;</div>
+      <div class="arr">|</div>
+      <div class="stp">CO&#8322; 过量</div><div class="arr">&rarr;</div><div class="stp">酸式盐 HCO&#8323;&#8315;</div>
     </div>
-    <div class="kv" style="margin-top:12px">
-      <div class="blk"><h4>隐含条件① 澄清透明 ≠ 无色</h4>
-        <ul><li>「澄清透明」只要求无浑浊，<span class="imp">允许有颜色</span></li>
-        <li>Cu²⁺（蓝）、Fe³⁺（黄）、Fe²⁺（浅绿）、MnO₄⁻（紫红）均可存在于澄清溶液</li></ul></div>
-      <div class="blk"><h4>隐含条件② 水的电离双向验证</h4>
-        <ul><li>水电离出 c(H⁺) = 1×10⁻¹³ mol/L → 溶液可能 <b>pH=1（强酸）</b>或 <b>pH=13（强碱）</b>：强酸强碱都抑制水的电离</li>
-        <li>两种环境都要做兼容性检查</li>
-        <li>若指定 c(H⁺) 或 c(OH⁻) 大量，则<span class="imp">锁定</span>酸/碱单一环境</li></ul></div>
-    </div>
-  </div>
-
-  <!-- 7 粗盐提纯与化工流程 -->
-  <div class="sec">
-    <div class="sec-head"><div class="sec-num">7</div><div class="sec-title">粗盐提纯与化工流程</div><div class="sec-note">核心逻辑：后加的试剂除去前面引入的过量离子</div></div>
-    <div class="flow">
-      <div class="stp">溶解</div><div class="arr">→</div>
-      <div class="stp">+BaCl₂<br>除 SO₄²⁻</div><div class="arr">→</div>
-      <div class="stp">+Na₂CO₃<br>除 Ca²⁺ 与过量 Ba²⁺</div><div class="arr">→</div>
-      <div class="stp">+NaOH<br>除 Mg²⁺ / Fe³⁺</div><div class="arr">→</div>
-      <div class="stp">过滤</div><div class="arr">→</div>
-      <div class="stp">+盐酸<br>除过量 CO₃²⁻ / OH⁻</div><div class="arr">→</div>
-      <div class="stp">蒸发结晶</div>
-    </div>
-    <table class="tb" style="margin-top:12px">
-      <tr><th style="width:26%">顺序铁律</th><th>原因</th></tr>
-      <tr><td><b>Na₂CO₃ 必须在 BaCl₂ 之后</b></td><td>碳酸根要「顺便」除去过量的钡离子——先加碳酸钠则过量 Ba²⁺ 无人收拾</td></tr>
-      <tr><td><b>NaOH 与 Na₂CO₃ 可互换</b></td><td>两者互不牵连，但都必须在<b>过滤之前</b>加入</td></tr>
-      <tr><td><b>盐酸最后加</b></td><td>除去滤液中过量的 CO₃²⁻ 和 OH⁻，不引入新杂质</td></tr>
+    <table class="tb">
+      <tr><th>体系</th><th>产物</th><th>原因</th></tr>
+      <tr><td>CO&#8322; + 碱（碱过量）</td><td>CO&#8323;&#178;&#8315;</td><td>正盐</td></tr>
+      <tr><td>CO&#8322; + 碱（CO&#8322; 过量）</td><td>HCO&#8323;&#8315;</td><td>酸式盐</td></tr>
+      <tr><td>苯酚钠 + CO&#8322;（无论过量）</td><td>HCO&#8323;&#8315;</td><td>苯酚酸性弱于 HCO&#8323;&#8315;，无法生成 CO&#8323;&#178;&#8315;</td></tr>
+      <tr><td>NaClO + CO&#8322;</td><td>HCO&#8323;&#8315;</td><td>碳酸 &gt; 次氯酸</td></tr>
+      <tr><td>Ca(ClO)&#8322; + CO&#8322;</td><td>CaCO&#8323;&#8595;</td><td>Ca&#178;&#8314; 与 CO&#8323;&#178;&#8315; 结合成难溶物，拽向沉淀</td></tr>
     </table>
-    <div class="kv" style="margin-top:12px">
-      <div class="blk"><h4>流程题通用思路（09-11）</h4>
-        <ul><li><b>预处理</b>：灼烧/炒制去有机物 → 溶解 → 过滤去泥沙</li>
-        <li><b>酸浸</b>：金属氧化物、活泼金属入溶液；不活泼金属（Cu）、难溶盐（PbSO₄）留渣</li>
-        <li>紧盯<span class="imp">成分去向</span>：每个元素每一步以什么形式存在</li></ul></div>
-      <div class="blk"><h4>隐含氧化剂与 H₂O₂ 双重性</h4>
-        <ul><li>空气 O₂、加入的 H₂O₂ 可把 Fe²⁺ 氧化为 Fe³⁺——漏写氧化步骤是高频失分点</li>
-        <li>H₂O₂ 遇还原剂作<b>氧化剂</b>（氧化 Pb²⁺），遇强氧化剂作<b>还原剂</b>（还原 Pb⁴⁺）</li>
-        <li><span class="imp">先看对方价态怎么变，再定 H₂O₂ 扮演谁</span></li></ul></div>
+
+    <h3 style="font-size:18px;color:#0b3c6e;margin:18px 0 8px;border-left:5px solid #1b77c9;padding-left:10px;">三大书写特例</h3>
+    <div class="kv3">
+      <div class="blk"><h4>双水解</h4>Al&#179;&#8314;+3HCO&#8323;&#8315;&rarr;Al(OH)&#8323;&#8595;+3CO&#8322;&uarr;；沉淀+气体互促，彻底。</div>
+      <div class="blk"><h4>电解食盐水</h4>2Cl&#8315;+2H&#8322;O&rarr;(电解)2OH&#8315;+H&#8322;&uarr;+Cl&#8322;&uarr;；Cl&#8315;与H&#8322;O反应是离子反应。</div>
+      <div class="blk"><h4>配平用 NH&#8324;&#8314;</h4>含氨水/铵盐时，电荷守恒直接写 NH&#8324;&#8314;，别写 H&#8314;（H&#8314;会先与 NH&#8323;&middot;H&#8322;O 结合）。</div>
     </div>
-    <div class="flow" style="margin-top:6px">
-      <div class="stp">① 标变价</div><div class="arr">→</div>
-      <div class="stp">② 算升降</div><div class="arr">→</div>
-      <div class="stp">③ 定系数</div><div class="arr">→</div>
-      <div class="stp">④ 补电荷（酸性补 H⁺）</div><div class="arr">→</div>
-      <div class="stp">⑤ 补原子（补水）</div>
-    </div>
-    <div class="memo">复杂氧化还原配平可用<b>整体法</b>：特殊结构（如过氧根）先按常规价态算电子转移，配平后再校正。</div>
+    <div class="memo">&#9998;&#65039; 配平铁律：<b>原子守恒 + 电荷守恒</b>双满足；变价元素注意归中/歧化（如碳酸钡与酸&rarr;CO&#8322;+H&#8322;O+Ba&#178;&#8314;）。</div>
   </div>
 
-  <!-- 8 结晶方法 -->
+  <!-- 3 题型三 检验共存 -->
   <div class="sec">
-    <div class="sec-head"><div class="sec-num">8</div><div class="sec-title">结晶方法怎么选：看溶解度曲线</div><div class="sec-note">依据 = 溶解度随温度的变化趋势</div></div>
-    <div class="flow">
-      <div class="stp" style="border-color:var(--c-accent)">溶解度<br>随温度<b>变化大</b><br>（KNO₃ 型）</div>
-      <div class="arr">→ 蒸发浓缩 → 冷却结晶 → 过滤</div>
-    </div>
-    <div class="flow" style="margin-top:8px">
-      <div class="stp">溶解度<br>随温度<b>变化小</b><br>（NaCl 型）</div>
-      <div class="arr">→ 蒸发溶剂至大量晶体析出 → 趁热过滤</div>
-    </div>
-    <table class="tb" style="margin-top:12px">
-      <tr><th style="width:22%">方法</th><th style="width:40%">步骤</th><th>要点与应用</th></tr>
-      <tr><td><b>冷却结晶</b></td><td>蒸发浓缩 → 冷却结晶 → 过滤</td><td>高温溶解度大、低温骤减析晶；提纯含少量 NaCl 的 KNO₃</td></tr>
-      <tr><td><b>蒸发结晶</b></td><td>蒸发溶剂至大量晶体 → <span class="imp">趁热过滤</span></td><td>温度影响小靠减溶剂析晶；提纯含少量 KNO₃ 的 NaCl，趁热过滤防 KNO₃ 降温析出混入</td></tr>
-      <tr><td><b>重结晶</b></td><td>溶解 → 趁热过滤 → 冷却结晶 → 过滤</td><td>固体进一步提纯（如苯甲酸去泥沙）；趁热过滤让目标物<span class="imp">保持溶解状态</span>，不在漏斗上结晶损失</td></tr>
+    <div class="sec-head"><div class="sec-num">4</div><div class="sec-title">题型三 &middot; 实验检验与离子共存</div><div class="sec-note">操作严谨，结论才可靠</div></div>
+    <table class="tb">
+      <tr><th>离子</th><th>操作</th><th>现象</th><th>易错点</th></tr>
+      <tr><td><b>Na&#8314;/K&#8314;</b></td><td>铂丝/铁丝蘸取，火焰灼烧</td><td>Na 黄；K 紫（透蓝钴玻璃）</td><td>K 必须透蓝钴玻璃滤黄光；玻璃棒含 Na 会干扰；黄色只证含 Na 不一定是钠盐</td></tr>
+      <tr><td><b>Fe&#179;&#8314;</b></td><td>加 KSCN / 铁氰化钾</td><td>血红色 / 蓝色沉淀</td><td>&mdash;</td></tr>
+      <tr><td><b>NH&#8324;&#8314;</b></td><td>浓 NaOH + 加热，湿红石蕊</td><td>气体使试纸变蓝</td><td>必须浓碱+加热，稀碱/常温 NH&#8323; 难逸出</td></tr>
+      <tr><td><b>Cl&#8315;/Br&#8315;/I&#8315;</b></td><td>先 HNO&#8323; 酸化，再加 AgNO&#8323;</td><td>AgCl 白 / AgBr 淡黄 / AgI 黄</td><td>酸化与沉淀试剂分开加，排除 Ag&#8314; 等干扰</td></tr>
+      <tr><td><b>SO&#8324;&#178;&#8315;</b></td><td>先 HCl 酸化，再加 BaCl&#8322;</td><td>白色 BaSO&#8324;&#8595;</td><td>先酸化排除 Ag&#8314;、SO&#8323;&#178;&#8315;、CO&#8323;&#178;&#8315; 干扰</td></tr>
+      <tr><td><b>SO&#8323;&#178;&#8315;</b></td><td>加 HCl 产气，通品红</td><td>品红褪色</td><td>正盐/酸式盐现象相同难区分；含 S&#8322;O&#8323;&#178;&#8315; 先过量 HCl 分解过滤再验 SO&#8324;&#178;&#8315;</td></tr>
     </table>
-    <div class="memo">「趁热过滤」双向作用：<b>防想要的在漏斗上析出损失</b>（重结晶），或<b>防不想要的降温析出混入</b>（NaCl 提纯）——看谁怕降温。</div>
+    <div class="memo">&#128300;&#65039; I&#8315; 严谨方案：先加淀粉不变色（排除原碘单质）&rarr; 再加氧化剂变蓝，才是 I&#8315; 被氧化。</div>
+
+    <h3 style="font-size:18px;color:#0b3c6e;margin:18px 0 8px;border-left:5px solid #1b77c9;padding-left:10px;">离子共存判断 &middot; 双通道</h3>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin:8px 0;">
+      <div style="background:#fff;border:2px solid #1b77c9;border-radius:10px;padding:8px 16px;font-weight:700;color:#0b3c6e;font-size:14.5px;">离子间相互不反应 &rarr; 可共存</div>
+      <div style="color:#1b77c9;font-weight:800;font-size:18px;margin:2px 0;">&#8595;</div>
+      <div style="background:#fff;border:2px solid #1b77c9;border-radius:10px;padding:8px 16px;font-weight:700;color:#0b3c6e;font-size:14.5px;">水电离[H&#8314;]极低（如 10&#8315;&#178;&#178;）&rarr; 强酸或强碱都可能</div>
+      <div style="color:#1b77c9;font-weight:800;font-size:18px;margin:2px 0;">&#8595;</div>&#8595; 分双通道
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <div class="blk" style="border-color:#e0533d;"><h4 style="color:#e0533d;">酸性通道</h4>按 H&#8314; 环境验兼容性</div>
+        <div class="blk" style="border-color:#1b9e7a;"><h4 style="color:#1b9e7a;">碱性通道</h4>按 OH&#8315; 环境验兼容性</div>
+      </div>
+    </div>
+    <table class="tb">
+      <tr><th>隐含条件</th><th>含义</th><th>应对</th></tr>
+      <tr><td>澄清透明</td><td>无浑浊即可，可有颜色</td><td>有色离子(Cu&#178;&#8314;/Fe&#179;&#8314;)不算不共存</td></tr>
+      <tr><td>水电离[H&#8314;]极低</td><td>强酸或强碱抑制水电离</td><td>酸、碱两种情况都要验</td></tr>
+      <tr><td>指定 H&#8314; / OH&#8315;</td><td>限定酸 / 碱性环境</td><td>只在对应通道判断</td></tr>
+    </table>
   </div>
 
-  <!-- 9 易错点 -->
+  <!-- 4 题型四 流程 -->
   <div class="sec">
-    <div class="sec-head"><div class="sec-num">9</div><div class="sec-title">易错点 Top 10</div><div class="sec-note">助记排查 · 总结版（非提纲原文）</div></div>
+    <div class="sec-head"><div class="sec-num">5</div><div class="sec-title">题型四 &middot; 化工流程与结晶</div><div class="sec-note">除杂讲顺序，结晶看斜率</div></div>
+    <h3 style="font-size:18px;color:#0b3c6e;margin:18px 0 8px;border-left:5px solid #1b77c9;padding-left:10px;">粗盐提纯 &middot; 试剂顺序铁律</h3>
+    <div class="flow">
+      <div class="stp">BaCl&#8322; 除 SO&#8324;&#178;&#8315;</div><div class="arr">&rarr;</div>
+      <div class="stp">Na&#8322;CO&#8323; 除 Ca&#178;&#8314;+过量Ba&#178;&#8314;</div><div class="arr">&rarr;</div>
+      <div class="stp">NaOH 除 Mg&#178;&#8314;+Fe&#179;&#8314;</div><div class="arr">&rarr;</div>
+      <div class="stp">过滤</div><div class="arr">&rarr;</div>
+      <div class="stp">HCl 除过量 CO&#8323;&#178;&#8315;/OH&#8315;</div>
+    </div>
+    <div class="memo">&#128274;&#65039; 顺序铁律：<b>BaCl&#8322; 必须在 Na&#8322;CO&#8323; 之前</b>（让 Na&#8322;CO&#8323; 顺手除掉过量 Ba&#178;&#8314;）；Na&#8322;CO&#8323; 与 NaOH 可互换但都要在过滤前；<b>HCl 最后</b>。预处理常先灼烧去有机物&rarr;溶解&rarr;过滤去泥沙。</div>
+
+    <h3 style="font-size:18px;color:#0b3c6e;margin:18px 0 8px;border-left:5px solid #1b77c9;padding-left:10px;">结晶方法 &middot; 决策树</h3>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin:8px 0;">
+      <div style="background:#fff;border:2px solid #1b77c9;border-radius:10px;padding:8px 16px;font-weight:700;color:#0b3c6e;font-size:14.5px;">看溶解度随温度的变化趋势</div>
+      <div style="color:#1b77c9;font-weight:800;font-size:18px;margin:2px 0;">&#8595;</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <div class="blk"><h4>变化大（KNO&#8323;）</h4>冷却结晶<br>蒸发浓缩&rarr;冷却结晶&rarr;过滤</div>
+        <div class="blk"><h4>变化小（NaCl）</h4>蒸发结晶<br>蒸发至大量晶体&rarr;趁热过滤</div>
+      </div>
+      <div style="color:#1b77c9;font-weight:800;font-size:18px;margin:2px 0;">&#8595;</div>&#8595; 进一步提纯
+      <div style="background:#fff;border:2px solid #1b77c9;border-radius:10px;padding:8px 16px;font-weight:700;color:#0b3c6e;font-size:14.5px;">重结晶：溶解&rarr;趁热过滤&rarr;冷却结晶&rarr;过滤</div>
+    </div>
+    <table class="tb">
+      <tr><th>方法</th><th>适用</th><th>关键操作</th><th>例子</th></tr>
+      <tr><td><b>冷却结晶</b></td><td>溶解度随温度变化大</td><td>蒸发浓缩&rarr;冷却结晶&rarr;过滤</td><td>KNO&#8323; 中提纯 KNO&#8323;</td></tr>
+      <tr><td><b>蒸发结晶</b></td><td>溶解度随温度变化小</td><td>蒸发至大量晶体&rarr;趁热过滤</td><td>NaCl 中提 NaCl（趁热防 KNO&#8323; 析出）</td></tr>
+      <tr><td><b>重结晶</b></td><td>固体进一步提纯</td><td>溶解&rarr;趁热过滤&rarr;冷却结晶&rarr;过滤</td><td>苯甲酸去泥沙</td></tr>
+    </table>
+
+    <h3 style="font-size:18px;color:#0b3c6e;margin:18px 0 8px;border-left:5px solid #1b77c9;padding-left:10px;">化工流程 &middot; 成分去向与 H&#8322;O&#8322; 双重性</h3>
+    <div class="kv">
+      <div class="blk"><h4>成分去向</h4>酸浸：金属氧化物/活泼金属入液；不活泼金属(如 Cu)、难溶盐(如 PbSO&#8324;)留渣。盯紧隐含氧化还原。</div>
+      <div class="blk"><h4>H&#8322;O&#8322; 双重性</h4>既可作氧化剂(氧化 Pb&#178;&#8314;&rarr;Pb&#8308;&#8314;)也可作还原剂(还原 Pb&#8308;&#8314;&rarr;Pb&#178;&#8314;)，看化合价变化定角色。</div>
+    </div>
+    <div class="memo">&#129504;&#65039; 配平五步：标变价 &rarr; 算升降 &rarr; 定系数 &rarr; 补电荷(酸补 H&#8314;) &rarr; 补原子(补水)。空气/O&#8322; 常把 Fe&#178;&#8314;&rarr;Fe&#179;&#8314;、Mn&#178;&#8314;&rarr;高价，别漏写氧化步。</div>
+  </div>
+
+  <!-- 5 易错点 -->
+  <div class="sec">
+    <div class="sec-head"><div class="sec-num">6</div><div class="sec-title">易错点 Top 10（信号 &rarr; 结论）</div><div class="sec-note">混元 3-hy3 重排，按高频踩坑排序</div></div>
     <div class="err-list">
-      <div class="err-item"><div class="err-no">1</div><p><b>石灰乳与澄清石灰水拆写搞混</b>：悬浊液 Ca(OH)₂ 不拆，澄清液要拆——先看状态再落笔。</p></div>
-      <div class="err-item"><div class="err-no">2</div><p><b>K⁺ 焰色不透过蓝色钴玻璃</b>：黄光干扰看不清紫色；玻璃棒含钠也不能替代铂丝。</p></div>
-      <div class="err-item"><div class="err-no">3</div><p><b>NH₄⁺ 检验用稀碱或不加热</b>：NH₃ 极易溶于水，逸不出来 → 必须浓碱 + 加热。</p></div>
-      <div class="err-item"><div class="err-no">4</div><p><b>检验 SO₄²⁻ 一步到位加 BaCl₂</b>：必须先盐酸酸化再滴 BaCl₂，两步分开，排除 Ag⁺ 等干扰。</p></div>
-      <div class="err-item"><div class="err-no">5</div><p><b>加酸产气区分正盐/酸式盐</b>：CO₃²⁻ 与 HCO₃⁻ 加酸现象完全相同，要靠其他性质判断。</p></div>
-      <div class="err-item"><div class="err-no">6</div><p><b>水电离 c(H⁺) 极小只想到酸性</b>：强酸强碱都抑制电离，pH=1 和 pH=13 两种情况都要验。</p></div>
-      <div class="err-item"><div class="err-no">7</div><p><b>苯酚钠 + CO₂ 讨论用量</b>：产物只看酸性顺序，无论 CO₂ 多少都是 HCO₃⁻。</p></div>
-      <div class="err-item"><div class="err-no">8</div><p><b>H₂O₂ 只当氧化剂</b>：它有双重性，对方降价它氧化、对方升价它还原。</p></div>
-      <div class="err-item"><div class="err-no">9</div><p><b>把「澄清透明」当「无色」</b>：Cu²⁺、Fe³⁺ 等有色离子照样可以共存于澄清溶液。</p></div>
-      <div class="err-item"><div class="err-no">10</div><p><b>铝热反应表述陷阱</b>：反应物是 Al 与 Fe₂O₃，生成 Fe 与 Al₂O₃——「氧化铁和氧化铝发生反应」是错的。</p></div>
+      <div class="err-item"><div class="err-no">1</div><p><b>信号：看到"弱酸制强酸"</b> &rarr; 先想有没有<b>沉淀/气体</b>拽着平衡走（H&#8322;S+CuSO&#8324;、AgNO&#8323;+HCl 才成立）。</p></div>
+      <div class="err-item"><div class="err-no">2</div><p><b>信号：石灰乳 / 澄清石灰水</b> &rarr; 悬浊<b>不拆</b>、澄清<b>拆</b>，漂白粉固体也不拆。</p></div>
+      <div class="err-item"><div class="err-no">3</div><p><b>信号：K&#8314; 焰色</b> &rarr; 必须<b>透过蓝色钴玻璃</b>；玻璃棒含钠会干扰，不能用玻璃棒蘸。</p></div>
+      <div class="err-item"><div class="err-no">4</div><p><b>信号：检验 NH&#8324;&#8314;</b> &rarr; 必须<b>浓 NaOH + 加热</b>，稀碱或常温氨气难逸出。</p></div>
+      <div class="err-item"><div class="err-no">5</div><p><b>信号：检验 SO&#8324;&#178;&#8315;</b> &rarr; 先<b>盐酸酸化</b>再加 BaCl&#8322;，排除 Ag&#8314;/SO&#8323;&#178;&#8315;/CO&#8323;&#178;&#8315; 干扰。</p></div>
+      <div class="err-item"><div class="err-no">6</div><p><b>信号："澄清透明"</b> &rarr; 不等于无色，Cu&#178;&#8314;(蓝)/Fe&#179;&#8314;(黄) 照样可共存。</p></div>
+      <div class="err-item"><div class="err-no">7</div><p><b>信号：水电离[H&#8314;]极低</b> &rarr; 溶液可能<b>强酸也可能强碱</b>，双向都要验。</p></div>
+      <div class="err-item"><div class="err-no">8</div><p><b>信号：CO&#8322; 通入苯酚钠</b> &rarr; 无论是否过量都只得 <b>HCO&#8323;&#8315;</b>（碳酸&gt;苯酚&gt;碳酸氢根）。</p></div>
+      <div class="err-item"><div class="err-no">9</div><p><b>信号：含铵根/氨水配平</b> &rarr; 电荷守恒直接写 <b>NH&#8324;&#8314;</b>，别写 H&#8314;。</p></div>
+      <div class="err-item"><div class="err-no">10</div><p><b>信号：铝热反应表述</b> &rarr; 反应物是 Al 与 Fe&#8322;O&#8323;，"氧化铁和氧化铝发生反应"是错的。</p></div>
     </div>
+  </div>
+
   </div>
 
   <div class="footer-sec">内容依据 · 课堂纪要 09-09 / 09-10 / 09-11 · 整理：小宇 · 生成模型：混元 3-hy3 · 2026-09-12</div>
   </div>
-</div>
 
 <!-- ====== 粘胶带模块（tape overlay） ====== -->
 <!-- ====== 粘胶带：左上状态条 / 右上低频工具栏 / 右下 FAB 模式球 ====== -->
