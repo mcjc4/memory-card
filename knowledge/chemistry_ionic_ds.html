@@ -295,7 +295,83 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
 .poster { position:relative; }
 
 </style>
-  <script type="application/json" id="k-meta">{"fig":"knowledge_chem_ionic_ds","page":"化0003","subject":"化学","chapter":"离子反应","points":["拆写规则","反应类型判断","强弱酸制取特例","量对产物影响","离子检验","离子共存","粗盐提纯","结晶方法"],"methods":["离子方程式书写","实验题","排除法","守恒法"],"tags":["速查手册","🤖 DeepSeek 4.1","🩹 胶带版"],"date":"2026-09-12"}</script>
+  <script type="application/json" id="k-meta">{"fig":"knowledge_chem_ionic_ds","page":"化0003","subject":"化学","chapter":"离子反应","points":["判断能否发生","拆写规则","量的影响","离子检验","离子共存","粗盐提纯","结晶方法","配平与氧化还原","反应类型判断","强弱酸制取特例"],"methods":["离子方程式书写","实验题","排除法","守恒法"],"tags":["速查手册","🤖 DeepSeek 4.1","🎛 互动图例","🩹 胶带版"],"date":"2026-09-12"}</script><style id="ix-style">
+/* ===== IX-CSS-BEGIN · 互动图例（参数可调）===== */
+.ix { background:linear-gradient(180deg,#fbfdff 0%,#f8fbff 100%);
+      border:1px solid #dfe9f4; border-radius:14px;
+      padding:14px 18px 16px; margin:12px 0 6px; }
+.ix-head { display:flex; align-items:center; gap:9px; margin-bottom:5px; flex-wrap:wrap; }
+.ix-badge { font-size:11.5px; font-weight:800; letter-spacing:.5px; color:#fff;
+            background:linear-gradient(135deg,var(--c-main,#145da0),var(--c-light,#1b77c9));
+            border-radius:999px; padding:2px 10px; flex:none; }
+.ix-title { font-size:16px; font-weight:800; color:var(--c-deep,#0b3c6e); }
+.ix-sub { font-size:12.5px; color:#8194a8; line-height:1.75; margin-bottom:10px; }
+.ix-body { display:grid; grid-template-columns:1fr 306px; gap:16px; align-items:start; }
+.ix-stage { background:#fff; border:1px solid #e8eef5; border-radius:12px; padding:6px 8px; }
+.ix-stage.wide { grid-column:1 / -1; }
+.ix-svg { display:block; width:100%; height:auto; }
+.ix-ctrl { display:flex; flex-direction:column; gap:9px; }
+.ix-row { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.ix-row .lab { width:80px; flex:none; font-weight:700; color:#2b4a6b; }
+.ix-row input[type=range] { flex:1; min-width:0; accent-color:var(--c-main,#145da0); height:18px; }
+.ix-row .val { width:66px; flex:none; text-align:right; font-weight:800; color:#0f6e56;
+               font-variant-numeric:tabular-nums; }
+.ix-seg { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:2px; }
+.ix-seg button { font-family:inherit; background:#fff; border:1.5px solid #cfdcea;
+                 border-radius:8px; padding:4px 10px; font-size:12.5px; font-weight:700;
+                 color:#4a6a8f; cursor:pointer; transition:all .16s; }
+.ix-seg button:hover { border-color:var(--c-light,#1b77c9); color:var(--c-deep,#0b3c6e); }
+.ix-seg button.on { background:linear-gradient(135deg,var(--c-main,#145da0),var(--c-light,#1b77c9));
+                    border-color:transparent; color:#fff;
+                    box-shadow:0 2px 8px rgba(20,90,160,.25); }
+.ix-togs { display:flex; flex-wrap:wrap; gap:11px; margin-top:3px; font-size:12.5px; color:#3c5570; }
+.ix-togs label { display:flex; align-items:center; gap:4px; cursor:pointer; }
+.ix-togs input { accent-color:var(--c-main,#145da0); margin:0; }
+.ix-readout { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.ix-chip { background:#eef5ff; border:1px solid #d5e4f7; border-radius:8px;
+           padding:4px 10px; font-size:12.5px; font-weight:600; color:#1d4b7a; line-height:1.5; }
+.ix-chip b { font-weight:800; color:#0b3c6e; font-variant-numeric:tabular-nums; }
+.ix-chip.ok   { background:#e9f8f1; border-color:#c6ead9; color:#0a6b4f; }
+.ix-chip.ok b { color:#075b42; }
+.ix-chip.warn { background:#fff4e5; border-color:#f6dcb2; color:#8a5b12; }
+.ix-chip.warn b { color:#6f4709; }
+.ix-chip.bad  { background:#fdecea; border-color:#f6c9c4; color:#a02a1e; }
+.ix-chip.bad b { color:#86231a; }
+.ix-note { font-size:12.5px; color:#6b7f96; line-height:1.8; margin-top:10px;
+           border-left:3px solid #dfe9f4; padding-left:10px; }
+.ix-note b { color:#2b4a6b; }
+.ix-eq { margin-top:9px; background:#f6f9fd; border:1px dashed #cfdcea; border-radius:10px;
+         padding:9px 12px; font-size:13.5px; color:#1d3a5c; line-height:2; }
+.ix-eq .e { font-weight:800; color:var(--c-deep,#0b3c6e); }
+.ix-eq .muted { color:#7f93a8; font-weight:600; }
+.ix-btn { font-family:inherit; background:linear-gradient(135deg,var(--c-main,#145da0),var(--c-light,#1b77c9));
+          color:#fff; border:none; border-radius:8px; padding:5px 13px; font-size:12.5px;
+          font-weight:700; cursor:pointer; transition:all .16s; }
+.ix-btn:hover { filter:brightness(1.06); }
+.ix-btn.ghost { background:#fff; border:1.5px solid #cfdcea; color:#4a6a8f; }
+.ix-btn.ghost:hover { border-color:var(--c-light,#1b77c9); color:var(--c-deep,#0b3c6e); }
+.ix-btnrow { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:2px; }
+.ix-pool { display:flex; flex-direction:column; gap:7px; }
+.ix-pool-row { display:flex; align-items:flex-start; gap:8px; }
+.ix-pool-lab { flex:none; width:52px; font-size:12px; font-weight:800; color:#8194a8; padding-top:4px; }
+.ix-ion-grid { display:flex; flex-wrap:wrap; gap:6px; flex:1; }
+.ix-ion { font-family:inherit; background:#fff; border:1.5px solid #cfdcea; border-radius:8px;
+          padding:3px 9px; font-size:12.5px; font-weight:700; color:#3c5570; cursor:pointer;
+          transition:all .14s; }
+.ix-ion:hover { border-color:var(--c-light,#1b77c9); }
+.ix-ion.pos.on { background:#eaf3ff; border-color:#5b9bd5; color:#12406b;
+                 box-shadow:inset 0 0 0 1px rgba(27,119,201,.2); }
+.ix-ion.neg.on { background:#fff2e8; border-color:#e2a05c; color:#7a4410;
+                 box-shadow:inset 0 0 0 1px rgba(226,160,92,.25); }
+.ix-conf { margin-top:9px; display:flex; flex-direction:column; gap:5px; }
+.ix-conf div { font-size:12.5px; color:#a02a1e; background:#fdf0ee;
+               border:1px solid #f6d5d0; border-radius:8px; padding:5px 11px; line-height:1.65; }
+.ix-conf div b { color:#84261c; }
+.ix-legend { font-size:12px; color:#8194a8; margin-top:8px; line-height:1.7; }
+@media (max-width:820px) { .ix-body { grid-template-columns:1fr; } }
+/* ===== IX-CSS-END ===== */
+
+</style>
 </head>
 <body>
 <div class="poster">
@@ -305,13 +381,14 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   <div class="header">
     <div class="h-kicker">高三化学 · 一轮复习</div>
     <div class="h-title">离子反应</div>
-    <div class="h-sub">由 DeepSeek 4.1 独立重新分析三讲纪要 —— 以「核心判据 + 六大考区 + IF-THEN 规则卡」重构离子反应知识网络</div>
+    <div class="h-sub">由 DeepSeek 4.1 独立重新分析三讲纪要 —— 以「核心判据 + 六大考区 + IF-THEN 规则卡」重构离子反应知识网络　+ 2 个互动图例</div>
     <div class="h-tags">
       <div class="h-tag">📅 课堂纪要 09-09 / 09-10 / 09-11 三讲整合</div>
       <div class="h-tag">🤖 DeepSeek 4.1 版</div>
       <div class="h-tag">✍️ 拆写与守恒</div>
       <div class="h-tag">🧪 离子检验</div>
       <div class="h-tag">🏭 化工流程与结晶</div>
+      <div class="h-tag">🎛 互动图例</div>
     </div>
   </div>
   <div class="wrap">
@@ -484,6 +561,17 @@ body.tape-mode-browse .tape { touch-action: manipulation; cursor:pointer; }
   </div>
 
   </div>
+
+  <!-- IX-SEC-BEGIN -->
+  <div class="sec">
+    <div class="sec-head"><div class="sec-num">＋</div><div class="sec-title">互动实验室 · 量一变，产物就换脸</div><div class="sec-note">拖比例，看产物翻盘</div></div>
+    <div class="dia-cap">互动 1 ｜ 谁过量谁说了算：量比 r 一拖，产物跟着换</div>
+    <div class="ix" data-ix="chem-ratio"></div>
+    <div class="dia-cap">互动 2 ｜ 离子共存判定器：点一点，看它们打不打架</div>
+    <div class="ix" data-ix="chem-ion"></div>
+  </div>
+
+  <!-- IX-SEC-END -->
 
   <div class="footer-sec">内容依据 · 课堂纪要 09-09 / 09-10 / 09-11 · 整理：小宇 · 生成模型：DeepSeek 4.1 · 2026-09-12</div>
   </div>
@@ -2640,6 +2728,886 @@ window.addEventListener('pagehide', resetFabAfterGesture);
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
+
+</script><script id="ix-js">
+/* ===== IX-JS-BEGIN · 互动图例引擎（参数可调）===== */
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  var FONT = '"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif';
+
+  function S(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    if (attrs) { for (var k in attrs) { e.setAttribute(k, attrs[k]); } }
+    if (parent) { parent.appendChild(e); }
+    return e;
+  }
+  function E(tag, cls, html, parent) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (html != null) { e.innerHTML = html; }
+    if (parent) { parent.appendChild(e); }
+    return e;
+  }
+  function fmt(v, n) {
+    if (n == null) { n = 2; }
+    if (typeof v !== 'number' || !isFinite(v)) { return '—'; }
+    var s = v.toFixed(n);
+    if (s.indexOf('.') >= 0) { s = s.replace(/0+$/, '').replace(/\.$/, ''); }
+    if (s === '-0') { s = '0'; }
+    return s;
+  }
+  function piStr(v) {
+    var qs = [1, 2, 3, 4, 6], i, q, p, pr;
+    for (i = 0; i < qs.length; i++) {
+      q = qs[i]; p = v / Math.PI * q; pr = Math.round(p);
+      if (Math.abs(p - pr) < 0.006) {
+        p = pr;
+        if (p === 0) { return '0'; }
+        var num = (p === 1 ? 'π' : p === -1 ? '-π' : p + 'π');
+        return q === 1 ? num : num + '/' + q;
+      }
+    }
+    return fmt(v, 2);
+  }
+  function txt(parent, x, y, s, size, fill, weight, anchor) {
+    var t = S('text', {
+      x: x, y: y, 'font-size': size || 12.5, fill: fill || '#5F5E5A',
+      'font-weight': weight || 400, 'font-family': FONT,
+      'text-anchor': anchor || 'middle', 'dominant-baseline': 'central'
+    }, parent);
+    t.textContent = s;
+    return t;
+  }
+  function line(parent, x1, y1, x2, y2, stroke, w, dash) {
+    var a = {
+      x1: x1, y1: y1, x2: x2, y2: y2, stroke: stroke || '#c8d4e0',
+      'stroke-width': w == null ? 1 : w, 'stroke-linecap': 'round'
+    };
+    if (dash) { a['stroke-dasharray'] = dash; }
+    return S('line', a, parent);
+  }
+  function rect(parent, x, y, w, h, fill, stroke, rx, sw) {
+    return S('rect', {
+      x: x, y: y, width: w, height: h, rx: rx == null ? 8 : rx,
+      fill: fill || '#fff', stroke: stroke || 'none', 'stroke-width': sw == null ? 1 : sw
+    }, parent);
+  }
+  function arrow(parent, x1, y1, x2, y2, color, w) {
+    var ang = Math.atan2(y2 - y1, x2 - x1), L = 9, a = 0.42;
+    line(parent, x1, y1, x2, y2, color, w == null ? 2 : w);
+    S('path', {
+      d: 'M' + x2 + ' ' + y2 + 'L' + (x2 - L * Math.cos(ang - a)) + ' ' + (y2 - L * Math.sin(ang - a)) +
+         'L' + (x2 - L * Math.cos(ang + a)) + ' ' + (y2 - L * Math.sin(ang + a)) + 'Z',
+      fill: color
+    }, parent);
+  }
+  function shell(root, o) {
+    var head = E('div', 'ix-head', null, root);
+    E('span', 'ix-badge', '互动', head);
+    E('span', 'ix-title', o.title, head);
+    if (o.sub) { E('div', 'ix-sub', o.sub, root); }
+    var body = E('div', 'ix-body', null, root);
+    var stage = E('div', 'ix-stage', null, body);
+    var svg = S('svg', {
+      viewBox: '0 0 ' + o.w + ' ' + o.h, class: 'ix-svg',
+      preserveAspectRatio: 'xMidYMid meet'
+    }, stage);
+    if (o.wide) { stage.classList.add('wide'); }
+    var ctrl = o.noCtrl ? null : E('div', 'ix-ctrl', null, body);
+    return { svg: svg, ctrl: ctrl, body: body, stage: stage };
+  }
+  function slider(ctrl, o) {
+    var row = E('div', 'ix-row', null, ctrl);
+    E('span', 'lab', o.label, row);
+    var inp = E('input', null, null, row);
+    inp.type = 'range'; inp.min = o.min; inp.max = o.max;
+    inp.step = o.step || 0.1; inp.value = o.value;
+    var val = E('span', 'val', '', row);
+    return { row: row, input: inp, val: val };
+  }
+  function segRow(parent, items, cur, onPick) {
+    var wrap = E('div', 'ix-seg', null, parent);
+    var btns = items.map(function (it) {
+      var b = E('button', it.k === cur ? 'on' : '', it.t, wrap);
+      b.addEventListener('click', function () {
+        btns.forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        onPick(it.k);
+      });
+      return b;
+    });
+    return btns;
+  }
+  function togs(ctrl, items) {
+    var wrap = E('div', 'ix-togs', null, ctrl), out = {};
+    items.forEach(function (it) {
+      var lb = E('label', null, null, wrap);
+      var cb = E('input', null, null, lb);
+      cb.type = 'checkbox'; cb.checked = !!it.on;
+      lb.appendChild(document.createTextNode(' ' + it.t));
+      out[it.k] = cb;
+    });
+    return out;
+  }
+  function chipBox(root) { return E('div', 'ix-readout', null, root); }
+  function chip(box, cls, html) { return E('span', 'ix-chip' + (cls ? ' ' + cls : ''), html, box); }
+  function note(root, html) { return E('div', 'ix-note', html, root); }
+  function pathOf(pts) {
+    var d = [], i;
+    for (i = 0; i < pts.length; i++) {
+      d.push((i ? 'L' : 'M') + pts[i][0].toFixed(1) + ' ' + pts[i][1].toFixed(1));
+    }
+    return d.join('');
+  }
+
+  /* ============ 1. 数学 · y = A·sin(ωx+φ) + k 参数实验室 ============ */
+  function initSin(root) {
+    var W = 1000, H = 376, LX = 66, RX = 986, TY = 34, BY = 318, YR = 5.4;
+    var MID = (TY + BY) / 2;
+    var X0 = -2 * Math.PI, X1 = 2 * Math.PI, SPAN = (RX - LX) / (X1 - X0);
+    var st = { A: 1.4, om: 1, ph: 0, k: 0 };
+    var u = shell(root, {
+      w: W, h: H, title: 'y = A·sin(ωx + φ) + k · 参数实验室',
+      sub: '拖四个滑块，看曲线怎么动。灰虚线是基准 y = sin x，用来对照"是谁动了、动的是哪一段"。'
+    });
+    var g = S('g', {}, u.svg);
+    var cA = slider(u.ctrl, { label: 'A 振幅', min: 0.2, max: 3, step: 0.1, value: st.A });
+    var cW = slider(u.ctrl, { label: 'ω 角频率', min: 0.4, max: 3, step: 0.1, value: st.om });
+    var cP = slider(u.ctrl, { label: 'φ 初相', min: -3.14, max: 3.14, step: 0.05, value: st.ph });
+    var cK = slider(u.ctrl, { label: 'k 竖直平移', min: -2, max: 2, step: 0.1, value: st.k });
+    var tg = togs(u.ctrl, [
+      { k: 'axis', t: '对称轴', on: true },
+      { k: 'zero', t: '零点', on: true },
+      { k: 'base', t: '基准 sin x', on: true }
+    ]);
+    var box = chipBox(root);
+    note(root, '口诀：<b>ω 管横向伸缩、φ 管左右平移、A 管纵向伸缩、k 管上下平移</b>。注意 φ 是先平移再伸缩时"' +
+      '要除以 ω"的那一位；曲线图上蓝实线是 y = A·sin(ωx+φ)+k，灰虚线是 y = sin x。');
+
+    function px(x) { return LX + (x - X0) * SPAN; }
+    function py(y) { return MID - y * ((BY - TY) / 2) / YR; }
+
+    function draw() {
+      while (g.firstChild) { g.removeChild(g.firstChild); }
+      var A = st.A, om = st.om, ph = st.ph, k = st.k, i, x, m;
+      // 网格 + 刻度
+      for (x = X0; x <= X1 + 1e-9; x += Math.PI / 2) {
+        var lab = piStr(x);
+        var major = Math.abs(x / Math.PI - Math.round(x / Math.PI)) < 1e-6;
+        line(g, px(x), TY, px(x), BY, major ? '#e6eef7' : '#eff4fa', 1);
+        if (major) { txt(g, px(x), BY + 17, lab, 11.5, '#93a5b8', 500); }
+      }
+      for (i = -5; i <= 5; i++) {
+        if (i === 0) { continue; }
+        line(g, LX, py(i), RX, py(i), '#f1f5fa', 1);
+      }
+      txt(g, LX - 22, py(2), '2', 11, '#93a5b8', 500);
+      txt(g, LX - 22, py(-2), '-2', 11, '#93a5b8', 500);
+      line(g, LX, MID, RX, MID, '#c8d4e0', 1.2);
+      line(g, px(0), TY, px(0), BY, '#c8d4e0', 1.2);
+      txt(g, RX - 4, MID - 12, 'x', 12, '#93a5b8', 600, 'end');
+      txt(g, px(0) + 12, TY + 8, 'y', 12, '#93a5b8', 600, 'start');
+      // 基准 y = sin x
+      if (tg.base.checked) {
+        var bp = [];
+        for (i = 0; i <= 720; i++) {
+          x = X0 + (X1 - X0) * i / 720;
+          bp.push([px(x), py(Math.sin(x))]);
+        }
+        S('path', { d: pathOf(bp), fill: 'none', stroke: '#b9c6d4', 'stroke-width': 1.6,
+          'stroke-dasharray': '5 5' }, g);
+      }
+      // 对称轴
+      if (tg.axis.checked) {
+        for (m = -14; m <= 14; m++) {
+          x = (Math.PI / 2 - ph + m * Math.PI) / om;
+          if (x < X0 || x > X1) { continue; }
+          line(g, px(x), TY + 6, px(x), BY, '#e8a13c', 1.1, '4 4');
+          txt(g, px(x), TY - 8, '轴', 10.5, '#b3761b', 600);
+        }
+      }
+      // 零点
+      if (tg.zero.checked) {
+        for (m = -14; m <= 14; m++) {
+          x = (m * Math.PI - ph) / om;
+          if (x < X0 - 0.01 || x > X1 + 0.01) { continue; }
+          S('circle', { cx: px(x), cy: py(k), r: 3.6, fill: '#e05c5c' }, g);
+          txt(g, px(x), BY + 32, piStr(x), 10.5, '#b34a4a', 600);
+        }
+      }
+      // 主曲线
+      var pts = [];
+      for (i = 0; i <= 900; i++) {
+        x = X0 + (X1 - X0) * i / 900;
+        pts.push([px(x), py(A * Math.sin(om * x + ph) + k)]);
+      }
+      S('path', { d: pathOf(pts), fill: 'none', stroke: '#145da0', 'stroke-width': 2.6,
+        'stroke-linejoin': 'round' }, g);
+      // 最高点 / 最低点
+      var xTop = (Math.PI / 2 - ph) / om, xBot = (-Math.PI / 2 - ph) / om;
+      if (xTop >= X0 && xTop <= X1) {
+        S('circle', { cx: px(xTop), cy: py(A + k), r: 4, fill: '#0f6e56' }, g);
+        txt(g, px(xTop), py(A + k) - 14, fmt(A + k), 11, '#0f6e56', 700);
+      }
+      if (xBot >= X0 && xBot <= X1) {
+        S('circle', { cx: px(xBot), cy: py(-A + k), r: 4, fill: '#0f6e56' }, g);
+        txt(g, px(xBot), py(-A + k) + 15, fmt(-A + k), 11, '#0f6e56', 700);
+      }
+      // 读数
+      box.innerHTML = '';
+      chip(box, 'ok', '周期 T = <b>' + piStr(2 * Math.PI / om) + '</b>');
+      chip(box, null, '最大值 <b>' + fmt(A + k) + '</b> · 最小值 <b>' + fmt(k - A) + '</b>');
+      chip(box, null, '对称轴 x = <b>' + piStr((Math.PI / 2 - ph) / om) + '</b> + k·<b>' + piStr(Math.PI / om) + '</b>');
+      chip(box, null, '零点 x = <b>' + piStr(-ph / om) + '</b> + k·<b>' + piStr(Math.PI / om) + '</b>');
+      chip(box, 'warn', '增区间 [<b>' + piStr((-Math.PI / 2 - ph) / om) + '</b>, <b>' + piStr((Math.PI / 2 - ph) / om) + '</b>] + k·<b>' + piStr(2 * Math.PI / om) + '</b>');
+      cA.val.textContent = fmt(A, 1);
+      cW.val.textContent = fmt(om, 1);
+      cP.val.textContent = piStr(ph);
+      cK.val.textContent = fmt(k, 1);
+    }
+    [cA, cW, cP, cK].forEach(function (c) {
+      c.input.addEventListener('input', function () {
+        st.A = +cA.input.value; st.om = +cW.input.value; st.ph = +cP.input.value; st.k = +cK.input.value;
+        draw();
+      });
+    });
+    Object.keys(tg).forEach(function (k2) { tg[k2].addEventListener('change', draw); });
+    draw();
+  }
+
+  /* ============ 2. 数学 · 解三角形求解器（SSS / SAS / SSA）============ */
+  var D2R = Math.PI / 180;
+  function angOf(a, b, c) {            // 已知三边求角 A（度）
+    var v = (b * b + c * c - a * a) / (2 * b * c);
+    v = Math.max(-1, Math.min(1, v));
+    return Math.acos(v) / D2R;
+  }
+  function solveTri(mode, p) {
+    var out = { sols: [], msg: '', err: '' }, a, b, c, A, x, t, D, ts, kk, s, S2, R;
+    if (mode === 'sss') {
+      a = p.a; b = p.b; c = p.c;
+      if (a + b <= c || a + c <= b || b + c <= a) {
+        out.err = '这三条边组不成三角形：任意两边之和必须大于第三边。';
+        return out;
+      }
+      x = (c * c - b * b + a * a) / (2 * a);          // B=(0,0) C=(a,0)
+      out.sols.push({
+        pts: [[x, Math.sqrt(Math.max(0, c * c - x * x))], [0, 0], [a, 0]],
+        ang: [angOf(a, b, c), angOf(b, c, a), angOf(c, a, b)],
+        side: [a, b, c], why: '三边确定，三角形唯一'
+      });
+    } else if (mode === 'sas') {
+      b = p.b; c = p.c; A = p.A;
+      a = Math.sqrt(b * b + c * c - 2 * b * c * Math.cos(A * D2R));
+      out.sols.push({
+        pts: [[0, 0], [c, 0], [b * Math.cos(A * D2R), b * Math.sin(A * D2R)]],
+        ang: [A, angOf(b, c, a), angOf(c, a, b)],
+        side: [a, b, c], why: '两边一夹角：先用余弦定理求第三边'
+      });
+    } else {                                          // SSA：已知 a、b、A
+      a = p.a; b = p.b; A = p.A;
+      var sinA = Math.sin(A * D2R);
+      D = a * a - b * b * sinA * sinA;
+      if (D < -1e-9) {
+        out.err = '无解：a 太短，射线与圆根本不相交（过不去 C 点）。';
+        return out;
+      }
+      ts = [];
+      if (D <= 1e-9) { t = b * Math.cos(A * D2R); if (t > 1e-6) { ts.push(t); } }
+      else {
+        t = b * Math.cos(A * D2R) - Math.sqrt(D); if (t > 1e-6) { ts.push(t); }
+        t = b * Math.cos(A * D2R) + Math.sqrt(D); if (t > 1e-6) { ts.push(t); }
+      }
+      if (!ts.length) { out.err = '无解：两个交点都落在反向延长线上。'; return out; }
+      ts.sort(function (m, n) { return m - n; });
+      ts.forEach(function (tt, idx) {
+        var P2 = [tt * Math.cos(A * D2R), tt * Math.sin(A * D2R)];
+        var aa = Math.sqrt(Math.pow(P2[0] - b, 2) + P2[1] * P2[1]);   // = a
+        out.sols.push({
+          pts: [[0, 0], P2, [b, 0]],
+          ang: [A, angOf(b, aa, tt), angOf(tt, b, aa)],
+          side: [aa, b, tt],
+          why: ts.length === 2 ? (idx === 0 ? '第一个交点：B 为锐角' : '第二个交点：B 为钝角') : '唯一解'
+        });
+      });
+      if (out.sols.length === 2) { out.msg = '两边一对角且 a < b、A 为锐角 → 双解！只画一个就丢分。'; }
+      else { out.msg = '两边一对角，本例只有一解。'; }
+    }
+    S2 = (out.sols[0].side[0] + out.sols[0].side[1] + out.sols[0].side[2]) / 2;
+    s = S2;
+    out.area = Math.sqrt(Math.max(0, s * (s - out.sols[0].side[0]) * (s - out.sols[0].side[1]) * (s - out.sols[0].side[2])));
+    R = out.sols[0].side[0] / (2 * Math.sin(out.sols[0].ang[0] * D2R));
+    out.R = R;
+    return out;
+  }
+  function initTri(root) {
+    var W = 1000, H = 392;
+    var st = { mode: 'ssa', a: 7, b: 9, c: 8, A: 45 };
+    var u = shell(root, {
+      w: W, h: H, title: '解三角形求解器 · 拖边长和角度，看解的数量怎么变',
+      sub: '三种常见已知条件：三边（SSS）、两边夹角（SAS）、两边一对角（SSA）。三角形是按真实比例实时画出来的。'
+    });
+    var g = S('g', {}, u.svg);
+    var segs = segRow(u.ctrl, [
+      { k: 'sss', t: 'SSS 三边' }, { k: 'sas', t: 'SAS 两边夹角' }, { k: 'ssa', t: 'SSA 两边一对角' }
+    ], 'ssa', function (k) { st.mode = k; draw(); });
+    var sA = slider(u.ctrl, { label: 'a 边', min: 2, max: 12, step: 0.1, value: st.a });
+    var sB = slider(u.ctrl, { label: 'b 边', min: 2, max: 12, step: 0.1, value: st.b });
+    var sC = slider(u.ctrl, { label: 'c 边', min: 2, max: 12, step: 0.1, value: st.c });
+    var sAn = slider(u.ctrl, { label: 'A 角', min: 10, max: 170, step: 1, value: st.A });
+    var box = chipBox(root);
+    var nt = note(root, '');
+    var LAST = { a: 7, b: 9, c: 8 };
+
+    function lbl(s, t) { s.row.firstChild.textContent = t; }
+
+    function syncMode() {
+      var m = st.mode;
+      sA.row.style.display = m === 'sas' ? 'none' : '';
+      sB.row.style.display = '';
+      sC.row.style.display = m === 'ssa' ? 'none' : '';
+      sAn.row.style.display = m === 'sss' ? 'none' : '';
+      if (m === 'sss') { lbl(sA, 'a 边'); lbl(sB, 'b 边'); lbl(sC, 'c 边'); }
+      if (m === 'sas') { lbl(sB, 'b 边'); lbl(sC, 'c 边'); lbl(sAn, 'A 夹角'); }
+      if (m === 'ssa') { lbl(sA, 'a 对边'); lbl(sB, 'b 邻边'); lbl(sAn, 'A 已知角'); }
+    }
+    function draw() {
+      while (g.firstChild) { g.removeChild(g.firstChild); }
+      syncMode();
+      var r = solveTri(st.mode, { a: +sA.input.value, b: +sB.input.value, c: +sC.input.value, A: +sAn.input.value });
+      sA.val.textContent = fmt(+sA.input.value, 1);
+      sB.val.textContent = fmt(+sB.input.value, 1);
+      sC.val.textContent = fmt(+sC.input.value, 1);
+      sAn.val.textContent = fmt(+sAn.input.value, 0) + '°';
+      box.innerHTML = '';
+      if (r.err) {
+        txt(g, W / 2, H / 2, r.err, 16, '#a02a1e', 700);
+        chip(box, 'bad', '<b>' + r.err + '</b>');
+        nt.innerHTML = '把边改长一点、或把角改小一点，就能重新画出来了。';
+        return;
+      }
+      var n = r.sols.length, i, gi;
+      var bw = W / n;
+      r.sols.forEach(function (sol, idx) {
+        var cur;
+        if (n > 1) {
+          rect(g, idx * bw + 6, 8, bw - 12, H - 16, idx ? '#fdf4f0' : '#f2f7fd', idx ? '#f0d3c8' : '#d6e4f2', 12, 1);
+          txt(g, idx * bw + bw / 2, 30, '解 ' + (idx + 1) + ' · ' + sol.why, 13.5, idx ? '#a35a2e' : '#14508f', 800);
+        } else {
+          txt(g, W / 2, 28, sol.why, 13.5, '#14508f', 800);
+        }
+        // 注意：gi 必须在背景框之后创建，否则框会把三角形盖住
+        var gi = S('g', {}, g);
+        var pts = sol.pts, minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+        pts.forEach(function (p) {
+          minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]);
+          miny = Math.min(miny, p[1]); maxy = Math.max(maxy, p[1]);
+        });
+        var bx = idx * bw, pad = 62, bh = H - 62;
+        var sc = Math.min((bw - 2 * pad) / Math.max(0.5, maxx - minx), (bh - 2 * pad) / Math.max(0.5, maxy - miny));
+        var cxm = (minx + maxx) / 2, cym = (miny + maxy) / 2;
+        var MP = function (p) {
+          return [bx + bw / 2 + (p[0] - cxm) * sc, 44 + bh / 2 - (p[1] - cym) * sc];
+        };
+        var P = pts.map(MP);
+        S('path', {
+          d: 'M' + P[0][0] + ' ' + P[0][1] + 'L' + P[1][0] + ' ' + P[1][1] + 'L' + P[2][0] + ' ' + P[2][1] + 'Z',
+          fill: idx ? '#fbe7df' : '#e6eff9', stroke: idx ? '#c0673a' : '#145da0',
+          'stroke-width': 2, 'stroke-linejoin': 'round'
+        }, gi);
+        var NM = ['A', 'B', 'C'], cen = [0, 0];
+        P.forEach(function (p) { cen[0] += p[0] / 3; cen[1] += p[1] / 3; });
+        P.forEach(function (p, j) {
+          S('circle', { cx: p[0], cy: p[1], r: 5, fill: '#fff', stroke: idx ? '#c0673a' : '#145da0', 'stroke-width': 2 }, gi);
+          var vx = p[0] - cen[0], vy = p[1] - cen[1], vl = Math.hypot(vx, vy) || 1;
+          txt(gi, p[0] + vx / vl * 24, p[1] + vy / vl * 24, NM[j], 15, '#20395a', 800);
+          // 角的度数：沿两条边方向内推
+          var o1 = P[(j + 1) % 3], o2 = P[(j + 2) % 3];
+          var d1 = [(o1[0] - p[0]) / (Math.hypot(o1[0] - p[0], o1[1] - p[1]) || 1), (o1[1] - p[1]) / (Math.hypot(o1[0] - p[0], o1[1] - p[1]) || 1)];
+          var d2 = [(o2[0] - p[0]) / (Math.hypot(o2[0] - p[0], o2[1] - p[1]) || 1), (o2[1] - p[1]) / (Math.hypot(o2[0] - p[0], o2[1] - p[1]) || 1)];
+          var mx = (d1[0] + d2[0]) / 2, my = (d1[1] + d2[1]) / 2, ml = Math.hypot(mx, my) || 1;
+          txt(gi, p[0] + mx / ml * 40, p[1] + my / ml * 40, fmt(sol.ang[j], 1) + '°', 12, idx ? '#a35a2e' : '#1d5f9e', 700);
+        });
+        // 边长标注：边 (0,1)=AB 对应 c、(1,2)=BC 对应 a、(2,0)=CA 对应 b
+        [[0, 1, 'c', 2], [1, 2, 'a', 0], [2, 0, 'b', 1]].forEach(function (e) {
+          var p1 = P[e[0]], p2 = P[e[1]];
+          var mx = (p1[0] + p2[0]) / 2, my = (p1[1] + p2[1]) / 2;
+          var vx = mx - cen[0], vy = my - cen[1], vl = Math.hypot(vx, vy) || 1;
+          txt(gi, mx + vx / vl * 25, my + vy / vl * 25, e[2] + '=' + fmt(sol.side[e[3]], 2), 12, '#5b7a99', 600);
+        });
+      });
+      var s0 = r.sols[0];
+      chip(box, r.sols.length > 1 ? 'warn' : 'ok', '解的个数 <b>' + r.sols.length + '</b>');
+      chip(box, null, '面积 S = <b>' + fmt(r.area, 2) + '</b>');
+      chip(box, null, '外接圆 R = <b>' + fmt(r.R, 2) + '</b>');
+      chip(box, null, 'a/sinA = <b>' + fmt(s0.side[0] / Math.sin(s0.ang[0] * D2R), 2) + '</b>（同一三角形内处处相等）');
+      nt.innerHTML = (r.msg ? '<b>' + r.msg + '</b>　' : '') +
+        'SSA 判解口诀：<b>先算 sinB = b·sinA / a</b>；sinB &gt; 1 无解；等于 1 一解；小于 1 再看 —— ' +
+        '若 a &lt; b 且 A 为锐角，则 <b>两解</b>（B 可以锐可以钝），否则一解。';
+    }
+    [sA, sB, sC, sAn].forEach(function (s) { s.input.addEventListener('input', draw); });
+    draw();
+  }
+
+  /* ============ 3. 物理 · 绳索张力与夹角效应 ============ */
+  function initRope(root) {
+    var W = 1000, H = 424, CX = 300, CEIL = 76, L = 154;
+    var st = { th: 60, G: 200 };
+    var u = shell(root, {
+      w: W, h: H, title: '绳张力实验 · 夹角调大一点，绳就"喊救命"了',
+      sub: '两绳对称吊一个重物，只调两绳之间的夹角 θ 和物重 G。右边那条曲线是"每根绳的张力 ÷ 物重"，看它怎么往上冲。'
+    });
+    var g = S('g', {}, u.svg);
+    var sT = slider(u.ctrl, { label: '夹角 θ', min: 20, max: 170, step: 1, value: st.th });
+    var sG = slider(u.ctrl, { label: '物重 G', min: 10, max: 600, step: 5, value: st.G });
+    var box = chipBox(root);
+    note(root, '受力方程只有一行：<b>2T·cos(θ/2) = G</b>，所以 <b>T = G ÷ [2cos(θ/2)]</b>。' +
+      'θ 越大，cos(θ/2) 越小，T 越大 —— 夹角 120° 时 T 就已经等于 G，接近 170° 时 T 会冲到物重的 10 倍以上。' +
+      '所以"绳越长越松"只对竖直吊挂成立；<b>两绳张得越开，绳反而越容易被拉断</b>。');
+
+    function draw() {
+      while (g.firstChild) { g.removeChild(g.firstChild); }
+      var th = st.th, G = st.G, h = th / 2 * D2R;
+      var T = G / (2 * Math.cos(h)), ratio = T / G;
+      var OX = CX, OY = CEIL + L * Math.cos(h);
+      var P1 = [CX - L * Math.sin(h), CEIL], P2 = [CX + L * Math.sin(h), CEIL];
+      // 天花板
+      line(g, 60, CEIL, 560, CEIL, '#b9c6d4', 4);
+      for (var i = 0; i < 26; i++) {
+        line(g, 64 + i * 19.5, CEIL, 54 + i * 19.5, CEIL + 9, '#dfe7ef', 1.5);
+      }
+      // 绳
+      line(g, P1[0], P1[1], OX, OY, '#8a6a2f', 3);
+      line(g, P2[0], P2[1], OX, OY, '#8a6a2f', 3);
+      // 张力箭头
+      var aLen = 30 + 66 * Math.min(ratio / 6, 1);
+      arrow(g, OX, OY, OX + (P2[0] - OX) / L * aLen, OY + (P2[1] - OY) / L * aLen, '#c0392b', 2.5);
+      arrow(g, OX, OY, OX + (P1[0] - OX) / L * aLen, OY + (P1[1] - OY) / L * aLen, '#c0392b', 2.5);
+      // 物块
+      rect(g, OX - 40, OY + 6, 80, 46, '#145da0', '#0b3c6e', 8, 1);
+      txt(g, OX, OY + 29, 'G = ' + fmt(G, 0) + ' N', 14.5, '#fff', 800);
+      arrow(g, OX, OY + 54, OX, OY + 96, '#5b7a99', 2);
+      // 角度弧与标注
+      S('path', {
+        d: 'M' + (CX - 46) + ' ' + (CEIL + 8) + 'A46 46 0 0 0 ' + (CX + 46) + ' ' + (CEIL + 8),
+        fill: 'none', stroke: '#e8a13c', 'stroke-width': 2
+      }, g);
+      txt(g, CX, CEIL + 34, 'θ = ' + th + '°', 13.5, '#a3761b', 800);
+      txt(g, (P1[0] + OX) / 2 - 40, (P1[1] + OY) / 2 - 6, 'T₁ = ' + fmt(T, 1) + ' N', 13, '#b0392b', 800);
+      txt(g, (P2[0] + OX) / 2 + 40, (P2[1] + OY) / 2 - 6, 'T₂ = ' + fmt(T, 1) + ' N', 13, '#b0392b', 800);
+      txt(g, CX, 26, '每根绳的张力 T = G ÷ [2cos(θ/2)]', 14, '#1d3a5c', 800);
+      // ---- 右侧曲线 T/G ----
+      var GX0 = 646, GX1 = 982, GY0 = 74, GY1 = 356, YMAX = 6.2;
+      var mx = function (d) { return GX0 + (d - 20) / 150 * (GX1 - GX0); };
+      var my = function (v) { return GY1 - Math.min(v, YMAX) / YMAX * (GY1 - GY0); };
+      rect(g, GX0 - 46, GY0 - 34, GX1 - GX0 + 62, GY1 - GY0 + 74, '#fbfdff', '#e8eef5', 12, 1);
+      for (var v = 0; v <= 6; v++) {
+        line(g, GX0, my(v), GX1, my(v), v ? '#eef4fa' : '#c8d4e0', 1);
+        txt(g, GX0 - 12, my(v), v + '', 11, '#93a5b8', 500, 'end');
+      }
+      for (var d = 20; d <= 170; d += 30) {
+        line(g, mx(d), GY1, mx(d), GY1 + 4, '#c8d4e0', 1);
+        txt(g, mx(d), GY1 + 18, d + '°', 11, '#93a5b8', 500);
+      }
+      var pts = [];
+      for (d = 20; d <= 178; d += 2) {
+        pts.push([mx(d), my(1 / (2 * Math.cos(d / 2 * D2R)))]);
+      }
+      S('path', { d: pathOf(pts), fill: 'none', stroke: '#c0392b', 'stroke-width': 2.4 }, g);
+      line(g, mx(120), GY0, mx(120), GY1, '#e8a13c', 1.1, '4 4');
+      txt(g, mx(120), GY0 - 12, 'θ=120°：T = G', 11.5, '#a3761b', 700);
+      S('circle', { cx: mx(th), cy: my(ratio), r: 5.5, fill: '#c0392b', stroke: '#fff', 'stroke-width': 2 }, g);
+      txt(g, mx(th) + 10, my(ratio) - 14, 'T/G = ' + fmt(ratio, 2), 12.5, '#b0392b', 800, 'start');
+      txt(g, (GX0 + GX1) / 2, GY0 - 22, '张力倍数 T/G 随夹角变化', 13, '#1d3a5c', 800);
+      txt(g, (GX0 + GX1) / 2, GY1 + 36, '两绳夹角 θ', 12, '#7f93a8', 600);
+      // 读数
+      box.innerHTML = '';
+      chip(box, ratio > 3 ? 'bad' : ratio > 1 ? 'warn' : 'ok', '每根绳 T = <b>' + fmt(T, 1) + ' N</b>');
+      chip(box, null, 'T / G = <b>' + fmt(ratio, 2) + '</b>');
+      chip(box, null, '竖直分力之和 = <b>' + fmt(2 * T * Math.cos(h), 1) + ' N</b>（恒等于 G）');
+      chip(box, ratio > 3 ? 'bad' : 'warn', ratio > 3 ? '夹角过大：绳张力已是物重的 ' + fmt(ratio, 1) + ' 倍' :
+        ratio > 1 ? '已经超过物重，挑绳要留余量' : '张力小于物重，比较安全');
+      sT.val.textContent = th + '°';
+      sG.val.textContent = fmt(G, 0) + ' N';
+    }
+    [sT, sG].forEach(function (s) { s.input.addEventListener('input', function () { st.th = +sT.input.value; st.G = +sG.input.value; draw(); }); });
+    draw();
+  }
+
+  /* @@PART3@@ */
+
+  /* ============ 4. 物理 · 摩擦力 f–F 图 ============ */
+  function initFric(root) {
+    var W = 1000, H = 396, LX = 96, RX = 946, TY = 62, BY = 322, G0 = 10;
+    var st = { m: 4, mu: 0.4, F: 40 };
+    var u = shell(root, {
+      w: W, h: H, title: '摩擦力 f–F 图 · 拖拉力，看它在哪儿"拐弯"',
+      sub: '物块放在水平地面上，拉力 F 从大到小变化。图上是摩擦力 f 随拉力 F 走的整条轨迹，拐点就在 F = μmg。'
+    });
+    var g = S('g', {}, u.svg);
+    var sM = slider(u.ctrl, { label: '质量 m', min: 1, max: 10, step: 0.5, value: st.m });
+    var sU = slider(u.ctrl, { label: '动摩擦因数 μ', min: 0.05, max: 0.8, step: 0.05, value: st.mu });
+    var sF = slider(u.ctrl, { label: '当前拉力 F', min: 0, max: 150, step: 1, value: st.F });
+    var row = E('div', 'ix-btnrow', null, u.ctrl);
+    var bPlay = E('button', 'ix-btn', '▶ 模拟 F 均匀减小', row);
+    var bMax = E('button', 'ix-btn ghost', '回到最大值', row);
+    var box = chipBox(root);
+    note(root, '两段口诀：<b>没滑动时，静摩擦力随拉力同步变（斜线，f = F）；一旦滑起来，滑动摩擦力就锁死在 μmg（水平线）</b>。' +
+      '所以分析"拉力减小"的题，要先问一句 —— 物体<b>现在还在动吗</b>？分界点就是 F = μmg 那一刻。');
+    var playing = false, raf = 0;
+
+    function draw() {
+      while (g.firstChild) { g.removeChild(g.firstChild); }
+      var m = +sM.input.value, mu = +sU.input.value, F = +sF.input.value;
+      var fk = mu * m * G0;
+      var Fmax = Math.max(150, fk * 1.4);
+      var fmax = Math.max(fk * 1.35, 12);
+      var X = function (v) { return LX + v / Fmax * (RX - LX); };
+      var Y = function (v) { return BY - v / fmax * (BY - TY); };
+      // 区域底色
+      rect(g, LX, TY, X(fk) - LX, BY - TY, '#f2f8ff', 'none', 6, 1);
+      rect(g, X(fk), TY, RX - X(fk), BY - TY, '#fdf6f0', 'none', 6, 1);
+      // 网格
+      var step = Fmax / 10, v;
+      for (v = 0; v <= Fmax + 1e-6; v += step) {
+        line(g, X(v), TY, X(v), BY, '#eef4fa', 1);
+        txt(g, X(v), BY + 18, fmt(v, 0), 11, '#93a5b8', 500);
+      }
+      for (v = 0; v <= fmax; v += fmax / 5) {
+        line(g, LX, Y(v), RX, Y(v), '#eef4fa', 1);
+        txt(g, LX - 14, Y(v), fmt(v, 1), 11, '#93a5b8', 500, 'end');
+      }
+      line(g, LX, BY, RX, BY, '#c8d4e0', 1.4);
+      line(g, LX, TY, LX, BY, '#c8d4e0', 1.4);
+      txt(g, RX - 6, BY - 14, '拉力 F / N', 12.5, '#5b7a99', 700, 'end');
+      txt(g, LX + 6, TY - 14, '摩擦力 f / N', 12.5, '#5b7a99', 700, 'start');
+      // 折线
+      S('path', {
+        d: 'M' + X(0) + ' ' + Y(0) + 'L' + X(fk) + ' ' + Y(fk) + 'L' + X(Fmax) + ' ' + Y(fk),
+        fill: 'none', stroke: '#c0392b', 'stroke-width': 3, 'stroke-linejoin': 'round'
+      }, g);
+      // 分界
+      line(g, X(fk), Y(fk), X(fk), BY, '#e8a13c', 1.4, '5 4');
+      line(g, LX, Y(fk), X(fk), Y(fk), '#e8a13c', 1.4, '5 4');
+      txt(g, X(fk) + 8, TY + 16, '拐点 F = μmg = ' + fmt(fk, 1) + ' N', 12.5, '#a3761b', 800, 'start');
+      txt(g, X(fk / 2), TY + 26, '静止段：f = F（斜线）', 12.5, '#1d5f9e', 700);
+      txt(g, (X(fk) + RX) / 2 + 20, TY + 26, '滑动段：f = μmg（水平）', 12.5, '#a35a2e', 700);
+      // 游标
+      var isStatic = F <= fk + 1e-6;
+      var fNow = isStatic ? F : fk;
+      line(g, X(F), TY, X(F), BY, '#145da0', 1.2, '3 3');
+      S('circle', { cx: X(F), cy: Y(fNow), r: 6, fill: '#145da0', stroke: '#fff', 'stroke-width': 2 }, g);
+      txt(g, X(F), Y(fNow) - 20, 'f = ' + fmt(fNow, 1) + ' N', 12.5, '#0b3c6e', 800);
+      txt(g, X(F), BY + 34, 'F = ' + fmt(F, 0) + ' N', 12, '#14508f', 700);
+      // 读数
+      box.innerHTML = '';
+      chip(box, isStatic ? 'ok' : 'warn', isStatic ? '状态：<b>静止</b>（f = F 随拉力同步增大）' : '状态：<b>滑动</b>（f = μmg 锁死不变）');
+      chip(box, null, '最大摩擦力 μmg = <b>' + fmt(fk, 1) + ' N</b>');
+      chip(box, null, '当前 f = <b>' + fmt(fNow, 1) + ' N</b>');
+      chip(box, null, '临界拉力 F* = <b>' + fmt(fk, 1) + ' N</b>');
+      sM.val.textContent = fmt(m, 1) + ' kg';
+      sU.val.textContent = fmt(mu, 2);
+      sF.val.textContent = fmt(F, 0) + ' N';
+    }
+    function stopPlay() { playing = false; if (raf) { cancelAnimationFrame(raf); raf = 0; } bPlay.textContent = '▶ 模拟 F 均匀减小'; }
+    bPlay.addEventListener('click', function () {
+      if (playing) { stopPlay(); return; }
+      playing = true; bPlay.textContent = '❚❚ 暂停';
+      var from = +sF.input.value <= 2 ? 150 : +sF.input.value, t0 = Date.now(), dur = 2600;
+      (function tick() {
+        if (!playing) { return; }
+        var k2 = Math.min(1, (Date.now() - t0) / dur);
+        sF.input.value = from * (1 - k2);
+        draw();
+        if (k2 >= 1) { stopPlay(); return; }
+        raf = requestAnimationFrame(tick);
+      })();
+    });
+    bMax.addEventListener('click', function () { stopPlay(); sF.input.value = 150; draw(); });
+    [sM, sU].forEach(function (s) { s.input.addEventListener('input', draw); });
+    sF.input.addEventListener('input', function () { stopPlay(); draw(); });
+    draw();
+  }
+
+  /* ============ 5. 化学 · 谁过量谁说了算（量比 → 产物）============ */
+  var SYS = {
+    naoh: { t: 'CO₂ 通入 NaOH', rLab: 'n(CO₂) / n(NaOH)', unit: 'n(NaOH) = 1 mol',
+      calc: function (r) {
+        var p = [], eq = [], cl = '', cls = 'ok';
+        if (r <= 0.5) {
+          p.push({ n: 1 - 2 * r, name: 'NaOH（剩余）', c: '#b9c6d4' });
+          p.push({ n: r, name: 'Na₂CO₃', c: '#145da0' });
+          eq = ['CO₂ + 2OH⁻ = CO₃²⁻ + H₂O'];
+          cl = 'OH⁻ 过量 → 只生成 Na₂CO₃';
+        } else if (r < 1) {
+          p.push({ n: 1 - r, name: 'Na₂CO₃', c: '#145da0' });
+          p.push({ n: 2 * r - 1, name: 'NaHCO₃', c: '#0f8b6c' });
+          eq = ['CO₂ + 2OH⁻ = CO₃²⁻ + H₂O（先）', 'CO₃²⁻ + CO₂ + H₂O = 2HCO₃⁻（后）'];
+          cl = '两种产物同时存在，是混合物';
+          cls = 'warn';
+        } else {
+          p.push({ n: 1, name: 'NaHCO₃', c: '#0f8b6c' });
+          if (r > 1) { p.push({ n: r - 1, name: '过量 CO₂（溶解）', c: '#cfe0ef' }); }
+          eq = ['CO₂ + OH⁻ = HCO₃⁻'];
+          cl = 'CO₂ 过量 → 全部转为 NaHCO₃，多余的 CO₂ 逸出';
+        }
+        return { parts: p, eq: eq, concl: cl, cls: cls };
+      } },
+    hcl: { t: '盐酸滴入 Na₂CO₃', rLab: 'n(H⁺) / n(CO₃²⁻)', unit: 'n(CO₃²⁻) = 1 mol',
+      calc: function (r) {
+        var p = [], eq = [], cl = '', cls = 'ok';
+        if (r <= 1) {
+          p.push({ n: 1 - r, name: 'CO₃²⁻（剩余）', c: '#b9c6d4' });
+          p.push({ n: r, name: 'HCO₃⁻', c: '#0f8b6c' });
+          eq = ['H⁺ + CO₃²⁻ = HCO₃⁻'];
+          cl = 'H⁺ 不足 → 只到 HCO₃⁻ 这一站';
+          if (r > 0.9) { cls = 'warn'; }
+        } else if (r < 2) {
+          p.push({ n: 2 - r, name: 'HCO₃⁻', c: '#0f8b6c' });
+          p.push({ n: r - 1, name: 'CO₂（气体）', c: '#e2a05c' });
+          eq = ['H⁺ + CO₃²⁻ = HCO₃⁻（先）', 'HCO₃⁻ + H⁺ = CO₂↑ + H₂O（后）'];
+          cl = '气泡开始冒出，两种产物并存';
+          cls = 'warn';
+        } else {
+          p.push({ n: 1, name: 'CO₂（气体）', c: '#e2a05c' });
+          eq = ['2H⁺ + CO₃²⁻ = CO₂↑ + H₂O'];
+          cl = 'H⁺ 过量 → 全部放出 CO₂';
+        }
+        return { parts: p, eq: eq, concl: cl, cls: cls };
+      } },
+    lime: { t: 'CO₂ 通入澄清石灰水', rLab: 'n(CO₂) / n(Ca(OH)₂)', unit: 'n(Ca(OH)₂) = 1 mol',
+      calc: function (r) {
+        var p = [], eq = [], cl = '', cls = 'ok';
+        if (r <= 1) {
+          p.push({ n: 1 - r, name: 'Ca(OH)₂（剩余）', c: '#b9c6d4' });
+          p.push({ n: r, name: 'CaCO₃ ↓ 沉淀', c: '#145da0' });
+          eq = ['CO₂ + Ca²⁺ + 2OH⁻ = CaCO₃↓ + H₂O'];
+          cl = r < 1 ? '石灰水还有剩余，沉淀量随 CO₂ 增加' : '恰好完全沉淀，沉淀量达到最大';
+          if (r > 0.95) { cls = 'ok'; }
+        } else if (r < 2) {
+          p.push({ n: 2 - r, name: 'CaCO₃ ↓ 沉淀', c: '#145da0' });
+          p.push({ n: r - 1, name: 'Ca(HCO₃)₂（可溶）', c: '#0f8b6c' });
+          eq = ['CO₂ + Ca²⁺ + 2OH⁻ = CaCO₃↓ + H₂O（先）', 'CaCO₃ + CO₂ + H₂O = Ca²⁺ + 2HCO₃⁻（后）'];
+          cl = '沉淀开始溶解 —— 沉淀量先增后减，这是经典考点';
+          cls = 'warn';
+        } else {
+          p.push({ n: 1, name: 'Ca(HCO₃)₂（可溶）', c: '#0f8b6c' });
+          eq = ['CaCO₃ + CO₂ + H₂O = Ca²⁺ + 2HCO₃⁻'];
+          cl = '沉淀全部溶解，溶液重新变澄清';
+        }
+        return { parts: p, eq: eq, concl: cl, cls: cls };
+      } }
+  };
+  function initRatio(root) {
+    var W = 1000, H = 300;
+    var st = { sys: 'naoh', r: 0.75 };
+    var u = shell(root, {
+      w: W, h: H, title: '谁过量谁说了算 · 拖比例，产物跟着换',
+      sub: '同一对反应物，只因为物质的量之比不同，产物就换了模样。拖动滑块看下面的分布条怎么变。'
+    });
+    var g = S('g', {}, u.svg);
+    segRow(u.ctrl, [
+      { k: 'naoh', t: 'CO₂ + NaOH' }, { k: 'hcl', t: 'HCl + Na₂CO₃' }, { k: 'lime', t: 'CO₂ + 石灰水' }
+    ], 'naoh', function (k) { st.sys = k; draw(); });
+    var sR = slider(u.ctrl, { label: '量 比 r', min: 0, max: 2.5, step: 0.05, value: st.r });
+    var row = E('div', 'ix-btnrow', null, u.ctrl);
+    [['r = 0.5', 0.5], ['r = 1', 1], ['r = 1.5', 1.5], ['r = 2', 2]].forEach(function (it) {
+      var b = E('button', 'ix-btn ghost', it[0], row);
+      b.addEventListener('click', function () { sR.input.value = it[1]; st.r = it[1]; draw(); });
+    });
+    var box = chipBox(root);
+    var eqBox = E('div', 'ix-eq', null, root);
+    var nt = note(root, '规律只有一句：<b>谁过量，就往"过量的一方"继续反应到底</b>。所以看到"量不同产物不同"的题，' +
+      '先写<b>分步离子方程式</b>，再把给的物质的量代进比例里，卡在哪个区间就取哪个产物。');
+    function draw() {
+      while (g.firstChild) { g.removeChild(g.firstChild); }
+      var sys = SYS[st.sys], r = +sR.input.value, res = sys.calc(r);
+      sR.row.firstChild.textContent = sys.rLab;
+      sR.val.textContent = fmt(r, 2);
+      var total = 0;
+      res.parts.forEach(function (p) { total += Math.max(0, p.n); });
+      if (total <= 0) { total = 1; }
+      var BX = 60, BW = 880, BY = 118, BH = 62;
+      rect(g, BX, BY, BW, BH, '#f2f6fb', '#e0e8f2', 10, 1);
+      txt(g, BX, 84, '产物分布（' + sys.unit + '）', 13.5, '#1d3a5c', 800, 'start');
+      var cx = BX;
+      res.parts.forEach(function (p) {
+        var w = Math.max(0, p.n) / total * BW;
+        if (w < 1) { return; }
+        rect(g, cx, BY, w, BH, p.c, '#ffffff', 0, 1);
+        if (w > 62) {
+          txt(g, cx + w / 2, BY + BH / 2 - 8, p.name.replace('（剩余）', ''), 12.5,
+            p.c === '#b9c6d4' || p.c === '#cfe0ef' ? '#5b7a99' : '#fff', 800);
+          txt(g, cx + w / 2, BY + BH / 2 + 12, fmt(p.n, 2) + ' mol', 12,
+            p.c === '#b9c6d4' || p.c === '#cfe0ef' ? '#5b7a99' : 'rgba(255,255,255,.88)', 700);
+        }
+        cx += w;
+      });
+      // 图例
+      var lx = BX, ly = BY + BH + 30;
+      res.parts.forEach(function (p) {
+        rect(g, lx, ly - 6, 12, 12, p.c, '#dbe6f0', 3, 1);
+        txt(g, lx + 18, ly, p.name + '  ' + fmt(p.n, 2) + ' mol', 12, '#3c5570', 600, 'start');
+        lx += 34 + (p.name.length * 12 + fmt(p.n, 2).length * 7.5);
+      });
+      box.innerHTML = '';
+      chip(box, res.cls, '结论：<b>' + res.concl + '</b>');
+      chip(box, null, '当前 r = <b>' + fmt(r, 2) + '</b>');
+      eqBox.innerHTML = res.eq.map(function (t, i) {
+        return '<div>' + (res.eq.length > 1 ? '<span class="muted">(' + (i + 1) + ')</span> ' : '') +
+          '<span class="e">' + t + '</span></div>';
+      }).join('');
+    }
+    sR.input.addEventListener('input', draw);
+    draw();
+  }
+
+  /* ============ 6. 化学 · 离子共存判定器 ============ */
+  var IONS = {
+    pos: [['H', 'H⁺'], ['Na', 'Na⁺'], ['K', 'K⁺'], ['NH4', 'NH₄⁺'], ['Ba', 'Ba²⁺'], ['Ca', 'Ca²⁺'],
+      ['Mg', 'Mg²⁺'], ['Al', 'Al³⁺'], ['Fe2', 'Fe²⁺'], ['Fe3', 'Fe³⁺'], ['Cu', 'Cu²⁺'], ['Ag', 'Ag⁺']],
+    neg: [['OH', 'OH⁻'], ['Cl', 'Cl⁻'], ['Br', 'Br⁻'], ['I', 'I⁻'], ['SO4', 'SO₄²⁻'], ['CO3', 'CO₃²⁻'],
+      ['HCO3', 'HCO₃⁻'], ['NO3', 'NO₃⁻'], ['SO3', 'SO₃²⁻'], ['SiO3', 'SiO₃²⁻'], ['AlO2', 'AlO₂⁻'],
+      ['Ac', 'CH₃COO⁻'], ['ClO', 'ClO⁻'], ['MnO4', 'MnO₄⁻'], ['S', 'S²⁻']]
+  };
+  var RULES = [
+    ['Ag', 'Cl', '生成 AgCl 白色沉淀'], ['Ag', 'Br', '生成 AgBr 浅黄色沉淀'], ['Ag', 'I', '生成 AgI 黄色沉淀'],
+    ['Ag', 'OH', '生成 AgOH，随即分解为 Ag₂O'], ['Ag', 'CO3', '生成 Ag₂CO₃ 沉淀'],
+    ['Ag', 'SO4', 'Ag₂SO₄ 微溶，浓度大时不共存'], ['Ag', 'S', '生成 Ag₂S 黑色沉淀'],
+    ['Ag', 'SO3', '生成 Ag₂SO₃ 沉淀'], ['Ag', 'Ac', '生成 CH₃COOAg 沉淀（微溶）'],
+    ['Ba', 'SO4', '生成 BaSO₄ 白色沉淀（不溶于酸）'], ['Ba', 'CO3', '生成 BaCO₃ 白色沉淀'],
+    ['Ba', 'SO3', '生成 BaSO₃ 沉淀'], ['Ba', 'SiO3', '生成 BaSiO₃ 沉淀'],
+    ['Ca', 'CO3', '生成 CaCO₃ 白色沉淀'], ['Ca', 'SO3', '生成 CaSO₃ 沉淀'],
+    ['Ca', 'SiO3', '生成 CaSiO₃ 沉淀'], ['Ca', 'SO4', 'CaSO₄ 微溶，浓度大时不共存'],
+    ['Mg', 'OH', '生成 Mg(OH)₂ 白色沉淀'], ['Mg', 'CO3', '生成碱式碳酸镁沉淀'],
+    ['Mg', 'SiO3', '生成 MgSiO₃ 沉淀'],
+    ['Cu', 'OH', '生成 Cu(OH)₂ 蓝色沉淀'], ['Cu', 'CO3', '生成碱式碳酸铜沉淀'],
+    ['Cu', 'SiO3', '生成 CuSiO₃ 沉淀'], ['Cu', 'AlO2', 'AlO₂⁻ 水解显碱性，生成 Cu(OH)₂ 沉淀'],
+    ['Cu', 'S', '生成 CuS 黑色沉淀'],
+    ['Fe2', 'OH', '生成 Fe(OH)₂ 白色沉淀（迅速变灰绿）'], ['Fe2', 'CO3', '生成 FeCO₃ 沉淀'],
+    ['Fe2', 'SiO3', '生成 FeSiO₃ 沉淀'], ['Fe2', 'AlO2', '双水解，生成 Fe(OH)₂ 与 Al(OH)₃'],
+    ['Fe2', 'S', '生成 FeS 黑色沉淀'],
+    ['Fe3', 'OH', '生成 Fe(OH)₃ 红褐色沉淀'], ['Fe3', 'CO3', '双水解彻底，生成 Fe(OH)₃ 与 CO₂'],
+    ['Fe3', 'HCO3', '双水解彻底，生成 Fe(OH)₃ 与 CO₂'], ['Fe3', 'SiO3', '生成 Fe₂(SiO₃)₃ 沉淀'],
+    ['Fe3', 'AlO2', '双水解彻底，生成 Fe(OH)₃ 与 Al(OH)₃'],
+    ['Fe3', 'I', '2Fe³⁺ + 2I⁻ = 2Fe²⁺ + I₂（氧化还原）'], ['Fe3', 'S', '2Fe³⁺ + S²⁻ = 2Fe²⁺ + S↓'],
+    ['Al', 'OH', '生成 Al(OH)₃ 沉淀（过量 OH⁻ 则溶解）'], ['Al', 'CO3', '双水解彻底，生成 Al(OH)₃ 与 CO₂'],
+    ['Al', 'HCO3', '双水解彻底，生成 Al(OH)₃ 与 CO₂'], ['Al', 'SiO3', '生成 Al₂(SiO₃)₃ 沉淀'],
+    ['Al', 'AlO2', 'Al³⁺ + 3AlO₂⁻ + 6H₂O = 4Al(OH)₃↓'], ['Al', 'S', '双水解，生成 Al(OH)₃ 与 H₂S'],
+    ['NH4', 'OH', '生成 NH₃·H₂O（加热则放出 NH₃）'], ['NH4', 'SiO3', '双水解，生成 H₂SiO₃ 与 NH₃·H₂O'],
+    ['NH4', 'AlO2', '双水解，生成 Al(OH)₃ 与 NH₃·H₂O'],
+    ['H', 'OH', 'H⁺ + OH⁻ = H₂O（弱电解质）'], ['H', 'CO3', 'H⁺ + CO₃²⁻ → HCO₃⁻ → CO₂↑'],
+    ['H', 'HCO3', '生成 CO₂ 气体与水'], ['H', 'SO3', '生成 SO₂ 气体与水'],
+    ['H', 'SiO3', '生成 H₂SiO₃ 白色沉淀'], ['H', 'AlO2', '先生成 Al(OH)₃，过量则溶解'],
+    ['H', 'S', '生成 H₂S 气体'], ['H', 'Ac', '生成弱电解质 CH₃COOH'],
+    ['H', 'ClO', '生成弱电解质 HClO'],
+    ['MnO4', 'I', '酸性下 MnO₄⁻ 氧化 I⁻ 生成 I₂'], ['MnO4', 'Br', '酸性下氧化 Br⁻ 生成 Br₂'],
+    ['MnO4', 'S', '酸性下氧化 S²⁻'], ['MnO4', 'Fe2', '酸性下氧化 Fe²⁺ 为 Fe³⁺'],
+    ['MnO4', 'SO3', '酸性下氧化 SO₃²⁻'], ['MnO4', 'Cl', '酸性下可氧化 Cl⁻ 生成 Cl₂'],
+    ['ClO', 'Fe2', '氧化 Fe²⁺ 为 Fe³⁺'], ['ClO', 'I', '氧化 I⁻ 生成 I₂'],
+    ['ClO', 'S', '氧化 S²⁻'], ['ClO', 'SO3', '氧化 SO₃²⁻'],
+    ['SO3', 'S', '酸性下发生归中反应生成 S 沉淀']
+  ];
+  function initIon(root) {
+    var LAB = {};
+    IONS.pos.concat(IONS.neg).forEach(function (p) { LAB[p[0]] = p[1]; });
+    var sel = { H: 1, Na: 1, Cl: 1, NO3: 1 };
+    var u = shell(root, {
+      w: 1000, h: 120, noCtrl: true,
+      title: '离子共存判定器 · 点离子，看它们打不打架',
+      sub: '把可能共存的离子点亮，下面立刻告诉你能不能大量共存、是谁和谁冲突。'
+    });
+    u.svg.parentNode.style.display = 'none';
+    var pool = E('div', 'ix-pool', null, root);
+    u.body.parentNode.insertBefore(pool, u.body.nextSibling);
+    function poolRow(name, list, cls) {
+      var r = E('div', 'ix-pool-row', null, pool);
+      E('div', 'ix-pool-lab', name, r);
+      var grid = E('div', 'ix-ion-grid', null, r), btns = {};
+      list.forEach(function (p) {
+        var b = E('button', 'ix-ion ' + cls + (sel[p[0]] ? ' on' : ''), p[1], grid);
+        b.addEventListener('click', function () {
+          sel[p[0]] = sel[p[0]] ? 0 : 1;
+          b.classList.toggle('on', !!sel[p[0]]);
+          judge();
+        });
+        btns[p[0]] = b;
+      });
+      return btns;
+    }
+    var BTN = {};
+    [['阳离子', IONS.pos, 'pos'], ['阴离子', IONS.neg, 'neg']].forEach(function (g2) {
+      var sub = poolRow(g2[0], g2[1], g2[2]);
+      Object.keys(sub).forEach(function (k) { BTN[k] = sub[k]; });
+    });
+    var row = E('div', 'ix-btnrow', null, pool);
+    var PRESETS = [
+      ['H⁺ Na⁺ Cl⁻ NO₃⁻（共存）', { H: 1, Na: 1, Cl: 1, NO3: 1 }],
+      ['H⁺ Ba²⁺ SO₄²⁻ Cl⁻（不共存）', { H: 1, Ba: 1, SO4: 1, Cl: 1 }],
+      ['Fe³⁺ K⁺ I⁻ SO₄²⁻（不共存）', { Fe3: 1, K: 1, I: 1, SO4: 1 }],
+      ['Al³⁺ NH₄⁺ HCO₃⁻ Cl⁻（不共存）', { Al: 1, NH4: 1, HCO3: 1, Cl: 1 }],
+      ['Na⁺ Ca²⁺ HCO₃⁻ Cl⁻（共存）', { Na: 1, Ca: 1, HCO3: 1, Cl: 1 }]
+    ];
+    PRESETS.forEach(function (ps) {
+      var b = E('button', 'ix-btn ghost', ps[0], row);
+      b.addEventListener('click', function () {
+        sel = {};
+        Object.keys(ps[1]).forEach(function (k) { sel[k] = 1; });
+        Object.keys(BTN).forEach(function (k) { BTN[k].classList.toggle('on', !!sel[k]); });
+        judge();
+      });
+    });
+    var res = E('div', 'ix-readout', null, pool);
+    var conf = E('div', 'ix-conf', null, pool);
+    E('div', 'ix-legend', '规则说明：只要所选离子中有任何一对能生成沉淀、气体、弱电解质，或能发生氧化还原、双水解，就<b>不能大量共存</b>。' +
+      'MnO₄⁻、ClO⁻ 的氧化性需在酸性条件下考查，题目没给 H⁺ 时按常规判断。', pool);
+    function judge() {
+      var on = Object.keys(sel).filter(function (k) { return sel[k]; });
+      var hits = [];
+      RULES.forEach(function (r) {
+        if (sel[r[0]] && sel[r[1]]) { hits.push(r); }
+        else if (sel[r[1]] && sel[r[0]]) { hits.push([r[0], r[1], r[2]]); }
+      });
+      res.innerHTML = '';
+      conf.innerHTML = '';
+      var names = on.map(function (k) { return LAB[k]; }).join(' ');
+      chip(res, null, '已选 <b>' + on.length + '</b> 种：' + (names || '（还没选）'));
+      if (on.length < 2) {
+        chip(res, 'warn', '至少选两种离子才能判断');
+        return;
+      }
+      if (!hits.length) {
+        chip(res, 'ok', '<b>可以大量共存</b> —— 所选离子两两之间都不反应');
+      } else {
+        chip(res, 'bad', '<b>不能大量共存</b> —— 有 ' + hits.length + ' 对离子要打架');
+        hits.forEach(function (h) {
+          E('div', null, '<b>' + LAB[h[0]] + ' + ' + LAB[h[1]] + '</b>　' + h[2], conf);
+        });
+      }
+    }
+    judge();
+  }
+
+  var MAP = {
+    'math-sin': initSin, 'math-tri': initTri,
+    'phy-rope': initRope, 'phy-fric': initFric,
+    'chem-ratio': initRatio, 'chem-ion': initIon
+  };
+  function boot() {
+    var nodes = document.querySelectorAll('.ix[data-ix]'), i, f;
+    for (i = 0; i < nodes.length; i++) {
+      f = MAP[nodes[i].getAttribute('data-ix')];
+      if (!f || nodes[i].getAttribute('data-ready')) { continue; }
+      nodes[i].setAttribute('data-ready', '1');
+      try { f(nodes[i]); } catch (err) { if (window.console) { console.error('[ix]', err); } }
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else { boot(); }
+})();
+/* ===== IX-JS-END ===== */
 
 </script>
 </body>
