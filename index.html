@@ -5015,14 +5015,14 @@ function flushTime(){
 setInterval(flushTime, 5000);
 /* ===== 停留超时检测 + 周期成果推送 ===== */
 /* ===== 专注保护：切走检测（切标签页/切应用/最小化/切窗口） ===== */
-/* 时长展示格式：分钟数转「X 分 Y 秒」（3.4 分钟 → 3 分 24 秒）；整分钟用「X 分钟」、不足 1 分钟用「X 秒」 */
+/* 时长展示格式：分钟数转「X分Y秒」（3.4 分钟 → 3分24秒）；整分钟用「X分钟」、不足 1 分钟用「X秒」 */
 function fmtDurMin(m){
-  if(!(m > 0)) return '0 分钟';
+  if(!(m > 0)) return '0分钟';
   const totalSec = Math.round(m * 60);
   const mm = Math.floor(totalSec / 60), ss = totalSec % 60;
-  if(mm <= 0) return Math.max(1, ss) + ' 秒';
-  if(ss === 0) return mm + ' 分钟';
-  return mm + ' 分 ' + ss + ' 秒';
+  if(mm <= 0) return Math.max(1, ss) + '秒';
+  if(ss === 0) return mm + '分钟';
+  return mm + '分' + ss + '秒';
 }
 function onGuardLeave(){
   if(!guardCfg.enabled || !isTrainView()) return;   /* 仅训练页启用 */
@@ -5049,7 +5049,7 @@ function onGuardBack(){
     }
     if(guardCfg.pushParent){
       const content = personName() + ' 离开训练页 ' + fmtDurMin(durMin)
-        + '\n今日已离开 ' + guard.count + ' 次，累计 ' + guard.minutes + ' 分钟'
+        + '\n今日已离开 ' + guard.count + ' 次，累计 ' + guard.minutes + '分钟'
         + (guardCfg.interrupt ? '\n已中断本次训练' : '');
       sendWechat('⚠️ ' + personName() + ' 离开训练页', content);
       sendDingtalk(content);
