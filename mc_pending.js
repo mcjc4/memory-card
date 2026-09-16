@@ -175,7 +175,11 @@
       created_at: new Date().toISOString()
     };
     var ins = await _mcCloudWrite(PENDING_TABLE, row);
-    return ins || row;
+    // 云写失败（离线 / RLS / 列缺失等）时 _mcCloudWrite 已把数据兜底进 outbox，
+    // 但必须显式抛出，否则调用方拿到「没有 id 的本地对象」会静默假成功（编辑保存不下来），
+    // 且后续 approvePending 会因 id=undefined 拼出 id=eq.undefined 而 400 失败。
+    if (!ins) throw new Error('云端写入未成功（已缓存本地，联网后自动补传）');
+    return ins;
   }
 
   /* ---------------- 审核动作（通过入库 / 合并 / 拒绝 / 编辑）--------------- */
