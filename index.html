@@ -2677,11 +2677,13 @@ async function importCross(file){
           display: fallbackName,
           items: grp.items.map((it, idx) => Object.assign({}, it, {id: fallbackName + '-imp' + idx + '-' + stamp}))
         };
+        initImportBrowse(fallbackName, grp.items, parseInt(stamp, 36));
         noFilledTotal += autoFillNo(grp.items);
         addedReport.push({name: fallbackName, n: grp.items.length, action: 'new-missing'});
         return;
       }
       grp.items.forEach((it, idx) => it.id = subj + '-imp' + idx + '-' + stamp);
+      initImportBrowse(subj, grp.items, parseInt(stamp, 36));
       if(subjExists(subj)){
         const oldDef = CUSTOM[subj] || IMPORTED[subj] || SUBJECTS[subj];
         const isBuiltin = !!SUBJECTS[subj];
@@ -2760,6 +2762,18 @@ function postFillSubjectNos(name){
   const filled = autoFillNo(d.items);
   if(filled) persistSubject(name);
   return filled;
+}
+
+/* 导入时把「第一次导入时间」写入 browseMeta.lastBrowse（作为最近浏览时间兜底；browsed 仍 false） */
+function initImportBrowse(subj, items, ts){
+  if(!subj || !items || !items.length) return;
+  if(!browseMeta[subj]) browseMeta[subj] = {};
+  const bm = browseMeta[subj];
+  items.forEach(it => {
+    if(!it || !it.id) return;
+    const e = bm[it.id] || (bm[it.id] = {browsed:false, lastBrowse:0});
+    if(!e.lastBrowse) e.lastBrowse = ts;
+  });
 }
 function buildSubject(rows, fileName){
   let headIdx = rows.findIndex(r => r.some(v => String(v).includes('题干信号') || String(v).includes('看到')));
@@ -2936,6 +2950,7 @@ function doImport(){
     /* 生成稳定 id（并入已有科目时统一用目标 key 前缀） */
     const stamp = Date.now().toString(36);
     const items = impParsed.items.map((it, idx) => Object.assign({}, it, {id: target + '-imp' + idx + '-' + stamp}));
+    initImportBrowse(target, items, Date.now());
     const isBuiltin = !!SUBJECTS[target];
     const box = CUSTOM[target] ? CUSTOM : (IMPORTED[target] ? IMPORTED : (isBuiltin ? CUSTOM : IMPORTED));   /* let 变量不可经 window 访问 */
     const oldDef = CUSTOM[target] || IMPORTED[target] || SUBJECTS[target];
