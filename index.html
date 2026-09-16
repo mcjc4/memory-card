@@ -420,6 +420,8 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button id="browseHistoryToolbarBtn" class="browse">📋 浏览历史</button>
     <button id="topicTrainBtn" class="manage">🎯 专题练</button>
     <button id="manageBtn" class="manage">🗂 管理</button>
+    <button id="mistakesBtn" class="browse">📕 错题本</button>
+    <button id="reviewBtn" class="manage">📋 待审入库</button>
     <button id="importBtn" class="add">＋ 导入科目</button>
     <button id="cloudBtn" class="browse">☁ 同步</button>
     <button id="settingsBtn" class="browse">⚙ 设置</button>
@@ -470,6 +472,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button class="btn fail" id="btnFail">没记住</button>
     <button class="btn half" id="btnHalf">模糊</button>
     <button class="btn pass" id="btnPass">记住了</button>
+    <button class="btn add" id="btnMistake" title="把当前这张卡记为错题（录入错题库 + 命中分析）">📕 记错题</button>
   </div>
   <div class="browseActions" id="browseActions" style="display:none">
     <button class="btn" id="btnPrev">← 上一张</button>
@@ -578,6 +581,59 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <button id="mExpCsvBtn">导出 CSV</button>
     </div>
     <div class="manageTable" id="manageTable"></div>
+  </div>
+</div>
+
+<!-- 错题本视图（P2） -->
+<div class="manageWrap" id="viewMistakes" style="display:none">
+  <div class="manageBox">
+    <div class="manageHead">
+      <button id="mistakesBackBtn" class="backBtn">← 返回</button>
+      <h1>错题本 · <span id="mistakesPerson"></span></h1>
+      <span style="margin-left:auto;display:flex;gap:8px">
+        <button id="mistakeProposeBtn" class="addBtn">💡 建议加卡</button>
+        <button id="mistakeAddBtn" class="addBtn">＋ 新增错题</button>
+      </span>
+    </div>
+    <div id="mistakeList" class="manageTable"></div>
+    <div id="mistakeEmpty" style="display:none;color:#9ca3af;font-size:13px;padding:14px"></div>
+  </div>
+</div>
+
+<!-- 待审卡审核视图（P2） -->
+<div class="manageWrap" id="viewReview" style="display:none">
+  <div class="manageBox">
+    <div class="manageHead">
+      <button id="reviewBackBtn" class="backBtn">← 返回</button>
+      <h1>待审卡入库审核</h1>
+      <button id="reviewRefreshBtn" class="addBtn" style="margin-left:auto">🔄 刷新</button>
+    </div>
+    <div id="pendingList" class="manageTable"></div>
+    <div id="pendingEmpty" style="display:none;color:#9ca3af;font-size:13px;padding:14px"></div>
+  </div>
+</div>
+
+<!-- 记录错题 / 建议加卡 弹窗（P2） -->
+<div class="modalMask" id="mistakeModal">
+  <div class="modalBox">
+    <h2><span id="mistakeModalTitle">记录错题</span><span class="x" id="mistakeClose">×</span></h2>
+    <label>科目</label>
+    <select id="mSubject"></select>
+    <label>原题/题干（可选）</label>
+    <textarea id="mQuestion" placeholder="原题题干，便于回溯"></textarea>
+    <label>知识点信号（看到…） <span style="color:#A32D2D">*</span></label>
+    <textarea id="mSig" placeholder="必填，看到什么题干条件"></textarea>
+    <label>知识点结论/易错（想到…） <span style="color:#A32D2D">*</span></label>
+    <textarea id="mConcl" placeholder="必填，想到什么结论/警惕什么"></textarea>
+    <div id="mReasonRow">
+      <label>错误原因</label>
+      <select id="mReason"></select>
+    </div>
+    <div class="modalHint" id="mErr" style="color:#A32D2D;min-height:14px;margin:4px 0"></div>
+    <div class="row2">
+      <button id="mistakeCancel">取消</button>
+      <button id="mistakeSave" class="ok">保存</button>
+    </div>
   </div>
 </div>
 
@@ -2841,6 +2897,218 @@ function applyStableIds(){
     }
   }catch(e){console.warn('[cards v6] applyStableIds failed (local fallback intact):',e);}
 }
+
+/* ============================================================
+   记忆卡 v6 · Phase 2：错题库 + 命中分析 + 待审卡审核
+   - mistakes 表（按执行人分，错因 5 标签，hit_card_id 关联「因不熟做错」）
+   - cards_pending 表（待审卡：source_type∈mistake/manual/tape；review_status pending/approved/rejected）
+   - 命中分析：浏览器侧指纹预筛（归一化 Bigram-Jaccard 同科目候选）；
+     LLM 信号级语义判定（equivalent/partial/new）由生成侧 hit_analyze.py 跑，回填 pending.payload.llm
+   - 云写失败 → 本地 outbox 兜底，启动/联网后自动补传。所有失败均 try/catch 不崩。
+   ============================================================ */
+const MISTAKES_TABLE='mistakes';
+const PENDING_TABLE='cards_pending';
+const WRONG_REASONS=['计算错误','卡片看过但忘记了','审题失误','知道这个卡片但不知道要在这里用','完全不知道有这个套路'];
+async function sbSelect(table, query){
+  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table+'?'+query;
+  const res=await fetchTimeout(url,{method:'GET',headers:sbHeaders(cloudCfg.key)},9000);
+  if(!res.ok) throw new Error('GET '+table+' '+res.status);
+  return res.json();
+}
+async function sbInsert(table, rows){
+  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table;
+  const res=await fetchTimeout(url,{method:'POST',headers:Object.assign(sbHeaders(cloudCfg.key,true),{'Prefer':'return=representation'}),body:JSON.stringify(rows)},12000);
+  if(!res.ok) throw new Error('POST '+table+' '+res.status);
+  return res.json();
+}
+async function sbUpdate(table, patch, query){
+  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table+'?'+query;
+  const res=await fetchTimeout(url,{method:'PATCH',headers:Object.assign(sbHeaders(cloudCfg.key,true),{'Prefer':'return=representation'}),body:JSON.stringify(patch)},12000);
+  if(!res.ok) throw new Error('PATCH '+table+' '+res.status);
+  return res.json();
+}
+function normText(s,c){ return normCard(s)+'|'+normCard(c); }
+function bigramsOf(str){ const g=new Set(); str=String(str||''); for(let i=0;i<str.length-1;i++) g.add(str.substr(i,2)); return g; }
+function jaccard(a,b){ const A=bigramsOf(a),B=bigramsOf(b); if(!A.size||!B.size) return 0; let inter=0; A.forEach(x=>{if(B.has(x))inter++;}); return inter/(A.size+B.size-inter); }
+async function preFilterHit(subj, s, c){
+  let cards=[];
+  try{ cards=await sbSelect(CARDS_TABLE, 'subject=eq.'+encodeURIComponent(subj)+'&select=card_id,signal,conclusion,fingerprint'); }catch(e){ cards=[]; }
+  const txt=normText(s,c); let best=null, bestScore=0;
+  (cards||[]).forEach(r=>{ const fp=normText(r.signal,r.conclusion); const sc=jaccard(txt,fp); if(sc>bestScore){ bestScore=sc; best=r; } });
+  return {card:best, score:bestScore};
+}
+/* 本地 outbox（云写失败兜底，启动/联网后补传） */
+const P2_OUTBOX_KEY='mc_p2_outbox_v1';
+function p2OutboxLoad(){ try{ return JSON.parse(localStorage.getItem(P2_OUTBOX_KEY)||'[]'); }catch(e){ return []; } }
+function p2OutboxSave(a){ try{ localStorage.setItem(P2_OUTBOX_KEY, JSON.stringify(a)); }catch(e){} }
+async function p2CloudWrite(table, row){
+  if(!cloudCfg||!cloudCfg.url||!cloudCfg.key){ const b=p2OutboxLoad(); b.push({table,row}); p2OutboxSave(b); return null; }
+  try{ const ins=await sbInsert(table,[row]); return (ins&&ins[0])?ins[0]:row; }catch(e){ console.warn('[p2] write '+table+' failed, queue:',e); const b=p2OutboxLoad(); b.push({table,row}); p2OutboxSave(b); return null; }
+}
+async function p2FlushOutbox(){
+  const box=p2OutboxLoad(); if(!box.length) return;
+  const remain=[];
+  for(const it of box){ try{ await sbInsert(it.table,[it.row]); }catch(e){ remain.push(it); } }
+  p2OutboxSave(remain);
+  if(box.length-remain.length>0) toast('已补传 '+(box.length-remain.length)+' 条待审数据');
+}
+function mcEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function p2PersonName(){ const p=PERSONS.find(x=>x.key===personKey); return p?p.name:personKey; }
+/* 记录错题 → 指纹预筛 → 命中则关联已有卡，未命中则入待审队列（cards_pending source_type=mistake） */
+async function recordMistake(o){
+  const hit=await preFilterHit(o.subject, o.signal, o.conclusion);
+  let verdict='new', hitCardId='';
+  if(hit.score>=0.55){ verdict='matched'; hitCardId=hit.card.card_id; }
+  else if(hit.score>=0.28){ verdict='partial'; hitCardId=hit.card.card_id; }
+  const mRow={ executor:personKey, subject:o.subject, question:o.question||'', answer:o.answer||'',
+    wrong_reason:o.wrong_reason||'', hit_card_id:hitCardId, hit_verdict:verdict, mastery:'unfamiliar', created_at:new Date().toISOString() };
+  const insM=await p2CloudWrite(MISTAKES_TABLE, mRow);
+  if(verdict==='new'){
+    await p2CloudWrite(PENDING_TABLE, { subject:o.subject, chapter:'', signal:o.signal, conclusion:o.conclusion, src:'', orig:o.question||'',
+      source_type:'mistake', source_id: (insM&&insM.mistake_id!=null)?String(insM.mistake_id):'', payload:{executor:personKey, wrong_reason:o.wrong_reason||'', prefilter_score:hit.score, prefilter_card: hit.card?hit.card.card_id:''}, review_status:'pending' });
+  }
+  return {verdict, hitCardId, hit};
+}
+async function proposeCard(o){
+  await p2CloudWrite(PENDING_TABLE, { subject:o.subject, chapter:'', signal:o.signal, conclusion:o.conclusion, src:'', orig:'',
+    source_type:'manual', source_id:'', payload:{executor:personKey}, review_status:'pending' });
+}
+async function approvePending(p, targetCardId){
+  const cid=targetCardId||cardIdOf(p.subject, p.signal, p.conclusion);
+  await p2CloudWrite(CARDS_TABLE, { card_id:cid, subject:p.subject, chapter:p.chapter||'', signal:p.signal, conclusion:p.conclusion,
+    src:p.src||'', orig:p.orig||'', link:'', status:'active', source_type:p.source_type||'manual', source_id:String(p.id||''),
+    fingerprint:normText(p.signal,p.conclusion), updated_at:new Date().toISOString() });
+  if(p.source_type==='mistake' && p.source_id){ try{ await sbUpdate(MISTAKES_TABLE, {hit_card_id:cid, hit_verdict:'matched'}, 'mistake_id=eq.'+encodeURIComponent(p.source_id)); }catch(e){ console.warn('[p2] backfill mistake failed',e);} }
+  await sbUpdate(PENDING_TABLE, {review_status:'approved', reviewer:p2PersonName(), reviewed_at:new Date().toISOString(), card_id:cid}, 'id=eq.'+p.id);
+}
+async function mergePending(p, targetCardId){
+  if(p.source_type==='mistake' && p.source_id){ try{ await sbUpdate(MISTAKES_TABLE, {hit_card_id:targetCardId, hit_verdict:'partial'}, 'mistake_id=eq.'+encodeURIComponent(p.source_id)); }catch(e){} }
+  await sbUpdate(PENDING_TABLE, {review_status:'approved', reviewer:p2PersonName(), reviewed_at:new Date().toISOString(), card_id:targetCardId}, 'id=eq.'+p.id);
+}
+async function rejectPending(p){
+  await sbUpdate(PENDING_TABLE, {review_status:'rejected', reviewer:p2PersonName(), reviewed_at:new Date().toISOString()}, 'id=eq.'+p.id);
+}
+let P2_CARDS_CACHE=null;
+async function loadCardsCache(){
+  if(P2_CARDS_CACHE) return P2_CARDS_CACHE;
+  try{ P2_CARDS_CACHE=await sbSelect(CARDS_TABLE, 'select=card_id,subject,signal,conclusion'); }catch(e){ P2_CARDS_CACHE=[]; }
+  return P2_CARDS_CACHE;
+}
+let P2_PENDING_MAP={}; let P2_MODE='mistake';
+/* ---------- 错题本视图 ---------- */
+function openMistakes(){ $('mistakesPerson').textContent=p2PersonName(); $('viewMistakes').style.display='block'; renderMistakes(); }
+function closeMistakes(){ $('viewMistakes').style.display='none'; }
+async function renderMistakes(){
+  const list=$('mistakeList'), empty=$('mistakeEmpty');
+  list.innerHTML='<div style="padding:18px;color:#9ca3af">加载中…</div>';
+  let rows=[];
+  try{ rows=await sbSelect(MISTAKES_TABLE, 'executor=eq.'+encodeURIComponent(personKey)+'&order=created_at.desc'); }catch(e){ rows=[]; }
+  if(!rows.length){ list.innerHTML=''; empty.style.display='block'; empty.textContent='暂无错题记录。训练答错时点「📕 记错题」，或点「＋ 新增错题」。'; return; }
+  empty.style.display='none';
+  list.innerHTML=rows.map(m=>{
+    const hit = m.hit_card_id ? ('<span style="color:#0F6E56">命中卡 '+mcEsc(m.hit_card_id)+'（'+(m.hit_verdict||'')+'）· 因不熟做错</span>') : '<span style="color:#A32D2D">未命中 → 已入待审队列</span>';
+    return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fff">'+
+      '<div style="font-size:13px;margin-bottom:4px"><b>'+mcEsc(m.subject)+'</b> · <span style="color:#854F0B">'+mcEsc(m.wrong_reason||'未填错因')+'</span> · '+hit+'</div>'+
+      (m.question?'<div style="font-size:12px;color:#374151;margin:2px 0">'+mcEsc(m.question)+'</div>':'')+
+      (m.answer?'<div style="font-size:12px;color:#6b7280">我的答案：'+mcEsc(m.answer)+'</div>':'')+
+      (m.hit_card_id?'':'<div style="font-size:12px;color:#9ca3af;margin-top:2px">📋 待审卡已生成（含知识点信号/结论）→ 去「待审入库」审核</div>')+
+    '</div>';
+  }).join('');
+}
+/* ---------- 待审卡审核视图 ---------- */
+function closeReview(){ $('viewReview').style.display='none'; }
+async function openReview(){ $('viewReview').style.display='block'; await renderReview(); }
+async function renderReview(){
+  const list=$('pendingList'), empty=$('pendingEmpty');
+  list.innerHTML='<div style="padding:18px;color:#9ca3af">加载中…</div>';
+  await loadCardsCache();
+  let rows=[];
+  try{ rows=await sbSelect(PENDING_TABLE, 'review_status=eq.pending&order=created_at.desc'); }catch(e){ rows=[]; }
+  P2_PENDING_MAP={}; rows.forEach(r=>{ P2_PENDING_MAP[r.id]=r; });
+  if(!rows.length){ list.innerHTML=''; empty.style.display='block'; empty.textContent='队列为空。新错题 / 建议加卡会自动进入此处待你审核入库。'; return; }
+  empty.style.display='none';
+  const bySubj={}; (P2_CARDS_CACHE||[]).forEach(c=>{ (bySubj[c.subject]=bySubj[c.subject]||[]).push(c); });
+  list.innerHTML=rows.map(p=>{
+    const pay=(typeof p.payload==='string')?JSON.parse(p.payload||'{}'):(p.payload||{});
+    const llm=pay.llm;
+    const sug = llm ? ('LLM：'+(llm.verdict||'')+(llm.hit_card_id?(' → '+llm.hit_card_id):'')+(llm.reason?('｜'+llm.reason):''))
+                    : ('指纹预筛：'+(pay.prefilter_score!=null?('分 '+Number(pay.prefilter_score).toFixed(2)):'—')+(pay.prefilter_card?(' 候选用 '+pay.prefilter_card):' 无候选'));
+    const opts=(bySubj[p.subject]||[]).map(c=>'<option value="'+mcEsc(c.card_id)+'">'+mcEsc(c.card_id)+' · '+mcEsc((c.signal||'').slice(0,18))+'</option>').join('');
+    const def=(llm&&llm.hit_card_id)?llm.hit_card_id:(pay.prefilter_card||'');
+    return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fff" id="pend_'+p.id+'">'+
+      '<div style="font-size:13px;margin-bottom:4px"><b>'+mcEsc(p.subject)+'</b> · 来源 '+mcEsc(p.source_type)+' · <span style="color:#0C447C">'+mcEsc(sug)+'</span></div>'+
+      '<div style="font-size:12px;color:#374151;margin:2px 0"><span style="color:#6b7280">信号：</span>'+mcEsc(p.signal)+'</div>'+
+      '<div style="font-size:12px;color:#374151;margin:2px 0"><span style="color:#6b7280">结论：</span>'+mcEsc(p.conclusion)+'</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">'+
+        (opts?'<select id="merge_'+p.id+'" style="font-size:12px;padding:5px 6px;border:1px solid #d1d5db;border-radius:6px;max-width:240px">'+opts+'</select>':'<span style="color:#9ca3af;font-size:12px">无同科卡可合并</span>')+
+        '<button class="ok" data-act="approve" data-id="'+p.id+'" style="background:#3B6D11;color:#fff;border:1px solid #3B6D11;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer">✅ 入库为新卡</button>'+
+        (opts?'<button data-act="merge" data-id="'+p.id+'" style="background:#185FA5;color:#fff;border:1px solid #185FA5;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer">🔗 合并到所选卡</button>':'')+
+        '<button data-act="reject" data-id="'+p.id+'" style="background:#fff;color:#A32D2D;border:1px solid #A32D2D;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer">🗑 丢弃</button>'+
+      '</div></div>';
+  }).join('');
+  rows.forEach(p=>{ const sel=$('merge_'+p.id); if(sel){ const pay=(typeof p.payload==='string')?JSON.parse(p.payload||'{}'):(p.payload||{}); const def=(pay.llm&&pay.llm.hit_card_id)?pay.llm.hit_card_id:(pay.prefilter_card||''); if(def) sel.value=def; } });
+}
+async function onReviewClick(e){
+  const btn=e.target.closest('button[data-act]'); if(!btn) return;
+  const id=Number(btn.getAttribute('data-id')); const act=btn.getAttribute('data-act');
+  const p=P2_PENDING_MAP[id]; if(!p){ toast('记录已失效，请刷新'); return; }
+  btn.disabled=true;
+  try{
+    if(act==='approve'){ await approvePending(p, cardIdOf(p.subject,p.signal,p.conclusion)); toast('已入库为新卡'); }
+    else if(act==='merge'){ const sel=$('merge_'+id); const tid=sel?sel.value:''; if(!tid){ toast('请先选择合并目标卡'); btn.disabled=false; return; } await mergePending(p, tid); toast('已合并到 '+tid); }
+    else if(act==='reject'){ await rejectPending(p); toast('已丢弃'); }
+    await renderReview();
+  }catch(err){ toast('操作失败：'+err.message); btn.disabled=false; }
+}
+/* ---------- 错题 / 建议加卡 弹窗 ---------- */
+function openMistakeModal(prefill, mode){
+  P2_MODE = mode||'mistake';
+  $('mistakeModalTitle').textContent = P2_MODE==='propose' ? '建议加一张卡（待审）' : '记录错题';
+  $('mReasonRow').style.display = P2_MODE==='propose' ? 'none' : '';
+  const subjSel=$('mSubject'); subjSel.innerHTML=SUBJ_NAMES.map(n=>'<option value="'+mcEsc(n)+'">'+mcEsc(n)+'</option>').join('');
+  $('mQuestion').value = prefill ? (''+(prefill.orig||prefill.s||'')) : '';
+  $('mSig').value = prefill ? (prefill.s||'') : '';
+  $('mConcl').value = prefill ? (prefill.c||'') : '';
+  $('mReason').innerHTML = WRONG_REASONS.map(r=>'<option value="'+mcEsc(r)+'">'+mcEsc(r)+'</option>').join('');
+  $('mErr').textContent='';
+  if(prefill&&prefill.subject&&SUBJ_NAMES.indexOf(prefill.subject)>=0) subjSel.value=prefill.subject;
+  $('mistakeModal').classList.add('show');
+}
+function closeMistakeModal(){ $('mistakeModal').classList.remove('show'); }
+async function saveMistake(){
+  const o={ subject:$('mSubject').value, question:$('mQuestion').value.trim(), signal:$('mSig').value.trim(), conclusion:$('mConcl').value.trim(), wrong_reason:$('mReason').value };
+  if(!o.signal||!o.conclusion){ $('mErr').textContent='知识点信号与结论为必填'; return; }
+  try{
+    if(P2_MODE==='propose'){ await proposeCard(o); closeMistakeModal(); toast('已生成待审卡，去「待审入库」审核'); }
+    else{
+      const r=await recordMistake(o); closeMistakeModal();
+      const tip = r.verdict==='matched' ? ('已关联已有卡 '+r.hitCardId+'，体现「因不熟做错」') : (r.verdict==='partial' ? ('部分命中 '+r.hitCardId+'，同时生成待审卡补全') : '未命中已有卡，已生成待审卡待陈总审核入库');
+      toast('错题已记录：'+tip);
+    }
+    if($('viewMistakes').style.display!=='none') renderMistakes();
+  }catch(e){ $('mErr').textContent='保存失败：'+e.message; }
+}
+function currentCardForMistake(){
+  if(pos>=queue.length) return null;
+  const it=itemById(queue[pos]); if(!it) return null;
+  const sn=subjectOfId(it.id); return {subject:sn, s:it.s, c:it.c, orig:it.orig};
+}
+function initP2(){
+  const mb=$('mistakesBtn'); if(mb) mb.addEventListener('click', openMistakes);
+  const rb=$('reviewBtn'); if(rb) rb.addEventListener('click', openReview);
+  const mback=$('mistakesBackBtn'); if(mback) mback.addEventListener('click', closeMistakes);
+  const madd=$('mistakeAddBtn'); if(madd) madd.addEventListener('click', ()=>openMistakeModal(null,'mistake'));
+  const mprop=$('mistakeProposeBtn'); if(mprop) mprop.addEventListener('click', ()=>openMistakeModal(null,'propose'));
+  const rback=$('reviewBackBtn'); if(rback) rback.addEventListener('click', closeReview);
+  const rrefresh=$('reviewRefreshBtn'); if(rrefresh) rrefresh.addEventListener('click', ()=>renderReview());
+  const bm=$('btnMistake'); if(bm) bm.addEventListener('click', ()=>{ const pf=currentCardForMistake(); if(!pf){ toast('当前无训练卡可记'); return; } openMistakeModal(pf,'mistake'); });
+  const msave=$('mistakeSave'); if(msave) msave.addEventListener('click', saveMistake);
+  const mcancel=$('mistakeCancel'); if(mcancel) mcancel.addEventListener('click', closeMistakeModal);
+  const mclose=$('mistakeClose'); if(mclose) mclose.addEventListener('click', closeMistakeModal);
+  const pl=$('pendingList'); if(pl) pl.addEventListener('click', onReviewClick);
+  setTimeout(()=>p2FlushOutbox().catch(()=>{}), 1500);
+}
+
 function cloudDocId(){ return 'jikaka-' + personKey; }   /* 每个执行人独立云端文档 */
 const CLOUD_SYNC_KEY='wulun_cloud_sync_at';
 const DEFAULT_CLOUD_URL='https://mixuqjognbdrafrrlivc.supabase.co';
@@ -4876,6 +5144,7 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
     ttsInitSkip = false;   /* 初始化完成，之后翻卡/展开可自动朗读 */
     snapshotLocal(false);  /* 启动时自动留档（每日一次） */
     bindBakUI();
+    initP2();   /* P2：错题本 / 待审卡审核 事件绑定 + outbox 补传 */
   }catch(e){
     console.error('init failed:', e);
     toast('初始化异常：' + e.message);
