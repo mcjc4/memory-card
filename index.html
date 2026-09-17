@@ -338,6 +338,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button id="dashSettingsBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">⚙ 设置</button>
         <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;min-width:80px;text-align:left">☁ 同步状态</button>
+        <button id="dashCloudMergeBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #bcd6f0;background:#E6F1FB;color:#0C447C;cursor:pointer;min-width:96px;text-align:left">☁ 云端入库卡</button>
         <button id="dashBrowseBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="查看浏览历史（全部学科/全部执行人本机记录）">📋 浏览历史</button>
         <button id="dashCrossTopicBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#E6F1FB;color:#0C447C;cursor:pointer">🎯 跨科专题练</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
@@ -4920,6 +4921,7 @@ $('settingsBtn').addEventListener('click', openSettings);
 /* 仪表盘快捷按钮（设置/同步/导入） */
 $('dashSettingsBtn').addEventListener('click', openSettings);
 $('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(b) b.click(); });
+$('dashCloudMergeBtn').addEventListener('click', () => { const b = $('cloudMergeBtn'); if(b) b.click(); });
 $('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('fileInput').click(); });
 $('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
 $('settingsModalClose').addEventListener('click', () => { $('settingsModal').classList.remove('show'); renderDash(); });
