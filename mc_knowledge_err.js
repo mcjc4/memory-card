@@ -4,17 +4,26 @@
  *   - 审核：通过入库 / 合并 / 拒绝（propose + approvePending/mergePending/rejectPending）
  * 全部经 window.MC（mc_pending.js）写入同一 M 库，source_module='knowledge' source_type='tape'。
  * 依赖：先于本脚本加载 ../mc_pending.js（MC 命名空间）。
+ *
+ * 字段填充（P3-5 补强）：
+ *   - src 出处   = '胶带知识地图 · {subject} · {chapter}（{page}）'
+ *   - link       = 当前页 URL（点「原题链接」可回看知识页），orig = 该易错点原文
+ *   - tags 标签  = k-meta.methods ∪ {#易错}，并继承 k-meta.tags 中的知识点标签
+ *   - source_id  = fig::idx（恒为真实来源标识，不再写成 pending 行 id）
  */
 (function () {
   'use strict';
   if (!window.MC) { console.error('[k-err] MC 组件未加载，请先引入 mc_pending.js'); return; }
 
-  // 读 k-meta（subject / chapter / fig）
+  // 读 k-meta（subject / chapter / fig / page / points / methods / tags / date）
   var meta = {};
   try { var km = document.getElementById('k-meta'); if (km) meta = JSON.parse(km.textContent); } catch (e) { meta = {}; }
   var SUBJECT = meta.subject || '';
   var CHAPTER = meta.chapter || '';
   var FIG = meta.fig || (location.pathname.split('/').pop().replace(/\.html$/, ''));
+  var PAGE = meta.page || '';
+  var METHODS = Array.isArray(meta.methods) ? meta.methods : [];
+  var KM_TAGS = Array.isArray(meta.tags) ? meta.tags : [];
   var SRC_MOD = 'knowledge';
   var SRC_TYP = 'tape';
 
@@ -23,6 +32,15 @@
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m];
     });
   }
+  function dedupe(arr) {
+    var seen = {}, out = [];
+    (arr || []).forEach(function (x) { var k = String(x).trim(); if (k && !seen[k]) { seen[k] = 1; out.push(k); } });
+    return out;
+  }
+  // 该页统一出处（每页只算一次，随 idx 拼锚点用不到，link 用页面 URL）
+  var SRC = '胶带知识地图 · ' + SUBJECT + ' · ' + CHAPTER + (PAGE ? '（' + PAGE + '）' : '');
+  var BASE_URL = (location.href.split('#')[0]);
+
   function parseItem(p) {
     var b = p.querySelector('b');
     var signal = b ? b.textContent.trim().replace(/[：:]\s*$/, '') : (p.textContent.trim().split(/[：:]/)[0] || '');
@@ -34,6 +52,16 @@
     var approved = rows.filter(function (r) { return r.review_status === 'approved'; })[0];
     if (approved) return { state: 'approved', row: approved };
     return { state: 'pending', row: rows[0] };
+  }
+
+  // 构造一条易错点的 propose 元数据（src/link/orig/tags 一并带上）
+  function metaFor(d) {
+    return {
+      src: SRC,
+      link: BASE_URL,
+      orig: d.orig || '',
+      tags: dedupe(METHODS.concat(KM_TAGS).concat(['#易错']))
+    };
   }
 
   async function refresh(actions, d) {
@@ -62,7 +90,10 @@
   function openEdit(actions, d, existingRow) {
     var curSig = existingRow ? existingRow.signal : d.signal;
     var curCon = existingRow ? existingRow.conclusion : d.conclusion;
-    var curTags = existingRow && Array.isArray(existingRow.tags) ? existingRow.tags.join(' ') : '#易错';
+    var curTags = existingRow && Array.isArray(existingRow.tags) ? existingRow.tags.join(' ') : metaFor(d).tags.join(' ');
+    var curSrc = existingRow && existingRow.src ? existingRow.src : metaFor(d).src;
+    var curLink = existingRow && existingRow.link ? existingRow.link : metaFor(d).link;
+    var curOrig = existingRow && existingRow.orig ? existingRow.orig : (d.orig || '');
     var mask = document.createElement('div');
     mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:99998';
     mask.innerHTML =
@@ -74,6 +105,10 @@
         '<textarea id="keCon" style="width:100%;min-height:60px;border:1px solid #d1d5db;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;resize:vertical">' + esc(curCon) + '</textarea>' +
         '<label style="display:block;font-size:12px;color:#6b7280;margin:8px 0 4px">标签 tags（空格分隔，如：易错 高频）</label>' +
         '<input id="keTags" value="' + esc(curTags) + '" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box">' +
+        '<label style="display:block;font-size:12px;color:#6b7280;margin:8px 0 4px">出处 src（自动生成，可改）</label>' +
+        '<input id="keSrc" value="' + esc(curSrc) + '" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box">' +
+        '<label style="display:block;font-size:12px;color:#6b7280;margin:8px 0 4px">原题 orig（自动抓取，可改）</label>' +
+        '<textarea id="keOrig" style="width:100%;min-height:48px;border:1px solid #d1d5db;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;resize:vertical">' + esc(curOrig) + '</textarea>' +
         '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
           '<button id="keCancel" style="border:none;border-radius:8px;padding:6px 12px;font-size:12px;background:#f3f4f6;color:#374151;cursor:pointer">取消</button>' +
           '<button id="keSave" style="border:none;border-radius:8px;padding:6px 12px;font-size:12px;background:#16a34a;color:#fff;cursor:pointer">保存</button>' +
@@ -84,13 +119,17 @@
       var sig = mask.querySelector('#keSig').value.trim();
       var con = mask.querySelector('#keCon').value.trim();
       var tags = mask.querySelector('#keTags').value.trim().split(/\s+/).filter(Boolean);
+      var src = mask.querySelector('#keSrc').value.trim();
+      var link = curLink;
+      var orig = mask.querySelector('#keOrig').value.trim();
       if (!sig || !con) { MC.toast('信号与结论不能为空'); return; }
       try {
         if (existingRow) {
-          await MC.patchPending(existingRow.id, { signal: sig, conclusion: con, tags: tags });
+          await MC.patchPending(existingRow.id, { signal: sig, conclusion: con, tags: tags, src: src, link: link, orig: orig });
           MC.toast('已更新待审卡');
         } else {
-          await MC.propose({ subject: SUBJECT, chapter: CHAPTER, signal: sig, conclusion: con, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: tags });
+          var m = metaFor(d);
+          await MC.propose({ subject: SUBJECT, chapter: CHAPTER, signal: sig, conclusion: con, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: tags, src: src, link: link, orig: orig });
           MC.toast('已提交待审');
         }
         document.body.removeChild(mask);
@@ -117,10 +156,11 @@
     cancel.addEventListener('click', function () { refresh(actions, d); });
     async function ensureRow() {
       if (existingRow) return existingRow;
-      return await MC.propose({ subject: SUBJECT, chapter: CHAPTER, signal: d.signal, conclusion: d.conclusion, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: ['#易错'] });
+      var m = metaFor(d);
+      return await MC.propose({ subject: SUBJECT, chapter: CHAPTER, signal: d.signal, conclusion: d.conclusion, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: m.tags, src: m.src, link: m.link, orig: d.orig });
     }
     pass.addEventListener('click', async function () {
-      try { var row = await ensureRow(); await MC.approvePending(row); MC.toast('已入库'); refresh(actions, d); }
+      try { var row = await ensureRow(); await MC.approvePending(row); MC.toast('已入库 ' + (row.card_id || '')); refresh(actions, d); }
       catch (e) { MC.toast('入库失败：' + e.message); }
     });
     merge.addEventListener('click', async function () {
@@ -142,7 +182,12 @@
       var p = item.querySelector('p');
       if (!p) return;
       var pc = parseItem(p);
-      var d = { subject: SUBJECT, chapter: CHAPTER, signal: pc.signal, conclusion: pc.conclusion, sourceId: FIG + '::' + (i + 1) };
+      var idx = i + 1;
+      var d = {
+        subject: SUBJECT, chapter: CHAPTER, signal: pc.signal, conclusion: pc.conclusion,
+        orig: p.textContent.trim(),
+        sourceId: FIG + '::' + idx
+      };
       var actions = document.createElement('div');
       actions.style.cssText = 'margin-left:auto;display:flex;flex-direction:column;gap:6px;flex:0 0 auto;align-items:flex-end;align-self:center';
       item.appendChild(actions);
