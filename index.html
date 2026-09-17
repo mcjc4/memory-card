@@ -4714,18 +4714,15 @@ let _seedTrainRan = false;
 async function seedTrainHistory(){
   if(_seedTrainRan) return; _seedTrainRan = true;
   try{
-    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,signal,conclusion,chapter,src&limit=500');
+    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,signal,conclusion,chapter,src,updated_at&limit=500');
     if(!rows || !rows.length) return;
     const haveTrain=new Set(browseHistory.filter(e => e && e.mode === '专题练').map(e => e.id));
-    const now=Date.now(); let added=0, needRebuild=false;
+    const now=Date.now(); let stamped=0, histAdded=0, needRebuild=false;
     rows.forEach(r => {
       const cid=r.card_id; if(!cid) return;
       const m=matchLocalCard(r.signal, r.conclusion);
       let useId=cid, subj=cid.split('_')[0]||'数学';
       if(m){ useId=m.id; subj=m.subj; }
-      /* 双 id 兼容：旧版本 seed 只写过云端 id 的记录——云端 id 有记录但映射出的本地 id 没有，
-         仍需为本地 id 补一条（否则「日期范围=今天」筛不出，2026-09-18 实测踩中） */
-      if(haveTrain.has(cid) && haveTrain.has(useId)) return;
       else{
         /* 本地无同内容卡（如作业报告新入库的卡）：注入本地库，保证可训练、可被日期筛出 */
         const store=IMPORTED[subj]||(IMPORTED[subj]={items:[]});
@@ -4734,22 +4731,29 @@ async function seedTrainHistory(){
           needRebuild=true;
         }
       }
-      if(haveTrain.has(useId)) return;
-      haveTrain.add(cid); haveTrain.add(useId);
-      browseHistory.unshift({ts: now, id: useId, mode: '专题练', subject: subj, src: '', t: '加入训练'});
+      /* 核心（用户指定机制）：加入训练 → 该卡「最近浏览时间」= 加入训练时刻（云端 updated_at）。
+         无论该卡此前是否有练习记录，一律把 lastBrowse 提到 ts（max 语义，不回退真实练习时间），
+         否则「日期范围=今天」筛不出今天加入的旧卡（2026-09-18 实测踩中）。 */
+      const ts = r.updated_at ? (new Date(r.updated_at).getTime() || now) : now;
       const bm = browseMeta[subj] || (browseMeta[subj] = {});
       [useId, cid].forEach(k => {
         const mm = bm[k] || {browsed:false, lastBrowse:0};
-        if(now > mm.lastBrowse) mm.lastBrowse = now;
+        if(ts > mm.lastBrowse) mm.lastBrowse = ts;
         bm[k] = mm;
       });
-      added++;
+      stamped++;
+      /* 浏览历史明细行只在两侧 id 都没有训练记录时补一条，避免每次刷新堆重复行 */
+      if(!haveTrain.has(cid) && !haveTrain.has(useId)){
+        haveTrain.add(cid); haveTrain.add(useId);
+        browseHistory.unshift({ts: ts, id: useId, mode: '专题练', subject: subj, src: '', t: '加入训练'});
+        histAdded++;
+      }
     });
-    if(added){
-      if(browseHistory.length > 500) browseHistory.length = 500;
+    if(stamped){
+      if(histAdded && browseHistory.length > 500) browseHistory.length = 500;
       if(needRebuild){ try{ rebuildSubjects(); }catch(eR){} }
       savePerson();
-      try{ refreshTqCount(); }catch(e2){}
+      try{ refreshTqCount(); }catch(e2){}   /* 刷一下专题练匹配数，让日期筛选立即生效 */
     }
   }catch(e){ console.warn('[seed-train] failed:', e); }
 }
