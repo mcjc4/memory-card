@@ -4710,7 +4710,11 @@ async function toggleTqTrain(){
     let dateCleared=false;
     if(dS && dS.value){ dS.value=''; dateCleared=true; }
     if(dE && dE.value){ dE.value=''; dateCleared=true; }
-    hint.textContent=tqTrainIds.size+' 张 · 再点取消' + (mapped?'（含本库映射）':'') + (dateCleared?' · 已清除日期筛选':'');
+    /* 2026-09-18 修复②：学科重置为全部——训练队列跨科目，而「专题练」单科模式默认只选当前科目
+       （如 cur=物理 → 数学的训练卡全被拦掉，匹配数=0、开始训练内容不对）。 */
+    let subjReset=false;
+    if(tqSubjSel.size !== SUBJ_NAMES.length){ tqSubjSel.clear(); SUBJ_NAMES.forEach(n=>tqSubjSel.add(n)); subjReset=true; try{updateTqSubjBtn();}catch(eS){} }
+    hint.textContent=tqTrainIds.size+' 张 · 再点取消' + (mapped?'（含本库映射）':'') + ((dateCleared||subjReset)?' · 已重置日期/学科筛选':'');
     refreshTqCount();
     if(!tqTrainIds.size) hint.textContent='暂无训练卡 · 再点取消';
   }catch(e){ hint.textContent='加载失败：'+(e.message||e); }
