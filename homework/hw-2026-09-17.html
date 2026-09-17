@@ -70,6 +70,11 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
 .ncbadge.ok{color:#2E9E5B}
 .ncbadge.no{color:#C62828}
 .ncbadge.busy{color:#B26A00}
+.rocard{border:1px solid #E3EAF3;background:#FAFCFF;border-radius:12px;padding:12px 14px;margin:4px 0 6px}
+.rocard .rsig,.rocard .rcon{font-size:14.5px;line-height:1.7;color:#1F2D3D;margin:2px 0;word-break:break-word}
+.rocard .rsig b{color:#3B5B80}
+.rocard .rcon b{color:#2E7D5B}
+.rocard .rmeta{font-size:12px;color:#8A94A6;margin-top:5px}
 .panel{background:#fff;border-radius:16px;box-shadow:0 4px 14px rgba(31,45,61,.08);padding:16px 18px;margin:20px 0}
 .foot{font-size:13.5px;color:#8A94A6;text-align:center;margin-top:26px}
 </style>
@@ -536,10 +541,23 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
         if(r.review_status==='approved')w.appendChild(badge('ok','✅ 已入库 '+(r.card_id||'')));
         else if(r.review_status==='rejected')w.appendChild(badge('no','🚫 已驳回'));
         if(done){
-          /* 已处理过的卡：只显示结果徽章，不再渲染编辑/审核按钮（用户指定） */
-          var tip=document.createElement('div');tip.className='ncdone';
-          tip.textContent=r.review_status==='approved'?'该卡已入库，可到记忆卡 App 查看与训练':'该卡已驳回，如需恢复请到记忆卡 App 待审区操作';
-          w.appendChild(tip);
+          /* 已处理过的卡：不渲染编辑/审核按钮，但仍显示卡内容（用户指定 2026-09-18） */
+          var c=document.createElement('div');c.className='rocard';
+          var s=document.createElement('div');s.className='rsig';
+          var sb=document.createElement('b');sb.textContent='信号：';
+          s.appendChild(sb);s.appendChild(document.createTextNode(r.signal||''));
+          var cc=document.createElement('div');cc.className='rcon';
+          var cb=document.createElement('b');cb.textContent='结论：';
+          cc.appendChild(cb);cc.appendChild(document.createTextNode(r.conclusion||''));
+          c.appendChild(s);c.appendChild(cc);
+          var parts=[];
+          if(r.card_id)parts.push('卡号 '+r.card_id);
+          if(r.source_module)parts.push('模块 '+r.source_module);
+          var rsn=r.reject_reason||(r.payload&&r.payload.reject_reason);
+          if(r.review_status==='rejected'&&rsn)parts.push('驳回理由：'+rsn);
+          if(parts.length){var mt=document.createElement('div');mt.className='rmeta';mt.textContent=parts.join(' · ');c.appendChild(mt);}
+          w.appendChild(c);
+          renderLatexIn(c);
           box.appendChild(w);return;
         }
         var qcard=box.closest('.qcard');
