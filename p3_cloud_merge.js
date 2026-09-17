@@ -72,7 +72,10 @@
    *   ② 判重加「指纹 id」兜底：合并后本地卡 id 会被改写成指纹 id，只比云端 id 会导致
    *      同一批卡每次刷新都重新冒出来。
    */
-  var P3_SRC_FILTER = 'source_module=in.(knowledge,courseware)';
+  // 来源白名单：knowledge / courseware / homework 三大模块写入 M 库 cards 表的卡都纳入「云端入库卡」计数与合并。
+  // ⚠️ 2026-09-18 修复：原先只含 (knowledge,courseware)，把作业批改「通过入库」写入的 homework 卡整体排除，
+  //    导致作业报告里加的卡在记忆卡 App 角标/合并里看不见（角标只显示其他模块的待合并数）。补入 homework。
+  var P3_SRC_FILTER = 'source_module=in.(knowledge,courseware,homework)';
 
   // 统计尚未并入的云端卡数量（页面加载时刷新角标）
   async function countUnmerged() {
