@@ -1191,6 +1191,9 @@ function bindPerson(key){
       }
     }
   }catch(eT){ console.warn('[train-log] merge failed:', eT); }
+  /* 训练卡种子回填：等 bindPerson 数据就绪后再跑（与 2.5s 兜底调用幂等，_seedTrainRan 防重入），
+     避免慢设备上 IDB 加载晚于 2.5s 时 seed 的修改被 bindPerson 覆盖。 */
+  setTimeout(function(){ try{ seedTrainHistory(); }catch(eS){} }, 600);
   /* 从 browseHistory 回填 browseMeta：browsed 来自 mode==='审核' 的历史记录；lastBrowse 取最大 ts */
   browseHistory.forEach(e => {
     if(!e || !e.subject || !e.id || !e.ts) return;
@@ -4601,8 +4604,11 @@ function topicQuery(){
   const stSet = tqStatusSel;   /* 空 = 全部状态；非空 = 多选（unt/fail/half/pass 任一命中即保留） */
   const ds = $('tqDateStart').value;
   const de = $('tqDateEnd').value;
-  const dsT = ds ? new Date(ds).getTime() : null;
-  const deT = de ? new Date(de).getTime() + 86399999 : null;
+  /* 时区修复（2026-09-18）：new Date('YYYY-MM-DD') 按 UTC 零点解析（北京 08:00），
+     凌晨打的训练/浏览记录（UTC 前一天 16:00-23:59）会被「开始日期=今天」误排除。
+     改为加 'T00:00:00'/'T23:59:59' 按本地时区解析。 */
+  const dsT = ds ? new Date(ds + 'T00:00:00').getTime() : null;
+  const deT = de ? new Date(de + 'T23:59:59').getTime() : null;
   const srcChecked = tqSrcSel;
   const seen = new Set();
   const res = [];
@@ -4676,7 +4682,9 @@ async function toggleTqTrain(){
 }
 /* 种子回填（2026-09-18）：已打 hw-train 标签但浏览历史里没有「专题练」记录的卡（如旧数据），
    以当前时刻补一条训练记录 → 最近浏览时间=现在 → 日期范围选今天即可筛出（用户指定机制）。 */
+let _seedTrainRan = false;
 async function seedTrainHistory(){
+  if(_seedTrainRan) return; _seedTrainRan = true;
   try{
     const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id&limit=500');
     const ids=(rows||[]).map(r => r.card_id).filter(Boolean);
@@ -4721,8 +4729,9 @@ function getBhFiltered(){
   const modeF = $('bhMode').value;
   const statusF = $('bhStatus').value;   /* all | fail | half | pass */
   const ds = $('bhDateStart').value, de = $('bhDateEnd').value;
-  const dsT = ds ? new Date(ds).getTime() : null;
-  const deT = de ? new Date(de).getTime() + 86399999 : null;
+  /* 时区修复（2026-09-18）：同 topicQuery，按本地时区解析日期边界 */
+  const dsT = ds ? new Date(ds + 'T00:00:00').getTime() : null;
+  const deT = de ? new Date(de + 'T23:59:59').getTime() : null;
   const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean) : [];
   return browseHistory.filter(e => {
     if(subjF && e.subject !== subjF) return false;
