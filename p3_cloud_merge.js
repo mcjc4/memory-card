@@ -26,10 +26,24 @@
     return false;
   }
 
+  /* 来源白名单：只认三大模块「真正产出」的新卡
+   *   knowledge  = 胶带知识地图（易错点审核入库）
+   *   courseware = 解题库（批改作业 / 难题）
+   *
+   * ⚠️ 曾经的坑（2026-09-17 修复）：原条件写的是 `source_module=not.is.null`，但
+   *    本地库镜像到 cards 表的卡（memory-card 自身，见 index.html mirrorCardsToCloud）
+   *    写入时没给 source_module 赋值 → 数据库存成【空字符串 ''】而非 NULL。
+   *    PostgREST 的 `not.is.null` 只排除真正的 NULL，排不掉空串 →
+   *    整个 6000+ 行镜像库全被当成"待入库卡"，
+   *    又撞上 PostgREST 默认 max-rows=1000 截断 → 角标恒定显示 (1000)。
+   *    改为来源白名单后，语义精确，角标 = 真实待合并数（当时为 4）。
+   */
+  var P3_SRC_FILTER = 'source_module=in.(knowledge,courseware)';
+
   // 统计尚未并入的云端卡数量（页面加载时刷新角标）
   async function countUnmerged() {
     try {
-      var rows = await sbSelect('cards', 'source_module=not.is.null&status=eq.active&select=card_id');
+      var rows = await sbSelect('cards', P3_SRC_FILTER + '&status=eq.active&select=card_id&limit=5000');
       var n = 0;
       (rows || []).forEach(function (r) { if (!idExists(r.card_id)) n++; });
       return n;
