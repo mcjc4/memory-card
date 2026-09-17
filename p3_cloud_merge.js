@@ -16,7 +16,7 @@
   function toast(msg) { if (window.MC && MC.toast) MC.toast(msg); else console.log('[cloudMerge] ' + msg); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
-  // 判断某 card_id 是否已在本地任意科目库（避免重复并入）
+  // 判断某卡是否已在本地任意科目库（避免重复并入）
   function idExists(id) {
     var names = Object.keys(SUBJECTS).concat(Object.keys(IMPORTED)).concat(Object.keys(CUSTOM));
     for (var i = 0; i < names.length; i++) {
@@ -24,6 +24,34 @@
       if (def && def.items && def.items.some(function (x) { return x.id === id; })) return true;
     }
     return false;
+  }
+
+  /* 本地卡 id 全集 —— 一次构建，供批量判重
+   * ⚠️ 为什么不能只比云端 card_id：本地卡 id 会在每次页面加载时被 index.html 的
+   *    applyStableIds() 统一改写成「稳定指纹 id」（cardIdOf = 科目_sha1(科目|信号|结论)[0:10]），
+   *    而知识页入库写入的云端 card_id 是入库时另算的（形如 化学_090073ae56）。
+   *    合并后下一次刷新 id 就变了 → 只比云端 id 会「永远认为没并入过」。
+   *    故这里同时收录「当前 id」，判重时再按指纹 id 兜底（见 isLocal）。 */
+  function localIdSet() {
+    var set = new Set();
+    var names = Object.keys(SUBJECTS).concat(Object.keys(IMPORTED)).concat(Object.keys(CUSTOM));
+    names.forEach(function (n) {
+      var def = CUSTOM[n] || IMPORTED[n] || SUBJECTS[n];
+      if (!def || !def.items) return;
+      def.items.forEach(function (x) { if (x && x.id) set.add(x.id); });
+    });
+    return set;
+  }
+  /* 调页面同款算法算稳定指纹 id（拿不到就返回 null，退化为只比云端 id） */
+  function fingerprintOf(subj, s, c) {
+    try { return (typeof cardIdOf === 'function') ? cardIdOf(subj || '', s || '', c || '') : null; }
+    catch (e) { return null; }
+  }
+  /* 是否已在本机：先比云端 id，再比指纹 id */
+  function isLocal(set, id, subj, s, c) {
+    if (set.has(id)) return true;
+    var fp = fingerprintOf(subj, s, c);
+    return !!(fp && set.has(fp));
   }
 
   /* 来源白名单：只认三大模块「真正产出」的新卡
@@ -37,15 +65,21 @@
    *    整个 6000+ 行镜像库全被当成"待入库卡"，
    *    又撞上 PostgREST 默认 max-rows=1000 截断 → 角标恒定显示 (1000)。
    *    改为来源白名单后，语义精确，角标 = 真实待合并数（当时为 4）。
+   *
+   * v3（2026-09-17）：
+   *   ① 角标修了、但「预览核对」弹窗仍列 1000 张 —— 因为 fetchCandidates() 那一处
+   *      漏改，还在用旧的 not.is.null。本次两处统一走 P3_SRC_FILTER。
+   *   ② 判重加「指纹 id」兜底：合并后本地卡 id 会被改写成指纹 id，只比云端 id 会导致
+   *      同一批卡每次刷新都重新冒出来。
    */
   var P3_SRC_FILTER = 'source_module=in.(knowledge,courseware)';
 
   // 统计尚未并入的云端卡数量（页面加载时刷新角标）
   async function countUnmerged() {
     try {
-      var rows = await sbSelect('cards', P3_SRC_FILTER + '&status=eq.active&select=card_id&limit=5000');
-      var n = 0;
-      (rows || []).forEach(function (r) { if (!idExists(r.card_id)) n++; });
+      var rows = await sbSelect('cards', P3_SRC_FILTER + '&status=eq.active&select=card_id,subject,signal,conclusion&limit=5000');
+      var set = localIdSet(), n = 0;
+      (rows || []).forEach(function (r) { if (!isLocal(set, r.card_id, r.subject, r.signal, r.conclusion)) n++; });
       return n;
     } catch (e) { return -1; }
   }
@@ -60,23 +94,27 @@
     setMergeLabel(document.getElementById('dashCloudMergeBtn'), n); /* 首页看板按钮同步角标 */
   }
 
-  // 取待合并候选（去重 + 转成本地 rec，带上 subject）
+  /* 取待合并候选（去重 + 转成本地 rec，带上 subject）
+   * 并入时把本地 id 直接定为「指纹 id」（见 commit），与 applyStableIds 保持一致，
+   * 这样合并完当次就能在库里按新 id 找到，且下次刷新 id 不会再漂移。 */
   async function fetchCandidates() {
     var rows = await sbSelect('cards',
-      'source_module=not.is.null&status=eq.active' +
+      P3_SRC_FILTER + '&status=eq.active' +
       '&select=card_id,subject,chapter,signal,conclusion,src,link,orig,tags,source_module,source_type,source_id,status,created_at' +
       '&limit=5000');
-    var list = [], seen = new Set();
+    var list = [], seen = new Set(), set = localIdSet();
     (rows || []).forEach(function (r) {
       if (!r.subject || !r.card_id) return;
-      if (idExists(r.card_id) || seen.has(r.card_id)) return;
+      if (isLocal(set, r.card_id, r.subject, r.signal, r.conclusion) || seen.has(r.card_id)) return;
       seen.add(r.card_id);
+      var localId = fingerprintOf(r.subject, r.signal, r.conclusion) || r.card_id;
       list.push({
         card_id: r.card_id,
+        local_id: localId,
         subject: r.subject,
         ts: Date.parse(r.created_at) || Date.now(),
         rec: {
-          id: r.card_id,
+          id: localId,
           t: r.chapter || '未分类',
           s: r.signal || '',
           c: r.conclusion || '',
