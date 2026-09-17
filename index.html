@@ -2924,7 +2924,7 @@ function collectAllItems(){const all=[];const collect=(subj,def)=>{if(def&&def.i
 async function mirrorCardsToCloud(items){
   const seen={};const rows=[];
   items.forEach(({subj,it})=>{const cid=it.id;if(seen[cid])return;seen[cid]=1;
-    rows.push({card_id:cid,subject:subj,chapter:it.t||'',signal:it.s||'',conclusion:it.c||'',src:it.src||'',orig:it.orig||'',link:it.link||'',status:'active',source_type:'legacy',source_id:'',fingerprint:subj+'|'+normCard(it.s||'')+'|'+normCard(it.c||''),updated_at:new Date().toISOString()});});
+    rows.push({card_id:cid,subject:subj,chapter:it.t||'',signal:it.s||'',conclusion:it.c||'',src:it.src||'',orig:it.orig||'',link:it.link||'',status:'active',source_module:'memory-card',source_type:'legacy',source_id:'',fingerprint:subj+'|'+normCard(it.s||'')+'|'+normCard(it.c||''),updated_at:new Date().toISOString()});});
   if(!rows.length)return;
   for(let i=0;i<rows.length;i+=500){await upsertCardRows(rows.slice(i,i+500));}
 }
