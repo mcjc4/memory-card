@@ -98,9 +98,14 @@
    * 并入时把本地 id 直接定为「指纹 id」（见 commit），与 applyStableIds 保持一致，
    * 这样合并完当次就能在库里按新 id 找到，且下次刷新 id 不会再漂移。 */
   async function fetchCandidates() {
+    /* no/note 两列是后补的（add_cards_no_note.sql），执行前选择投影里不能含它们，否则整条查询 400。
+     * 故先探测列是否存在，再决定 select 是否追加 no,note（与 index.html 的 cardsHasNoteCols 同源）。 */
+    var hasNote = false;
+    try { hasNote = !!(typeof cardsHasNoteCols === 'function' && (await cardsHasNoteCols())); } catch (e) { hasNote = false; }
+    var sel = 'card_id,subject,chapter,signal,conclusion,src,link,orig,tags,source_module,source_type,source_id,status,created_at' + (hasNote ? ',no,note' : '');
     var rows = await sbSelect('cards',
       P3_SRC_FILTER + '&status=eq.active' +
-      '&select=card_id,subject,chapter,signal,conclusion,src,link,orig,tags,source_module,source_type,source_id,status,created_at' +
+      '&select=' + encodeURIComponent(sel) +
       '&limit=5000');
     var list = [], seen = new Set(), set = localIdSet();
     (rows || []).forEach(function (r) {
@@ -121,6 +126,8 @@
           src: r.src || '',
           link: r.link || '',
           orig: r.orig || '',
+          no: hasNote ? (r.no || '') : '',
+          note: hasNote ? (r.note || '') : '',
           tags: Array.isArray(r.tags) ? r.tags : [],
           status: 0
         }
@@ -192,6 +199,8 @@
         (c.src ? '<div class="row"><span class="lbl">出处</span>' + esc(c.src) + '</div>' : '') +
         (c.link ? '<div class="row"><span class="lbl">链接</span><a href="' + esc(c.link) + '" target="_blank">' + esc(c.link) + '</a></div>' : '') +
         (c.orig ? '<div class="row"><span class="lbl">原题</span>' + esc(c.orig) + '</div>' : '') +
+        (c.no ? '<div class="row"><span class="lbl">编号</span>' + esc(c.no) + '</div>' : '') +
+        (c.note ? '<div class="row"><span class="lbl">备注</span>' + esc(c.note) + '</div>' : '') +
         (tags ? '<div class="tags">' + tags + '</div>' : '') +
       '</div>';
     }
