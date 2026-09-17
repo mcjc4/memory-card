@@ -36,10 +36,14 @@
     } catch (e) { return -1; }
   }
 
-  async function updateBadge() {
-    var b = elBtn(); if (!b) return;
-    var n = await countUnmerged();
+  function setMergeLabel(b, n) {
+    if (!b) return;
     b.textContent = (n > 0 ? '☁ 云端入库卡 (' + n + ')' : '☁ 云端入库卡');
+  }
+  async function updateBadge() {
+    var n = await countUnmerged();
+    setMergeLabel(elBtn(), n);
+    setMergeLabel(document.getElementById('dashCloudMergeBtn'), n); /* 首页看板按钮同步角标 */
   }
 
   // 取待合并候选（去重 + 转成本地 rec，带上 subject）
@@ -261,10 +265,7 @@
     updateBadgeBtnText();
   }
   function updateBadgeBtnText() {
-    var b = elBtn(); if (!b) return;
-    countUnmerged().then(function (n) {
-      b.textContent = (n > 0 ? '☁ 云端入库卡 (' + n + ')' : '☁ 云端入库卡');
-    }).catch(function () {});
+    updateBadge();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
