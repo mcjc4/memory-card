@@ -2938,6 +2938,11 @@ function applyStableIds(){
     all.forEach(({subj,it})=>{if(it&&it.id){const nid=cardIdOf(subj,it.s,it.c);map[it.id]=nid;it.id=nid;}});
     const worse=(a,b)=>{const r=v=>(v===2?3:v===3?2:1);return r(a)>=r(b)?a:b;};
     PERSONS.forEach(p=>{const d=PERSON_STORE[p.key];if(!d)return;['state','lastRes','browseMeta'].forEach(field=>{const obj=d[field];if(!obj)return;Object.keys(obj).forEach(subj=>{const neo={};Object.keys(obj[subj]||{}).forEach(oldId=>{const nid=map[oldId];if(!nid){neo[oldId]=obj[subj][oldId];return;}if(oldId===nid){neo[nid]=obj[subj][oldId];return;}if(neo[nid]===undefined)neo[nid]=obj[subj][oldId];else neo[nid]=field==='lastRes'?(obj[subj][oldId].ts>(neo[nid].ts||0)?obj[subj][oldId]:neo[nid]):worse(neo[nid],obj[subj][oldId]);});obj[subj]=neo;});});});
+    /* 浏览历史(browseHistory)里的 id 也必须跟着重映射：漏了这一步，只要卡片 id 一变
+       （v6 首次迁移把 genId 乱码 id 换成指纹 id、或云端入库卡合并后 id 被改写），
+       历史记录就指向一个不存在的 id → 浏览历史里整片显示「(卡片已删除)」，看着像"空卡片"。
+       卡片库跨执行人共享，故 map 对全部执行人都有效。（2026-09-17 修复） */
+    PERSONS.forEach(p=>{const d=PERSON_STORE[p.key];if(!d||!Array.isArray(d.browseHistory))return;d.browseHistory.forEach(e=>{if(e&&e.id&&map[e.id])e.id=map[e.id];});});
     if(localStorage.getItem('CARDS_V6_MIGRATED')!=='1'){
       localStorage.setItem('CARDS_V6_MIGRATED','1');
       saveJ(CARDS_IMPORTED_KEY,IMPORTED);saveJ(CARDS_CUSTOM_KEY,CUSTOM);savePerson();
