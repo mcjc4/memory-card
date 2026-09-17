@@ -188,7 +188,7 @@
     await _mcCloudWrite(CARDS_TABLE, {
       card_id: cid, subject: p.subject, chapter: p.chapter || '', signal: p.signal, conclusion: p.conclusion,
       src: p.src || '', orig: p.orig || '', link: p.link || '', status: 'active',
-      source_module: p.source_module || '', source_type: p.source_type || 'manual', source_id: String(p.id || ''),
+      source_module: p.source_module || '', source_type: p.source_type || 'manual', source_id: p.source_id || String(p.id || ''),
       tags: Array.isArray(p.tags) ? p.tags : [],
       fingerprint: _mcNormText(p.signal, p.conclusion), updated_at: new Date().toISOString()
     });
