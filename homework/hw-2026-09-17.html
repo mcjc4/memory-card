@@ -432,7 +432,23 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   var SB={url:'https://mixuqjognbdrafrrlivc.supabase.co',key:'sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX',TAG:'hw-train'};
   function sbHeaders(ct){var h={'apikey':SB.key,'Authorization':'Bearer '+SB.key};if(ct)h['Content-Type']='application/json';return h;}
   function sbFetchTimeout(url,opts,ms){return new Promise(function(res,rej){var c=new AbortController();var t=setTimeout(function(){c.abort();rej(new Error('timeout'));},ms||9000);fetch(url,Object.assign({},opts||{},{signal:c.signal})).then(function(r){clearTimeout(t);res(r);}).catch(function(e){clearTimeout(t);rej(e);});});}
-  function setBtn(btn,on){btn.classList.toggle('on',!!on);btn.textContent=on?'✅ 已加入训练':'➕ 加入训练';btn.title=on?'点击移出训练队列':'点击加入今日训练（cards.tags += hw-train）';}
+  function setBtn(btn,on){btn.classList.toggle('on',!!on);btn.textContent=on?'✅ 已加入训练':'➕ 加入训练';btn.title=on?'点击移出训练队列':'点击加入今日训练（打 hw-train 标签 + 刷新该卡最近浏览时间）';}
+  /* 加入训练 → 写共享训练日志（同源 localStorage，2026-09-18）：
+     记忆卡 App 启动时并入当前执行人的浏览历史（mode='专题练'），
+     于是 App「专题练 → 上次浏览时间日期范围选当天」即可筛出当天加入训练的卡；
+     云端同时打 updated_at 戳作跨设备兑底（seedTrainHistory）。 */
+  function stampLocalTrain(cid){
+    try{
+      var K='wulun_hw_train_log_v1', log=JSON.parse(localStorage.getItem(K)||'[]');
+      if(!Array.isArray(log))log=[];
+      var d=new Date();
+      var label=(d.getMonth()+1)+'月'+d.getDate()+'日 加入训练';
+      log=log.filter(function(e){return !(e&&e.id===cid);});
+      log.unshift({ts:Date.now(),id:cid,subject:(cid.split('_')[0]||''),mode:'专题练',src:'',t:label});
+      if(log.length>500)log.length=500;
+      localStorage.setItem(K,JSON.stringify(log));
+    }catch(e){/* 隐私/隐私模式下静默：云端 updated_at 戳仍在 */}
+  }
   function fillMeta(hit, sel, val, label){
     if(!val) return;
     var el=hit.querySelector(sel);
@@ -476,8 +492,11 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
       var tags=Array.isArray(rows[0].tags)?rows[0].tags.slice():[];
       var has=tags.indexOf(SB.TAG)>=0;
       if(has)tags=tags.filter(function(t){return t!==SB.TAG;});else tags.push(SB.TAG);
-      var pr=await sbFetchTimeout(SB.url+'/rest/v1/cards?card_id=eq.'+encodeURIComponent(cid),{method:'PATCH',headers:sbHeaders(true),body:JSON.stringify({tags:tags})});
+      /* 加入时额外打 updated_at 戳（=训练加入时间，跨设备可查）；移出不动时间戳 */
+      var body=has?{tags:tags}:{tags:tags,updated_at:new Date().toISOString()};
+      var pr=await sbFetchTimeout(SB.url+'/rest/v1/cards?card_id=eq.'+encodeURIComponent(cid),{method:'PATCH',headers:sbHeaders(true),body:JSON.stringify(body)});
       if(!pr.ok)throw new Error('写入失败 HTTP '+pr.status);
+      if(!has)stampLocalTrain(cid);
       setBtn(btn,!has);
     }catch(e){
       btn.textContent=old;
