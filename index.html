@@ -4719,10 +4719,13 @@ async function seedTrainHistory(){
     const haveTrain=new Set(browseHistory.filter(e => e && e.mode === '专题练').map(e => e.id));
     const now=Date.now(); let added=0, needRebuild=false;
     rows.forEach(r => {
-      const cid=r.card_id; if(!cid || haveTrain.has(cid)) return;
+      const cid=r.card_id; if(!cid) return;
       const m=matchLocalCard(r.signal, r.conclusion);
       let useId=cid, subj=cid.split('_')[0]||'数学';
       if(m){ useId=m.id; subj=m.subj; }
+      /* 双 id 兼容：旧版本 seed 只写过云端 id 的记录——云端 id 有记录但映射出的本地 id 没有，
+         仍需为本地 id 补一条（否则「日期范围=今天」筛不出，2026-09-18 实测踩中） */
+      if(haveTrain.has(cid) && haveTrain.has(useId)) return;
       else{
         /* 本地无同内容卡（如作业报告新入库的卡）：注入本地库，保证可训练、可被日期筛出 */
         const store=IMPORTED[subj]||(IMPORTED[subj]={items:[]});
