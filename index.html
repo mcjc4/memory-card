@@ -4731,8 +4731,11 @@ async function seedTrainHistory(){
       let useId=cid, subj=cid.split('_')[0]||'数学';
       if(m){ useId=m.id; subj=m.subj; }
       else{
-        /* 本地无同内容卡（如作业报告新入库的卡）：注入本地库，保证可训练、可被日期筛出 */
-        const store=IMPORTED[subj]||(IMPORTED[subj]={items:[]});
+        /* 本地无同内容卡（如作业报告新入库的卡）：注入本地库，保证可训练、可被日期筛出。
+           ⚠️ 2026-09-18 修复（用户反馈"两个匹配数量没关联起来"）：原实现固定注入 IMPORTED，
+           但 subjDef=CUSTOM 优先——数学已有 CUSTOM 库时，注入 IMPORTED 的卡被整体遮蔽，
+           永远进不了专题练查询 → 匹配数凑不齐、开始训练缺卡。改为注入「实际解析到的库」。 */
+        const store = CUSTOM[subj] || IMPORTED[subj] || (IMPORTED[subj]={items:[]});
         if(!store.items.some(x=>x.id===cid)){
           store.items.push({id:cid, s:r.signal||'', c:r.conclusion||'', t:r.chapter||subj, src:r.src||''});
           needRebuild=true;
