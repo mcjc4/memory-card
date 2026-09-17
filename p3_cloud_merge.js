@@ -288,16 +288,35 @@
         var bm = browseMeta[subj] || (browseMeta[subj] = {});
         lst.forEach(function (o) {
           var m = bm[o.rec.id] || (bm[o.rec.id] = { browsed: false, lastBrowse: 0 });
-          m.lastBrowse = o.ts;
-          browseHistory.unshift({ ts: o.ts, id: o.rec.id, mode: '入库', subject: subj, src: o.rec.src || '', t: o.rec.t || '' });
+          /* 2026-09-18 修复：浏览时间改为「合并时刻」而非云端 created_at——
+             与用户指定机制一致（入库/加入=最近浏览时间=当下），否则按今天筛日期永远漏掉刚合并的卡 */
+          m.lastBrowse = Date.now();
+          browseHistory.unshift({ ts: Date.now(), id: o.rec.id, mode: '入库', subject: subj, src: o.rec.src || '', t: o.rec.t || '' });
         });
       });
       if (browseHistory.length > 500) browseHistory.length = 500;
 
       if (added > 0) {
-        savePerson();
+        /* 2026-09-18 修复：savePerson 抛异常（典型为 localStorage 5MB 配额满）时，
+            原实现整体进 catch → toast 一闪而过、数据实际没保存 → 表现为「确认合并了但回头还在」。
+            现在单独兜底：主保存失败 → 退级只写两张卡库键 → 再失败才报错并明示「未保存」。 */
+        var savedOk = true, saveErr = null;
+        try { savePerson(); }
+        catch (e1) {
+          savedOk = false;
+          try {
+            saveJ(CARDS_IMPORTED_KEY, IMPORTED);
+            saveJ(CARDS_CUSTOM_KEY, CUSTOM);
+            savedOk = true;   /* 卡库已保住（进度/浏览历史本轮未存，下次打卡会再存） */
+          } catch (e2) { saveErr = e2; }
+        }
         afterCardChange();
-        toast('已合并 ' + added + ' 张云端入库卡 · 去「浏览历史」按浏览时间查看');
+        if (savedOk) {
+          toast('已合并 ' + added + ' 张云端入库卡 · 浏览时间=此刻（今天日期可直接筛出）');
+        } else {
+          toast('⚠️ 合并 ' + added + ' 张完成，但本地保存失败（存储空间不足），刷新后会丢——请先清理备份快照再试');
+          console.error('[cloudMerge] 本地保存失败：', saveErr);
+        }
       } else {
         toast('没有新的云端入库卡');
       }
