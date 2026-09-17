@@ -19,10 +19,10 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
 .badge{font-size:12px;background:#EEF3FA;color:#3B5B80;border-radius:20px;padding:2px 10px}
 .judge{font-size:12px;border-radius:20px;padding:2px 12px;font-weight:600}
 .headright{margin-left:auto;display:flex;align-items:center;gap:8px}
-.qthumbwrap{display:inline-flex;align-items:center}
-.qthumb{height:48px;max-width:220px;border-radius:8px;border:1px solid #E3E9F2;background:#F8FAFD;object-fit:cover;object-position:left top;transition:transform .15s}
-.qthumb:hover{transform:scale(1.6);border-color:#2563EB;box-shadow:0 6px 18px rgba(37,99,235,.25);position:relative;z-index:5}
 .imglink{font-size:12px;color:#2563EB;text-decoration:none;white-space:nowrap}
+.qimgfull{margin-top:10px}
+.qimgfull img{width:100%;display:block;border:1px solid #E3E9F2;border-radius:10px;background:#F8FAFD}
+.qimgfull a:hover img{border-color:#2563EB;box-shadow:0 4px 14px rgba(37,99,235,.18)}
 .printed{margin-top:10px;padding:10px 12px;background:#F8FAFD;border-radius:10px;font-size:14px;white-space:pre-wrap}
 .rows{margin-top:10px;font-size:13.5px}
 .rows>div{display:flex;gap:10px;padding:3px 0}
@@ -39,7 +39,12 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
 .trainbtn:hover{background:#EAF7EE}
 .trainbtn.on{background:#2E9E5B;color:#fff;border-color:#2E9E5B}
 .trainbtn.busy{opacity:.55;cursor:wait}
-.newhint{margin-top:10px;font-size:12.5px;color:#6B7A8E;background:#F0F4FA;border:1px dashed #C9D6E6;border-radius:10px;padding:7px 11px}
+.ncsec{margin-top:10px}
+.ncbox .ncdone{font-size:12px;color:#8A94A6;background:#F6F8FB;border-radius:8px;padding:6px 10px}
+.ncbadge{font-size:11.5px;margin:2px 0 4px}
+.ncbadge.ok{color:#2E9E5B}
+.ncbadge.no{color:#C62828}
+.ncbadge.busy{color:#B26A00}
 .panel{background:#fff;border-radius:16px;box-shadow:0 4px 14px rgba(31,45,61,.08);padding:16px 18px;margin:20px 0}
 .foot{font-size:12px;color:#8A94A6;text-align:center;margin-top:26px}
 </style>
@@ -59,15 +64,16 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
 <div class="stats">
   <div class="stat"><b>📐 数学（10 题可见）</b><div class="ln">对 3 · 待复核 1 · 错 2 · 未作答 4</div></div>
   <div class="stat"><b>🧲 物理（7 题）</b><div class="ln">未完成 3 · 未作答 3 · 部分正确 1</div></div>
-  <div class="stat"><b>☁️ 回流统一卡库</b><div class="ln">错题落 mistakes：2 条<br>新卡进待审 cards_pending：9 张（source_module=homework）</div></div>
+  <div class="stat"><b>☁️ 回流统一卡库</b><div class="ln">命中率 11/17（65%，重叠系数≥0.16）<br>错题落 mistakes：2 条 ｜ 新卡待审：9 张（source_module=homework）</div></div>
 </div>
 
 <section class="qcard" id="m1">
   <div class="qhead">
     <span class="qno">数学 · 第1题</span><span class="badge">单选</span>
     <span class="judge" style="color:#0F7B34;background:#EAF7EE">对</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m1.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m1.webp" alt="题图"></a><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m1.webp" target="_blank" title="点击查看原图"><img src="img/q_m1.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">已知 α∈(0,π)，且 sinα+cosα=1/5，则 sinα−cosα=( )  A.−4/5 B.−7/5 C.4/5 D.7/5</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">D</span></div>
@@ -83,8 +89,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">数学 · 第2题</span><span class="badge">单选</span>
     <span class="judge" style="color:#0F7B34;background:#EAF7EE">对</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m2.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m2.webp" alt="题图"></a><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m2.webp" target="_blank" title="点击查看原图"><img src="img/q_m2.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">将 f(x)=2sin(2x+φ) 的图象向左平移 π/3 个单位得到 g(x)，若 g(x) 是偶函数，则 f(φ/2)=( )  A.√3 B.−√3 C.−1 D.1</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">A</span></div>
@@ -100,8 +107,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">数学 · 第3题</span><span class="badge">单选</span>
     <span class="judge" style="color:#B26A00;background:#FFF4E0">待复核</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m3.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m3.webp" alt="题图"></a><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m3.webp" target="_blank" title="点击查看原图"><img src="img/q_m3.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">已知 f(x)=sin(3ωx+π/3)（ω&gt;0）的最小正周期为 π，则 f(x) 在 [−π/12, π/6] 上的最小值为( )  A.−√3/2 B.−3/2 C.0 D.3/2</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">A</span></div>
@@ -117,8 +125,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">数学 · 第4题</span><span class="badge">单选</span>
     <span class="judge" style="color:#0F7B34;background:#EAF7EE">对</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m4.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m4.webp" alt="题图"></a><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m4.webp" target="_blank" title="点击查看原图"><img src="img/q_m4.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">下列函数中，既是偶函数又在 (2,+∞) 上单调递减的是  A.f(x)=(eˣ−1)/(eˣ+1) B.f(x)=|lg((x+1)/(x−1))| C.f(x)=分段(x²−4x, x≥0; x²+4x, x&lt;0) D.f(x)=ln(1+√(x²−1))</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">B（笔迹有涂改）</span></div>
@@ -126,7 +135,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">A 奇函数排除；C 偶但 x&gt;2 时 2x−4&gt;0 递增排除；D 偶但在 (2,+∞) 递增排除；B：f(−x)=|lg((x−1)/(x+1))|=|lg((x+1)/(x−1))|=f(x) 偶，且 (x+1)/(x−1) 在 (2,+∞) 单调递减趋于 1 → |lg| 递减。</div>
-  
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">数学_d10b23c97d</span><button class="trainbtn" data-cid="数学_d10b23c97d" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【[f(x_{1})-f(x_{2})]/(x_{1}-x_{2})&gt;0 或 (x_{1}-x_{2})[f(x_{1})-f(x_{2})]&gt;0】</span><br><b>结论</b> <span class="latex">想到【这是增函数的等价表达，立即转化为单调递增处理】；警惕【符号判断错，把增减弄反】</span> <span class="score">契合 0.17</span></div><div class="hit"><span class="hcard_id">数学_2bb3a0cc4b</span><button class="trainbtn" data-cid="数学_2bb3a0cc4b" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到 f(x)+(x+1)f'(x)&gt;0 这类条件比较函数值大小</span><br><b>结论</b> <span class="latex">想到构造 g(x)=(x+1)f(x)，其导数恰为题干左边，由条件得 g 单调递增，再把待比较数值转化为 g 的函数值比较</span> <span class="score">契合 0.17</span></div></div>
   
 </section>
 
@@ -134,8 +143,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">数学 · 第5题</span><span class="badge">多选</span>
     <span class="judge" style="color:#C62828;background:#FDECEA">错</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m5.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m5.webp" alt="题图"></a><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m5.webp" target="_blank" title="点击查看原图"><img src="img/q_m5.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">下列式子结果为 √3 的是  ①tan25°+tan35°+√3·tan25°tan35° ②2(sin35°cos25°+cos35°sin25°) ③(1+tan15°)/(1−tan15°) ④(1−tan15°)/(1+tan15°)  A.① B.② C.③ D.④</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">AB</span></div>
@@ -143,16 +153,17 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     <div><span class="k">错因</span><span class="v wr">漏选：③=(1+tan15°)/(1−tan15°)=tan(45°+15°)=tan60°=√3 没有识别出来（和差角公式逆用不熟）</span></div>
   </div>
   <div class="note">①=tan(25°+35°)(1−tan25°tan35°)+√3tan25°tan35°=√3；②=2sin60°=√3；③=tan60°=√3；④=tan30°=√3/3。正确 ①②③ → ABC。</div>
-  
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">数学_c5929b3846</span><button class="trainbtn" data-cid="数学_c5929b3846" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【非分式的正余弦多项式（含sin^{2}、sin cos等二次项）且已知tan$\alpha$】</span><br><b>结论</b> <span class="latex">想到【将分母视为1，用sin^{2}$\alpha$+cos^{2}$\alpha$替换构造齐次分式，再同除cos^{2}$\alpha$化归为tan$\alpha$；由此可得sin2$\alpha$=2tan$\alpha$/(1+tan^{2}$\alpha$)、cos2$\alpha$=(1−tan^{2}$\alpha$)/(1+tan^{2}$\alpha$)】；警惕【忘记先创造分母就直接操作】</span> <span class="score">契合 0.16</span></div></div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="m5"></div></div>
 </section>
 
 <section class="qcard" id="m6">
   <div class="qhead">
     <span class="qno">数学 · 第6题</span><span class="badge">多选</span>
     <span class="judge" style="color:#C62828;background:#FDECEA">错</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m6.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m6.webp" alt="题图"></a><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m6.webp" target="_blank" title="点击查看原图"><img src="img/q_m6.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">△ABC 中角 A,B,C 对边 a,b,c，下列命题正确的有  A.当a=5,b=7,A=60°时满足条件的三角形共有1个 B.若 sinA:sinB:sinC=3:5:7 则这个三角形的最大角是120° C.若 a²+b²&gt;c² 则 △ABC 为锐角三角形 D.若 C=π/4 且 a²−c²=bc 则 △ABC 为等腰直角三角形</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">C</span></div>
@@ -160,16 +171,17 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     <div><span class="k">错因</span><span class="v wr">误选 C：a²+b²&gt;c² 只说明 C 角为锐角，推不出整个三角形是锐角三角形；D 项 a²−c²=bc → sin(A+C)sin(A−C)=sinBsinC → A=2C → A=π/2、B=π/4 未推出</span></div>
   </div>
   <div class="note">A：b·sinA/a=7·(√3/2)/5&gt;1 无解；B：cosC=(9+25−49)/(2·3·5)=−1/2 → C=120°；C 错；D：A=π/2、B=π/4 成立 → BD。</div>
-  
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">数学_66879ad70f</span><button class="trainbtn" data-cid="数学_66879ad70f" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到式子含 $(B+C)/2$</span><br><b>结论</b> <span class="latex">想到内角和与诱导公式：$\sin((B+C)/2)=\cos(A/2)$，$\cos((B+C)/2)=\sin(A/2)$，再与二倍角公式配合化简</span> <span class="score">契合 0.18</span></div></div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="m6"></div></div>
 </section>
 
 <section class="qcard" id="m7">
   <div class="qhead">
     <span class="qno">数学 · 第7题</span><span class="badge">填空</span>
     <span class="judge" style="color:#5B6472;background:#EEF1F5">未作答</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m7.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m7.webp" alt="题图"></a><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m7.webp" target="_blank" title="点击查看原图"><img src="img/q_m7.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">△ABC 中，AB=1，∠BAC=120°，AC=4，D 是 BC 边上一点，AD 是 ∠BAC 的角平分线，则 AD 的长为____</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">未作答</span></div>
@@ -178,15 +190,16 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   </div>
   <div class="note">角平分线长公式 AD = 2bc·cos(A/2)/(b+c) = 2·1·4·cos60°/(1+4) = 4/5。</div>
   <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">数学_1e43bf82f5</span><button class="trainbtn" data-cid="数学_1e43bf82f5" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【求角平分线本身的长度】</span><br><b>结论</b> <span class="latex">想到【首选面积和法：S$\triangle$ABD+S$\triangle$DBC=S$\triangle$ABC，两边用 ½·边·边·sin夹角 展开，约分并配二倍角公式，得 BD=2ac·cos$\alpha$/(a+c)】；警惕【推导出的公式在解答题中不能直接使用，必须先用面积和法推导；求分线段长用定理、求平分线长用面积和，策略要分清】</span> <span class="score">契合 0.23</span></div></div>
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="m7"></div></div>
 </section>
 
 <section class="qcard" id="m8">
   <div class="qhead">
     <span class="qno">数学 · 第8题</span><span class="badge">填空</span>
     <span class="judge" style="color:#5B6472;background:#EEF1F5">未作答</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m8.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m8.webp" alt="题图"></a><a class="imglink" href="img/math_p2.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p2.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m8.webp" target="_blank" title="点击查看原图"><img src="img/q_m8.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">位于 A 处的信息中心获知在其正东方向相距 30√2 海里的 B 处有一渔船遇险，立即把消息告知在其南偏西 45°、相距 20 海里的 C 处的乙船，现乙船沿北偏东 θ 的方向沿直线 CB 前往 B 处救援，则 cosθ 的值为____</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">未作答</span></div>
@@ -195,15 +208,16 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   </div>
   <div class="note">建系 A 为原点：B=(30√2,0)，C=(−10√2,−10√2)；CB=(40√2,10√2)，|CB|=10√34；北向单位向量 (0,1) → cosθ=10√2/(10√34)=1/√17=√17/17。</div>
   
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="m8"></div></div>
 </section>
 
 <section class="qcard" id="m9">
   <div class="qhead">
     <span class="qno">数学 · 第9题</span><span class="badge">解答</span>
     <span class="judge" style="color:#5B6472;background:#EEF1F5">未作答</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m9.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m9.webp" alt="题图"></a><a class="imglink" href="img/math_p2.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p2.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m9.webp" target="_blank" title="点击查看原图"><img src="img/q_m9.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">△ABC 中，a,b,c 分别为内角 A,B,C 的对边，2sin(B+π/6)=(b+c)/a。(1)求角A的大小；(2)若 △ABC 是锐角三角形，c=4，求 △ABC 面积的取值范围。</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">未作答</span></div>
@@ -211,16 +225,17 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">(1) 边化角：√3sinA·sinB=sinB(1+cosA) → √3sinA=1+cosA → tan(A/2)=1/√3 → A=π/3。(2) S=4√3·sinB/sinC=4√3·sin(2π/3−C)/sinC，C∈(π/6,π/2) → 端点极限 2√3 与 8√3。</div>
-  
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">数学_66879ad70f</span><button class="trainbtn" data-cid="数学_66879ad70f" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到式子含 $(B+C)/2$</span><br><b>结论</b> <span class="latex">想到内角和与诱导公式：$\sin((B+C)/2)=\cos(A/2)$，$\cos((B+C)/2)=\sin(A/2)$，再与二倍角公式配合化简</span> <span class="score">契合 0.26</span></div><div class="hit"><span class="hcard_id">数学_e50619afc5</span><button class="trainbtn" data-cid="数学_e50619afc5" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到式子含 $\cos^2(A/2)$ 或 $\sin^2(A/2)$</span><br><b>结论</b> <span class="latex">想到先用降幂公式：$\cos^2(A/2)=(1+\cos A)/2$，把半角平方化为整角一次式，再继续变形</span> <span class="score">契合 0.21</span></div><div class="hit"><span class="hcard_id">数学_4d782e7d99</span><button class="trainbtn" data-cid="数学_4d782e7d99" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【已知两角需要求第三角的三角函数值】</span><br><b>结论</b> <span class="latex">想到【用内角和转换：sinB=sin(A+C)，cosA=−cos(B+C)，tanA=−tan(B+C)；正弦不变号，余弦、正切记变号；缺失的三角函数值用平方关系补齐】；警惕【三角形中内角的正弦恒为正，开方取正值】</span> <span class="score">契合 0.19</span></div></div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="m9"></div></div>
 </section>
 
 <section class="qcard" id="m10">
   <div class="qhead">
     <span class="qno">数学 · 第10题</span><span class="badge">解答</span>
     <span class="judge" style="color:#5B6472;background:#EEF1F5">未作答</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_m10.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_m10.webp" alt="题图"></a><a class="imglink" href="img/math_p2.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/math_p2.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_m10.webp" target="_blank" title="点击查看原图"><img src="img/q_m10.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">正方形铁皮 ABCD 边长 100cm，扇形 AMPN 半径 90cm 已腐蚀，P 为弧 MN 上一点，∠PAB=θ。在未腐蚀部分裁下一个边在 BC 与 CD 上的矩形铁皮 PQCR，求矩形 PQCR 面积的最大值和此时 θ 的值。</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">未作答</span></div>
@@ -229,15 +244,16 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   </div>
   <div class="note">设 P=(90cosθ, 90sinθ)，S=(100−90cosθ)(100−90sinθ)；令 t=cosθ+sinθ∈[1,√2]，S=4050t²−9000t+5940，凸函数 → 端点比较：t=√2（θ=45°）取最大 14040−9000√2。</div>
   
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="m10"></div></div>
 </section>
 
 <section class="qcard" id="p1">
   <div class="qhead">
     <span class="qno">物理 · 第1题</span><span class="badge">小专题</span>
     <span class="judge" style="color:#B26A00;background:#FFF4E0">未完成</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_p1.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_p1.webp" alt="题图"></a><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_p1.webp" target="_blank" title="点击查看原图"><img src="img/q_p1.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">已知传送带长为 L，质量为 m 的物块与传送带间摩擦因数为 μ，现将物块轻放在传送带左端，求物体经多长时间离开传送带？</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">草稿：v=at、s=½at²（思路对，未算完）</span></div>
@@ -245,16 +261,17 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">水平传送带静止/物块轻放 → 摩擦向右 a=μg → L=½at²。草稿公式方向正确，未代入结论。</div>
-  
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">物理_9be2cbca32</span><button class="trainbtn" data-cid="物理_9be2cbca32" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到题干出现“物块轻放/冲上水平传送带”</span><br><b>结论</b> <span class="latex">想到先判初始相对运动方向→摩擦力方向→加速度a=μg，共速后摩擦消失转匀速；相对运动方向决定摩擦力方向</span> <span class="score">契合 0.21</span></div></div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="p1"></div></div>
 </section>
 
 <section class="qcard" id="p2">
   <div class="qhead">
     <span class="qno">物理 · 第2题</span><span class="badge">小专题</span>
     <span class="judge" style="color:#B26A00;background:#FFF4E0">未完成</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_p2.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_p2.webp" alt="题图"></a><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_p2.webp" target="_blank" title="点击查看原图"><img src="img/q_p2.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">水平方向长为 L 的传送带以恒定速度 v 顺时针运动，传送带右端有一物块以速率 v₀ 滑上传送带（向左），求物体经多长时间离开传送带？</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">草稿：v-t 图（画出先减速到 0 再反向加速）</span></div>
@@ -262,7 +279,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">摩擦恒向右 a=μg：向左减速到 0 用时 v₀/μg，再向右加速到 v（或到右端），v₀&gt;v 时先加速到 v 再匀速。学生 v-t 图方向正确，未完成分类。</div>
-  
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">物理_f32ca13dc2</span><button class="trainbtn" data-cid="物理_f32ca13dc2" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">遇到题干问“能否与传送带共速”</span><br><b>结论</b> <span class="latex">想到比较物块初速v₀与传送带速度v：v₀&lt;v时反向加速至v₀即掉落无法共速，v₀&gt;v时加速至v后匀速</span> <span class="score">契合 0.22</span></div><div class="hit"><span class="hcard_id">物理_9be2cbca32</span><button class="trainbtn" data-cid="物理_9be2cbca32" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到题干出现“物块轻放/冲上水平传送带”</span><br><b>结论</b> <span class="latex">想到先判初始相对运动方向→摩擦力方向→加速度a=μg，共速后摩擦消失转匀速；相对运动方向决定摩擦力方向</span> <span class="score">契合 0.21</span></div><div class="hit"><span class="hcard_id">物理_6921e5c58b</span><button class="trainbtn" data-cid="物理_6921e5c58b" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到物块初速度与传送带速度方向相反（如物块向右、传送带向左）</span><br><b>结论</b> <span class="latex">想到先匀减速至零再反向匀加速，全程加速度大小均为μg；警惕速度为零时摩擦力方向未必改变（相对运动未变则方向不变）</span> <span class="score">契合 0.19</span></div></div>
   
 </section>
 
@@ -270,8 +287,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">物理 · 第3题</span><span class="badge">小专题</span>
     <span class="judge" style="color:#B26A00;background:#FFF4E0">未完成</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_p3.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_p3.webp" alt="题图"></a><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_p3.webp" target="_blank" title="点击查看原图"><img src="img/q_p3.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">已知传送带长为 L，质量为 m 的物块与传送带间摩擦因数为 μ（μ&gt;tanθ），现将物块轻放在传送带下端，求物体经多长时间离开传送带</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">草稿：μmgcosθ−mgsinθ=ma（列出但未解完）</span></div>
@@ -279,7 +297,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">皮带向里/向下运转时物块相对带下滑 → 摩擦沿带向上 → a=g(μcosθ−sinθ)。学生方程正确，未解出 t。</div>
-  
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">物理_a9b7d78872</span><button class="trainbtn" data-cid="物理_a9b7d78872" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到物块放上倾斜传送带，需判断共速后运动性质</span><br><b>结论</b> <span class="latex">想到比较μ与tanθ：μ≥tanθ时共速后匀速（静摩擦=mg sinθ向上）；μ&lt;tanθ时继续加速，a=g(sinθ-μcosθ)向下</span> <span class="score">契合 0.26</span></div><div class="hit"><span class="hcard_id">物理_d0e69b0265</span><button class="trainbtn" data-cid="物理_d0e69b0265" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【物块初速为零轻放在向下运转的倾斜传送带上】</span><br><b>结论</b> <span class="latex">想到【物块相对带向上滑，摩擦力沿斜面向下，a_{1}=g(sin$\theta$+$\mu$cos$\theta$)，匀加速至共速】；警惕【摩擦力方向由相对运动判断，勿默认沿斜面向上】</span> <span class="score">契合 0.22</span></div><div class="hit"><span class="hcard_id">物理_d73dd8ae7f</span><button class="trainbtn" data-cid="物理_d73dd8ae7f" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【物块以大于带速的初速度冲上倾斜传送带（同向运动）】</span><br><b>结论</b> <span class="latex">想到【相对带向下$\to$摩擦力向上，可能以a=g(sin$\theta$-$\mu$cos$\theta$)减速至共速后随带匀速；先验证减速位移是否小于剩余带长】；警惕【a的正负号取决于gsin$\theta$与$\mu$gcos$\theta$的大小，共速后受力需重判】</span> <span class="score">契合 0.18</span></div></div>
   
 </section>
 
@@ -287,8 +305,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">物理 · 第4题</span><span class="badge">小专题</span>
     <span class="judge" style="color:#5B6472;background:#EEF1F5">未作答</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_p4.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_p4.webp" alt="题图"></a><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/phys_p1.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_p4.webp" target="_blank" title="点击查看原图"><img src="img/q_p4.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">已知传送带长为 L，质量为 m 的物块与传送带间摩擦因数为 μ，现将物块轻放在传送带 h 端，求物体经多长时间离开传送带</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">未作答</span></div>
@@ -304,8 +323,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">物理 · 第5题</span><span class="badge">小专题</span>
     <span class="judge" style="color:#5B6472;background:#EEF1F5">未作答</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_p5.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_p5.webp" alt="题图"></a><a class="imglink" href="img/phys_p2.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/phys_p2.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_p5.webp" target="_blank" title="点击查看原图"><img src="img/q_p5.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">传送带长为 L，左端有质量为 m 的物体以速率 v₀ 滑上传送带（向右），物块与传送带间摩擦因数为 μ。已知传送带静止时物能够从右端离开传送带。现以不同速度开动传送带，求物体离开传送带时的速度（画 v-va带 图像）</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">未作答</span></div>
@@ -313,7 +333,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">这是"出口速度 vs 带速"分类图像题：关键是共速转折 + L 与分段位移的比较。</div>
-  
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">物理_f32ca13dc2</span><button class="trainbtn" data-cid="物理_f32ca13dc2" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">遇到题干问“能否与传送带共速”</span><br><b>结论</b> <span class="latex">想到比较物块初速v₀与传送带速度v：v₀&lt;v时反向加速至v₀即掉落无法共速，v₀&gt;v时加速至v后匀速</span> <span class="score">契合 0.22</span></div></div>
   
 </section>
 
@@ -321,8 +341,9 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
   <div class="qhead">
     <span class="qno">物理 · 第6题</span><span class="badge">小专题</span>
     <span class="judge" style="color:#5B6472;background:#EEF1F5">未作答</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_p6.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_p6.webp" alt="题图"></a><a class="imglink" href="img/phys_p2.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/phys_p2.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_p6.webp" target="_blank" title="点击查看原图"><img src="img/q_p6.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">水平足够长的传送带以 v₀ 速度运动，在其左端将一黑炭滑块轻放在上面，黑炭滑块被带动，传送到右端。已知黑炭滑块与传送带间的动摩擦系数 μ，求黑炭滑块在皮带上所留下的痕迹的长度</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">未作答</span></div>
@@ -330,16 +351,17 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">滑块从静止加速 a=μg 到共速：块位移 v₀²/(2μg)，带位移 v₀²/μg → 相对位移（痕迹）= v₀²/(2μg)。</div>
-  
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">物理_9be2cbca32</span><button class="trainbtn" data-cid="物理_9be2cbca32" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到题干出现“物块轻放/冲上水平传送带”</span><br><b>结论</b> <span class="latex">想到先判初始相对运动方向→摩擦力方向→加速度a=μg，共速后摩擦消失转匀速；相对运动方向决定摩擦力方向</span> <span class="score">契合 0.23</span></div><div class="hit"><span class="hcard_id">物理_c7e6213f5a</span><button class="trainbtn" data-cid="物理_c7e6213f5a" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【求传送带上留下的摩擦痕迹（划痕）长度】</span><br><b>结论</b> <span class="latex">想到【取各段相对位移中的较大值：短划痕会被长划痕覆盖】；警惕【划痕长度不等于各段相对位移之和】</span> <span class="score">契合 0.20</span></div><div class="hit"><span class="hcard_id">物理_19f4a04e01</span><button class="trainbtn" data-cid="物理_19f4a04e01" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到题干给出“初速v0与带速v的关系”或问“离开速度/划痕长度”</span><br><b>结论</b> <span class="latex">想到v0&lt;v加速、v0=v匀速、v0&gt;v减速，共速后摩擦立即消失；必须比较加速位移x=v²/2μg与带长l——l&lt;x则未共速即离开，划痕≈变速阶段相对位移</span> <span class="score">契合 0.17</span></div></div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="p6"></div></div>
 </section>
 
 <section class="qcard" id="p7">
   <div class="qhead">
     <span class="qno">物理 · 第7题</span><span class="badge">小专题</span>
     <span class="judge" style="color:#0F6FBF;background:#E8F2FC">部分正确</span>
-    <span class="headright"><a class="qthumbwrap" href="img/q_p7.webp" target="_blank" title="点击查看本题截图大图"><img class="qthumb" src="img/q_p7.webp" alt="题图"></a><a class="imglink" href="img/phys_p2.webp" target="_blank">📷 页图</a></span>
+    <span class="headright"><a class="imglink" href="img/phys_p2.webp" target="_blank">📷 页图</a></span>
   </div>
+  <div class="qimgfull"><a href="img/q_p7.webp" target="_blank" title="点击查看原图"><img src="img/q_p7.webp" alt="本题截图" loading="lazy"></a></div>
   <div class="printed">传送带与地面倾角 θ=37°，从 A 到 B 长度 L=10.25m，传送带以 v₀=10m/s 的速率逆时针转动。在传送带上端 A 无初速度地放一个质量 m=0.5kg 的煤块，它与传送带间动摩擦因数 μ=0.5，sin37°=0.6，g=10m/s²。求：(1)煤块从 A 到 B 的时间；(2)煤块从 A 到 B 的过程中传送带上形成痕迹的长度</div>
   <div class="rows">
     <div><span class="k">学生作答</span><span class="v">部分作答：a₁=μmgcos37°+mgsin37°=ma → a₁=10m/s²；mgsin37°−μmgcos37°=ma → a₂=2m/s²（两个加速度均正确，未求出时间与痕迹）</span></div>
@@ -347,15 +369,15 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     
   </div>
   <div class="note">皮带表面向下运转：①a₁=gsinθ+μgcosθ=10m/s²，加速到 10m/s 用 1s、走 5m；共速后 μ&lt;tanθ 不能相对静止 → a₂=gsinθ−μgcosθ=2m/s²，余 5.25m：10t+½·2t²=5.25 → t=0.5s，总时间 1.5s。②第一段块相对带向上滑 5m（痕迹 5m）；第二段块相对带向下滑 0.25m，回擦不叠加 → 痕迹 5m。</div>
-  
-  <div class="newhint">🆕 本题已推导 <b>1</b> 张新卡——按您的要求不在此处展示，是否入库请到底部「🧾 新卡就地审核」面板审核决定</div>
+  <div class="sec"><div class="lbl">🎯 命中卡库 <span class="lblhint">（命中卡可点「加入训练」，打 hw-train 标签进记忆卡训练队列，再点一次取消）</span></div><div class="hit"><span class="hcard_id">物理_a9b7d78872</span><button class="trainbtn" data-cid="物理_a9b7d78872" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到物块放上倾斜传送带，需判断共速后运动性质</span><br><b>结论</b> <span class="latex">想到比较μ与tanθ：μ≥tanθ时共速后匀速（静摩擦=mg sinθ向上）；μ&lt;tanθ时继续加速，a=g(sinθ-μcosθ)向下</span> <span class="score">契合 0.29</span></div><div class="hit"><span class="hcard_id">物理_d0e69b0265</span><button class="trainbtn" data-cid="物理_d0e69b0265" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【物块初速为零轻放在向下运转的倾斜传送带上】</span><br><b>结论</b> <span class="latex">想到【物块相对带向上滑，摩擦力沿斜面向下，a_{1}=g(sin$\theta$+$\mu$cos$\theta$)，匀加速至共速】；警惕【摩擦力方向由相对运动判断，勿默认沿斜面向上】</span> <span class="score">契合 0.27</span></div><div class="hit"><span class="hcard_id">物理_e41ba79a15</span><button class="trainbtn" data-cid="物理_e41ba79a15" type="button">➕ 加入训练</button><b>信号</b> <span class="latex">看到【物块以初速度沿倾斜传送带上滑】</span><br><b>结论</b> <span class="latex">想到【按相对运动分三类讨论：v带&lt;v_{0}（或静止）摩擦向下，a=g sin$\theta$+$\mu$g cos$\theta$；v带&gt;v_{0}摩擦向上，a=g sin$\theta$-$\mu$g cos$\theta$；v带=v_{0}无滑动摩擦】；警惕【传送带转动方向（顺/逆时针）决定接触面速度方向，必须先换算成相对运动再判摩擦力】</span> <span class="score">契合 0.21</span></div></div>
+  <div class="ncsec"><div class="lbl">🆕 本题推导的新卡——就地审核 <span class="lblhint">（通过入库 / 合并 / 驳回；底部汇总面板同步可见）</span></div><div class="ncbox" data-pid="p7"></div></div>
 </section>
 <div class="panel">
-  <b>🧾 新卡就地审核（9 张待审）</b>
-  <div style="font-size:12.5px;color:#7A8698;margin:6px 0 10px">下面是本次作业推导出的「信号→结论」卡，可直接 通过/合并/驳回；也可到 <a href="https://mcjc4.github.io/memory-card/" target="_blank">记忆卡 App 📋 待审入库</a> 处理。</div>
+  <b>🧾 新卡汇总面板（9 张本批待审）</b>
+  <div style="font-size:12.5px;color:#7A8698;margin:6px 0 10px">推荐直接在上方各题卡内就地审核；此处为汇总视图。也可到 <a href="https://mcjc4.github.io/memory-card/" target="_blank">记忆卡 App 📋 待审入库</a> 处理。</div>
   <div id="mcpanel"></div>
 </div>
-<div class="foot">作业批改 MVP · P3-1 B线 · 批改→命中→落库→审核→训练 闭环首跑 · 由小宇生成</div>
+<div class="foot">作业批改 MVP · P3-1 B线 · 批改→命中→落库→就地审核→训练 闭环 · 由小宇生成</div>
 </div>
 <script src="../mc_pending.js"></script>
 <script>
@@ -420,8 +442,41 @@ body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;c
     var btn=ev.target.closest?ev.target.closest('.trainbtn'):null;
     if(btn)toggleTrain(btn);
   });
-  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){renderTex();initTrainState();});}
-  else{renderTex();initTrainState();}
+  /* ---------- 3) 新卡就地审核（v3）：按 payload.problem_id 分组渲染进题卡 ---------- */
+  var BATCH_PREFIX='hw20260916';
+  function badge(cls,txt){var b=document.createElement('div');b.className='ncbadge '+cls;b.textContent=txt;return b;}
+  async function loadInline(){
+    var boxes=[].slice.call(document.querySelectorAll('.ncbox'));
+    if(!boxes.length)return;
+    var rows=[];
+    try{ rows=await MC.fetchPending({sourceModule:'homework',limit:80}); }
+    catch(e){ boxes.forEach(function(b){b.innerHTML='<div class="ncdone">⚠ 待审卡加载失败（M库网络抖动），刷新重试</div>';}); return; }
+    rows=(rows||[]).filter(function(r){return (r.source_id||'').indexOf(BATCH_PREFIX)===0;});
+    var byP={};
+    rows.forEach(function(r){
+      var pid=(r.payload&&r.payload.problem_id)||'';
+      if(!pid)pid=(r.source_id||'').slice(BATCH_PREFIX.length);
+      (byP[pid]=byP[pid]||[]).push(r);
+    });
+    boxes.forEach(function(box){
+      var list=byP[box.dataset.pid]||[];
+      box.innerHTML='';
+      if(!list.length){
+        var d=document.createElement('div');d.className='ncdone';
+        d.textContent='✅ 本题新卡已全部处理（通过/驳回后不再显示）';
+        box.appendChild(d);return;
+      }
+      list.forEach(function(r){
+        var w=document.createElement('div');
+        if(r.review_status==='approved')w.appendChild(badge('ok','✅ 已入库 '+(r.card_id||'')));
+        else if(r.review_status==='rejected')w.appendChild(badge('no','🚫 已驳回'));
+        MC.renderReviewCard(w,r,{onDone:function(){loadInline();}});
+        box.appendChild(w);
+      });
+    });
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){renderTex();initTrainState();loadInline();});}
+  else{renderTex();initTrainState();loadInline();}
 })();
 </script>
 <script>MC.mountPanel(document.getElementById('mcpanel'), {sourceModule:'homework', reviewStatus:'pending', limit:20}, {emptyText:'暂无待审卡（可能已全部审核完）'});</script>
