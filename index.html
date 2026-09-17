@@ -4666,16 +4666,44 @@ function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
    旧写法 cs.{hw-train} 是 text[] 语法 → PostgREST 400，导致「只看作业训练」一直查不到。 */
 const TQ_TRAIN_Q = 'tags=cs.' + encodeURIComponent('["hw-train"]');
 let tqTrainIds=null, tqTrainOnly=false;
+/* —— 内容映射（2026-09-18）：本地库是旧 genId（数学-imp63-xxx），云端是指纹 id（数学_hex8），
+   同内容双 id 会让「只看作业训练/日期筛选」匹配不到 → 用规范化文本 Dice 相似度把云端卡映射到本地条目 —— */
+function _tqNorm(s){ return String(s||'').toLowerCase().replace(/[\s\$\\{}()（）【】\[\]、，,。.:：;；"'`~^_+=<>|!?！？·\-]/g,''); }
+function _tqDice(a,b){
+  a=_tqNorm(a); b=_tqNorm(b);
+  if(!a||!b) return 0;
+  if(a===b) return 1;
+  if(a.indexOf(b)>=0||b.indexOf(a)>=0) return 0.95;
+  if(a.length<2||b.length<2) return 0;
+  const A=new Set(),B=new Set();
+  for(let i=0;i<a.length-1;i++)A.add(a.slice(i,i+2));
+  for(let i=0;i<b.length-1;i++)B.add(b.slice(i,i+2));
+  let inter=0; A.forEach(x=>{if(B.has(x))inter++;});
+  return 2*inter/(A.size+B.size);
+}
+function matchLocalCard(signal, conclusion){
+  let best=null, subj=null, bestScore=0;
+  SUBJ_NAMES.forEach(name=>{
+    const sd=subjDef(name); if(!sd||!sd.items)return;
+    sd.items.forEach(it=>{
+      const sc=Math.max(_tqDice(signal,it.s), _tqDice(conclusion,it.c));
+      if(sc>bestScore){bestScore=sc;best=it.id;subj=name;}
+    });
+  });
+  return bestScore>=0.55?{id:best,subj:subj,score:bestScore}:null;
+}
 async function toggleTqTrain(){
   const btn=$('tqTrainBtn'), hint=$('tqTrainHint');
   if(tqTrainOnly){ tqTrainOnly=false; btn.style.borderColor=''; btn.style.background=''; btn.style.fontWeight=''; hint.textContent='点击加载'; refreshTqCount(); return; }
   hint.textContent='加载中…';
   try{
-    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id&limit=500');
+    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,signal,conclusion&limit=500');
     tqTrainIds=new Set((rows||[]).map(r=>r.card_id));
+    let mapped=0;
+    (rows||[]).forEach(r=>{ const m=matchLocalCard(r.signal,r.conclusion); if(m){ tqTrainIds.add(m.id); mapped++; } });
     tqTrainOnly=true;
     btn.style.borderColor='#7C3AED'; btn.style.background='#f5f3ff'; btn.style.fontWeight='600';
-    hint.textContent=tqTrainIds.size+' 张 · 再点取消';
+    hint.textContent=tqTrainIds.size+' 张 · 再点取消' + (mapped?'（含本库映射）':'');
     refreshTqCount();
     if(!tqTrainIds.size) hint.textContent='暂无训练卡 · 再点取消';
   }catch(e){ hint.textContent='加载失败：'+(e.message||e); }
@@ -4686,23 +4714,37 @@ let _seedTrainRan = false;
 async function seedTrainHistory(){
   if(_seedTrainRan) return; _seedTrainRan = true;
   try{
-    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id&limit=500');
-    const ids=(rows||[]).map(r => r.card_id).filter(Boolean);
-    if(!ids.length) return;
+    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,signal,conclusion,chapter,src&limit=500');
+    if(!rows || !rows.length) return;
     const haveTrain=new Set(browseHistory.filter(e => e && e.mode === '专题练').map(e => e.id));
-    const now=Date.now(); let added=0;
-    ids.forEach(cid => {
-      if(haveTrain.has(cid)) return;
-      const subj = cid.split('_')[0] || '';
-      browseHistory.unshift({ts: now, id: cid, mode: '专题练', subject: subj, src: '', t: '加入训练'});
+    const now=Date.now(); let added=0, needRebuild=false;
+    rows.forEach(r => {
+      const cid=r.card_id; if(!cid || haveTrain.has(cid)) return;
+      const m=matchLocalCard(r.signal, r.conclusion);
+      let useId=cid, subj=cid.split('_')[0]||'数学';
+      if(m){ useId=m.id; subj=m.subj; }
+      else{
+        /* 本地无同内容卡（如作业报告新入库的卡）：注入本地库，保证可训练、可被日期筛出 */
+        const store=IMPORTED[subj]||(IMPORTED[subj]={items:[]});
+        if(!store.items.some(x=>x.id===cid)){
+          store.items.push({id:cid, s:r.signal||'', c:r.conclusion||'', t:r.chapter||subj, src:r.src||''});
+          needRebuild=true;
+        }
+      }
+      if(haveTrain.has(useId)) return;
+      haveTrain.add(cid); haveTrain.add(useId);
+      browseHistory.unshift({ts: now, id: useId, mode: '专题练', subject: subj, src: '', t: '加入训练'});
       const bm = browseMeta[subj] || (browseMeta[subj] = {});
-      const m = bm[cid] || {browsed:false, lastBrowse:0};
-      if(now > m.lastBrowse) m.lastBrowse = now;
-      bm[cid] = m;
+      [useId, cid].forEach(k => {
+        const mm = bm[k] || {browsed:false, lastBrowse:0};
+        if(now > mm.lastBrowse) mm.lastBrowse = now;
+        bm[k] = mm;
+      });
       added++;
     });
     if(added){
       if(browseHistory.length > 500) browseHistory.length = 500;
+      if(needRebuild){ try{ rebuildSubjects(); }catch(eR){} }
       savePerson();
       try{ refreshTqCount(); }catch(e2){}
     }
