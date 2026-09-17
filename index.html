@@ -3014,10 +3014,23 @@ async function upsertCardRows(rows){
     const res=await fetchTimeout(url,{method:'POST',headers,body:JSON.stringify(rows)},10000);return res.ok;}catch(e){console.warn('upsert cards failed',e);return false;}
 }
 function collectAllItems(){const all=[];const collect=(subj,def)=>{if(def&&def.items)def.items.forEach(it=>{if(it&&it.id)all.push({subj,it});});};Object.keys(SUBJECTS).forEach(s=>collect(s,SUBJECTS[s]));Object.keys(IMPORTED).forEach(s=>collect(s,IMPORTED[s]));Object.keys(CUSTOM).forEach(s=>collect(s,CUSTOM[s]));return all;}
+/* 探测 cards 表是否已含 no/note 两列（编号/备注跨设备同步用）。
+ * 用「只选 no 列 limit=1」探一次：成功=true，42703 报错=false；结果按会话缓存，避免每批重复探测。
+ * 这样在陈总执行 add_cards_no_note.sql 之前，镜像/拉取都不会因携带未知列而 400 整批失败。 */
+let _cardsNoteColsProbe=null;
+async function cardsHasNoteCols(){
+  if(_cardsNoteColsProbe!==null) return _cardsNoteColsProbe;
+  try{ await sbSelect(CARDS_TABLE,'select=no&limit=1'); _cardsNoteColsProbe=true; }
+  catch(e){ _cardsNoteColsProbe=false; }
+  return _cardsNoteColsProbe;
+}
 async function mirrorCardsToCloud(items){
+  const hasNote=await cardsHasNoteCols().catch(()=>false);
   const seen={};const rows=[];
   items.forEach(({subj,it})=>{const cid=it.id;if(seen[cid])return;seen[cid]=1;
-    rows.push({card_id:cid,subject:subj,chapter:it.t||'',signal:it.s||'',conclusion:it.c||'',src:it.src||'',orig:it.orig||'',link:it.link||'',status:'active',source_module:'memory-card',source_type:'legacy',source_id:'',fingerprint:subj+'|'+normCard(it.s||'')+'|'+normCard(it.c||''),updated_at:new Date().toISOString()});});
+    const row={card_id:cid,subject:subj,chapter:it.t||'',signal:it.s||'',conclusion:it.c||'',src:it.src||'',orig:it.orig||'',link:it.link||'',status:'active',source_module:'memory-card',source_type:'legacy',source_id:'',fingerprint:subj+'|'+normCard(it.s||'')+'|'+normCard(it.c||''),updated_at:new Date().toISOString()};
+    if(hasNote){ row.no=it.no||''; row.note=it.note||''; }
+    rows.push(row);});
   if(!rows.length)return;
   for(let i=0;i<rows.length;i+=500){await upsertCardRows(rows.slice(i,i+500));}
 }
