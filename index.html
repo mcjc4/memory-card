@@ -751,6 +751,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <input id="tqDateEnd" type="date">
     </div>
     <div class="tqRow tqFull">
+      <label>作业训练队列（作业批改报告里点「➕ 加入训练」= 打 hw-train 标签的卡，点下方按钮即只看这些卡）</label>
+      <div class="tqMultiBtn" id="tqTrainBtn">🎯 只看作业训练<span class="tqMultiHint" id="tqTrainHint">点击加载</span></div>
+    </div>
+    <div class="tqRow tqFull">
       <label>上次训练状态（可多选，不选 = 全部）</label>
       <div class="tqMultiBtn" id="tqStatusBtn">全部状态<span class="tqMultiHint">▼</span></div>
       <div class="tqInlinePop" id="tqStatusPop"></div>
@@ -3055,6 +3059,13 @@ function applyStableIds(){
       setTimeout(()=>mirrorCardsToCloud(collectAllItems()).catch(e=>console.warn('[cards v6] mirror failed:',e)),0);
       console.log('[cards v6] first migration,',Object.keys(map).length,'cards mirrored to cloud');
     }
+    /* note/no 补录镜像（2026-09-17）：老浏览器早已完成 V6 首次迁移（标记已置位），其后才加的
+       no/note 字段从未被推上云端（实测 M 库 6090 张卡 note 全空）。置一次性标记触发一次全量重镜像。 */
+    if(localStorage.getItem('CARDS_NOTE_MIRROR_V2')!=='1'){
+      localStorage.setItem('CARDS_NOTE_MIRROR_V2','1');
+      setTimeout(()=>mirrorCardsToCloud(collectAllItems()).catch(e=>console.warn('[cards v6] note mirror v2 failed:',e)),0);
+      console.log('[cards v6] note mirror v2: re-mirroring all cards with no/note');
+    }
   }catch(e){console.warn('[cards v6] applyStableIds failed (local fallback intact):',e);}
 }
 
@@ -4580,6 +4591,7 @@ function topicQuery(){
         if(!hit) return;
       }
       const bsF = $('tqBrowseStatus').value;
+      if(tqTrainOnly){ if(!tqTrainIds || !tqTrainIds.has(it.id)) return; }  /* 🎯 只看作业训练（hw-train 标签） */
       if(bsF !== 'all'){
         const bmSubj = browseMeta[subjName] || {};
         const bmItem = bmSubj[it.id];
@@ -4594,6 +4606,25 @@ function topicQuery(){
   return res;
 }
 function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
+/* ---------- 🎯 作业训练队列（hw-train 标签，2026-09-17） ----------
+   报告页「加入训练」会把 hw-train 追加进 M 库 cards.tags；此处拉取该集合过滤本地卡。
+   tags 列为 text[]，PostgREST contains 语法 tags=cs.{hw-train}。 */
+let tqTrainIds=null, tqTrainOnly=false;
+async function toggleTqTrain(){
+  const btn=$('tqTrainBtn'), hint=$('tqTrainHint');
+  if(tqTrainOnly){ tqTrainOnly=false; btn.style.borderColor=''; btn.style.background=''; btn.style.fontWeight=''; hint.textContent='点击加载'; refreshTqCount(); return; }
+  hint.textContent='加载中…';
+  try{
+    const rows=await sbSelect(CARDS_TABLE,'tags=cs.{hw-train}&select=card_id&limit=500');
+    tqTrainIds=new Set((rows||[]).map(r=>r.card_id));
+    tqTrainOnly=true;
+    btn.style.borderColor='#7C3AED'; btn.style.background='#f5f3ff'; btn.style.fontWeight='600';
+    hint.textContent=tqTrainIds.size+' 张 · 再点取消';
+    refreshTqCount();
+    if(!tqTrainIds.size) hint.textContent='暂无训练卡 · 再点取消';
+  }catch(e){ hint.textContent='加载失败：'+(e.message||e); }
+}
+
 /* ---------- 浏览历史（今日已学点击） ---------- */
 function relTime(ts){
   const diff = Date.now() - ts;
@@ -5072,6 +5103,7 @@ $('tqKeyword').addEventListener('input', refreshTqCount);
 $('tqBrowseStatus').addEventListener('change', refreshTqCount);
   $('tqStart').addEventListener('click', startTopicTrain);
   $('tqPreview').addEventListener('click', previewTopicList);
+  $('tqTrainBtn').addEventListener('click', e => { e.stopPropagation(); toggleTqTrain(); });
   $('tqExportXlsx').addEventListener('click', tqExport);
   $('tqExportXlsx').addEventListener('touchstart', e => { e.preventDefault(); tqExport(); }, {passive:false});
 $('browseHistoryClose').addEventListener('click', () => $('browseHistoryModal').classList.remove('show'));
