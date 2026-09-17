@@ -751,7 +751,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <input id="tqDateEnd" type="date">
     </div>
     <div class="tqRow tqFull">
-      <label>作业训练队列（作业批改报告里点「➕ 加入训练」= 打 hw-train 标签的卡，点下方按钮即只看这些卡）</label>
+      <label>作业训练队列（作业批改报告里点「➕ 加入训练」= 打 hw-train 标签 + 记录加入时间。点下方按钮只看这些卡；或在上方「上次浏览时间」日期范围选当天，同样能筛出当天加入的卡）</label>
       <div class="tqMultiBtn" id="tqTrainBtn">🎯 只看作业训练<span class="tqMultiHint" id="tqTrainHint">点击加载</span></div>
     </div>
     <div class="tqRow tqFull">
@@ -1167,6 +1167,30 @@ function bindPerson(key){
   browseMeta = d.browseMeta = d.browseMeta || {};
   trainCount = d.trainCount = d.trainCount || {};
   subjectTime = d.subjectTime = d.subjectTime || {};
+  /* 合并「加入训练」日志（2026-09-18）：作业批改报告页点「➕ 加入训练」写入共享日志（同源 localStorage），
+     此处并入当前执行人的浏览历史 → 卡片最近浏览时间=加入时刻 → 专题练「日期范围」选当天即可筛出。 */
+  try{
+    const TLK = 'wulun_hw_train_log_v1';
+    const tlog = JSON.parse(localStorage.getItem(TLK) || '[]');
+    if(Array.isArray(tlog) && tlog.length){
+      const seenT = new Set(browseHistory.map(e => (e && e.id) + ':' + (e && e.ts)));
+      let addedT = 0;
+      tlog.forEach(e => {
+        if(!e || !e.id || !e.ts) return;
+        const k = e.id + ':' + e.ts;
+        if(seenT.has(k)) return;
+        seenT.add(k);
+        browseHistory.unshift({ts: e.ts, id: e.id, mode: e.mode || '专题练', subject: e.subject || '', src: e.src || '', t: e.t || ''});
+        addedT++;
+      });
+      if(addedT){
+        if(browseHistory.length > 500) browseHistory.length = 500;
+        d.browseHistory = browseHistory;
+        savePerson();   /* 先落盘成功再清日志（saveJ 容量自愈会自动腾空间） */
+        try{ localStorage.removeItem(TLK); }catch(e2){}
+      }
+    }
+  }catch(eT){ console.warn('[train-log] merge failed:', eT); }
   /* 从 browseHistory 回填 browseMeta：browsed 来自 mode==='审核' 的历史记录；lastBrowse 取最大 ts */
   browseHistory.forEach(e => {
     if(!e || !e.subject || !e.id || !e.ts) return;
@@ -1236,7 +1260,24 @@ const today = () => {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 };
 function loadJ(key, def){ try{ return JSON.parse(localStorage.getItem(key)) || def; }catch(e){ return def; } }
-function saveJ(key, v){ try { localStorage.setItem(key, JSON.stringify(v)); } catch(e){ toast('存储已满，建议导出备份后清理'); } }
+function saveJ(key, v){
+  try { localStorage.setItem(key, JSON.stringify(v)); }
+  catch(e){
+    /* 容量自愈（2026-09-18）：本地备份快照 wulun_bak_local 每份都是全量数据、最占空间 →
+       先裁到 1 份再重试一次（云端每日快照仍在，不丢真实数据） */
+    try{
+      const bk = JSON.parse(localStorage.getItem('wulun_bak_local') || 'null');
+      if(bk && Array.isArray(bk.list) && bk.list.length > 1){
+        bk.list = bk.list.slice(0, 1);
+        localStorage.setItem('wulun_bak_local', JSON.stringify(bk));
+        localStorage.setItem(key, JSON.stringify(v));
+        toast('本地空间已满：已自动精简本地备份快照后保存成功');
+        return;
+      }
+    }catch(e2){}
+    toast('存储已满，建议导出备份后清理');
+  }
+}
 
 /* ---------- 存储 keys ---------- */
 const K = {
@@ -3574,8 +3615,9 @@ const BAK_CFG_KEY = 'wulun_bak_cfg';
 const BAK_LOCAL_KEY = 'wulun_bak_local';          /* {list:[{ts, at, data}]} */
 const BAK_CLOUD_DAY_KEY = 'wulun_bak_cloud_day';  /* 上次云端快照的日期字符串 YYYY-MM-DD */
 function loadBakCfg(){
-  try{ const c = JSON.parse(localStorage.getItem(BAK_CFG_KEY) || 'null'); if(c) return {localKeep: Math.max(1, Number(c.localKeep)||7), cloudDays: Math.max(1, Number(c.cloudDays)||5)}; }catch(e){}
-  return {localKeep: 7, cloudDays: 5};
+  /* localKeep 上限收到 4（默认 3）：每份快照是全量数据，7 份曾撑爆 localStorage 5MB 配额 */
+  try{ const c = JSON.parse(localStorage.getItem(BAK_CFG_KEY) || 'null'); if(c) return {localKeep: Math.max(1, Math.min(4, Number(c.localKeep)||3)), cloudDays: Math.max(1, Number(c.cloudDays)||5)}; }catch(e){}
+  return {localKeep: 3, cloudDays: 5};
 }
 function saveBakCfg(c){ try{ localStorage.setItem(BAK_CFG_KEY, JSON.stringify(c)); }catch(e){ toast('存储已满，备份设置保存失败'); } }
 /* 全量备份内容（所有执行人 + 题库卡片） */
@@ -3617,14 +3659,20 @@ function snapshotLocal(manual){
     store.list.unshift({ts: Date.now(), day: today, at: bakTsLabel(Date.now()), data: b});
     const keep = cfg.localKeep || 7;
     store.list = store.list.slice(0, keep);
-    /* 容量保护：localStorage 约 5MB，超限时从最旧开始丢 */
-    while(store.list.length > 1 && JSON.stringify(store).length > 4600000) store.list.pop();
+    /* 容量保护：localStorage 约 5MB 与主数据共享，备份自身超过 3.2MB 就从最旧开始丢 */
+    while(store.list.length > 1 && JSON.stringify(store).length > 3200000) store.list.pop();
     saveJ(BAK_LOCAL_KEY, store);
     if(manual) toast('✅ 已保存本地快照（保留 ' + store.list.length + ' 份）');
     renderBakLists();
     return true;
   }catch(e){ if(manual) toast('本地快照失败：' + e.message); return false; }
 }
+/* 启动即瘦身：按（收紧后的）保留份数裁剪历史快照——旧版本默认 7 份全量快照是「存储已满」的主因 */
+(function(){ try{
+  const s = loadJ(BAK_LOCAL_KEY, {list:[]});
+  const k = loadBakCfg().localKeep || 3;
+  if(Array.isArray(s.list) && s.list.length > k){ s.list = s.list.slice(0, k); saveJ(BAK_LOCAL_KEY, s); }
+}catch(e){} })();
 function restoreLocalByTs(ts){
   const store = loadJ(BAK_LOCAL_KEY, {list:[]});
   const hit = store.list.find(x => x.ts === ts);
@@ -4606,16 +4654,18 @@ function topicQuery(){
   return res;
 }
 function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
-/* ---------- 🎯 作业训练队列（hw-train 标签，2026-09-17） ----------
-   报告页「加入训练」会把 hw-train 追加进 M 库 cards.tags；此处拉取该集合过滤本地卡。
-   tags 列为 text[]，PostgREST contains 语法 tags=cs.{hw-train}。 */
+/* ---------- 🎯 作业训练队列（hw-train 标签，2026-09-17；2026-09-18 修查询语法） ----------
+   报告页「加入训练」会把 hw-train 写进 M 库 cards.tags（jsonb 列）并刷新该卡 updated_at；
+   ⚠️ tags 是 jsonb 不是 text[]：contains 必须用 cs.["hw-train"]（URL 编码），
+   旧写法 cs.{hw-train} 是 text[] 语法 → PostgREST 400，导致「只看作业训练」一直查不到。 */
+const TQ_TRAIN_Q = 'tags=cs.' + encodeURIComponent('["hw-train"]');
 let tqTrainIds=null, tqTrainOnly=false;
 async function toggleTqTrain(){
   const btn=$('tqTrainBtn'), hint=$('tqTrainHint');
   if(tqTrainOnly){ tqTrainOnly=false; btn.style.borderColor=''; btn.style.background=''; btn.style.fontWeight=''; hint.textContent='点击加载'; refreshTqCount(); return; }
   hint.textContent='加载中…';
   try{
-    const rows=await sbSelect(CARDS_TABLE,'tags=cs.{hw-train}&select=card_id&limit=500');
+    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id&limit=500');
     tqTrainIds=new Set((rows||[]).map(r=>r.card_id));
     tqTrainOnly=true;
     btn.style.borderColor='#7C3AED'; btn.style.background='#f5f3ff'; btn.style.fontWeight='600';
@@ -4624,6 +4674,33 @@ async function toggleTqTrain(){
     if(!tqTrainIds.size) hint.textContent='暂无训练卡 · 再点取消';
   }catch(e){ hint.textContent='加载失败：'+(e.message||e); }
 }
+/* 种子回填（2026-09-18）：已打 hw-train 标签但浏览历史里没有「专题练」记录的卡（如旧数据），
+   以当前时刻补一条训练记录 → 最近浏览时间=现在 → 日期范围选今天即可筛出（用户指定机制）。 */
+async function seedTrainHistory(){
+  try{
+    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id&limit=500');
+    const ids=(rows||[]).map(r => r.card_id).filter(Boolean);
+    if(!ids.length) return;
+    const haveTrain=new Set(browseHistory.filter(e => e && e.mode === '专题练').map(e => e.id));
+    const now=Date.now(); let added=0;
+    ids.forEach(cid => {
+      if(haveTrain.has(cid)) return;
+      const subj = cid.split('_')[0] || '';
+      browseHistory.unshift({ts: now, id: cid, mode: '专题练', subject: subj, src: '', t: '加入训练'});
+      const bm = browseMeta[subj] || (browseMeta[subj] = {});
+      const m = bm[cid] || {browsed:false, lastBrowse:0};
+      if(now > m.lastBrowse) m.lastBrowse = now;
+      bm[cid] = m;
+      added++;
+    });
+    if(added){
+      if(browseHistory.length > 500) browseHistory.length = 500;
+      savePerson();
+      try{ refreshTqCount(); }catch(e2){}
+    }
+  }catch(e){ console.warn('[seed-train] failed:', e); }
+}
+setTimeout(function(){ try{ seedTrainHistory(); }catch(e){} }, 2500);
 
 /* ---------- 浏览历史（今日已学点击） ---------- */
 function relTime(ts){
