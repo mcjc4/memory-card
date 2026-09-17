@@ -244,6 +244,7 @@
       '.mc-btn-review{background:#dcfce7;color:#166534}' +
       '.mc-btn-pass{background:#16a34a;color:#fff}' +
       '.mc-btn-merge{background:#fef3c7;color:#92400e}' +
+      '.mc-pcard-actions .mc-sel{flex:1;min-width:0;font-size:12.5px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px}' +
       '.mc-btn-reject{background:#fee2e2;color:#991b1b}' +
       '.mc-btn-cancel{background:#f3f4f6;color:#374151}' +
       '.mc-hit{display:inline-flex;align-items:center;gap:6px;border:1px solid #d1fae5;background:#ecfdf5;color:#065f46;border-radius:10px;padding:6px 10px;margin:6px 0;font-size:12px}' +
@@ -336,11 +337,13 @@
 
   function _mcShowReviewMenu(card, row, opts) {
     var act = card.querySelector('.mc-pcard-actions');
+    var sug = opts && Array.isArray(opts.suggestCards) ? opts.suggestCards : null;
     act.innerHTML =
       '<button class="mc-btn mc-btn-pass" data-r="pass">通过入库</button>' +
-      '<button class="mc-btn mc-btn-merge" data-r="merge">合并</button>' +
+      (sug && !sug.length ? '' : '<button class="mc-btn mc-btn-merge" data-r="merge">合并</button>') +
       '<button class="mc-btn mc-btn-reject" data-r="reject">拒绝</button>' +
-      '<button class="mc-btn mc-btn-cancel" data-r="cancel">取消</button>';
+      '<button class="mc-btn mc-btn-cancel" data-r="cancel">取消</button>' +
+      (sug && !sug.length ? '<div style="flex-basis:100%;font-size:11.5px;color:#9ca3af;margin-top:4px">本题无库存命中卡，基本不会重复 → 建议「通过入库」</div>' : '');
     act.querySelector('[data-r="cancel"]').addEventListener('click', function () { if (opts.onDone) opts.onDone(); });
     act.querySelector('[data-r="pass"]').addEventListener('click', async function () {
       try { var cid = await approvePending(row); toast('已入库 ' + cid); if (opts.onDone) opts.onDone(); }
@@ -350,7 +353,24 @@
       try { await rejectPending(row); toast('已拒绝'); if (opts.onDone) opts.onDone(); }
       catch (e) { toast('拒绝失败：' + e.message); }
     });
-    act.querySelector('[data-r="merge"]').addEventListener('click', async function () {
+    var mergeBtn = act.querySelector('[data-r="merge"]');
+    if (mergeBtn) mergeBtn.addEventListener('click', async function () {
+      if (sug && sug.length) {
+        // 有候选卡（本题契合分析命中卡）：下拉选择，免手输 card_id
+        act.innerHTML =
+          '<select class="mc-sel" id="mcMergeSel">' +
+          sug.map(function (s) { return '<option value="' + _mcEsc(s.card_id) + '">' + _mcEsc(s.label || s.card_id) + '</option>'; }).join('') +
+          '</select>' +
+          '<button class="mc-btn mc-btn-merge" data-r="domerge">确认合并</button>' +
+          '<button class="mc-btn mc-btn-cancel" data-r="cx">取消</button>';
+        act.querySelector('[data-r="cx"]').addEventListener('click', function () { if (opts.onDone) opts.onDone(); });
+        act.querySelector('[data-r="domerge"]').addEventListener('click', async function () {
+          var target = act.querySelector('#mcMergeSel').value;
+          try { await mergePending(row, target); toast('已合并到 ' + target); if (opts.onDone) opts.onDone(); }
+          catch (e) { toast('合并失败：' + e.message); }
+        });
+        return;
+      }
       var def = (row.payload && row.payload.prefilter_card) ? row.payload.prefilter_card : '';
       var target = window.prompt('合并到已有卡的 card_id（默认预筛命中）：', def);
       if (!target) return;
