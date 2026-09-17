@@ -4703,7 +4703,14 @@ async function toggleTqTrain(){
     (rows||[]).forEach(r=>{ const m=matchLocalCard(r.signal,r.conclusion); if(m){ tqTrainIds.add(m.id); mapped++; } });
     tqTrainOnly=true;
     btn.style.borderColor='#7C3AED'; btn.style.background='#f5f3ff'; btn.style.fontWeight='600';
-    hint.textContent=tqTrainIds.size+' 张 · 再点取消' + (mapped?'（含本库映射）':'');
+    /* 2026-09-18 修复（用户反馈"两个匹配数量没关联起来"）：启用训练队列过滤时自动清掉日期范围——
+       否则角标显示 7 张、下方却因日期=今天只剩 3 张，开始训练也只有 3 张。
+       清掉后 匹配数=队列数=开始训练内容，三者一致；日期筛选仍可之后手动再加。 */
+    const dS=$('tqDateStart'), dE=$('tqDateEnd');
+    let dateCleared=false;
+    if(dS && dS.value){ dS.value=''; dateCleared=true; }
+    if(dE && dE.value){ dE.value=''; dateCleared=true; }
+    hint.textContent=tqTrainIds.size+' 张 · 再点取消' + (mapped?'（含本库映射）':'') + (dateCleared?' · 已清除日期筛选':'');
     refreshTqCount();
     if(!tqTrainIds.size) hint.textContent='暂无训练卡 · 再点取消';
   }catch(e){ hint.textContent='加载失败：'+(e.message||e); }
