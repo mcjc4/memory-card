@@ -5118,6 +5118,39 @@ $('bhStart').addEventListener('click', startBhPractice);
   $('dashBrowseBtn').addEventListener('click', openBrowseHistory);
   $('dashBrowseBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 $('browseHistoryToolbarBtn').addEventListener('click', openBrowseHistory);
+/* 🔧 重连失效记录：扫描浏览历史中指向已不存在卡片的记录，按 出处+章节 重新匹配并改写 id */
+function reconnectOrphanHistory(){
+  let scanned = 0, fixed = 0, unmatched = 0;
+  const snap = browseHistory.slice();
+  snap.forEach(e => {
+    if(itemById(e.id)) return;          /* 仍有效，跳过 */
+    scanned++;
+    if(!e.src && !e.t){ unmatched++; return; }
+    const es = (e.src || '').trim(), et = (e.t || '').trim();
+    const cands = [];
+    for(const name of allSubjectOrder()){
+      const def = subjDef(name);
+      if(!def) continue;
+      def.items.forEach(it => {
+        const sEq = es && (it.src || '').trim() === es;
+        const tEq = et && (it.t || '').trim() === et;
+        if(sEq && tEq) cands.push({ subj: name, it: it });
+      });
+    }
+    if(cands.length === 1){
+      e.id = cands[0].it.id;
+      if(cands[0].subj) e.subject = cands[0].subj;
+      fixed++;
+    } else if(cands.length > 1){
+      /* 多候选时优先同科目唯一匹配，仍不唯一则不动 */
+      const same = cands.filter(c => c.subj === e.subject);
+      if(same.length === 1){ e.id = same[0].it.id; fixed++; }
+      else unmatched++;
+    } else unmatched++;
+  });
+  if(fixed){ savePerson(); renderBrowseHistory(); }
+  toast(fixed ? ('已重连 ' + fixed + ' 条失效记录' + (unmatched ? ('，' + unmatched + ' 条无法匹配') : '')) : (scanned ? ('没有可重连的记录（' + unmatched + ' 条无法匹配）') : '没有失效记录，一切正常'));
+}
 $('bhReconnectBtn').addEventListener('click', reconnectOrphanHistory);
 $('browseHistoryToolbarBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 /* 工具栏 📄 出处 多选（影响 buildQueue）；默认全选 = 空集合显示全部 */
@@ -5338,6 +5371,15 @@ setInterval(() => {
   }
 }, 30000);
 window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, PERSON_STORE); });
+/* 🔗 ?train=hw 深链：作业报告页「🎯 去训练」直达——自动打开专题练并启用「只看作业训练」过滤 */
+try{
+  const __qp = new URLSearchParams(location.search);
+  if(__qp.get('train') === 'hw'){
+    setTimeout(() => {
+      try{ openTopicTrain(); toggleTqTrain(); }catch(e){ console.warn('train deeplink failed:', e); }
+    }, 800);
+  }
+}catch(e){}
 
 function init(){
   try{
