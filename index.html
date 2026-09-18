@@ -5009,9 +5009,15 @@ function startTopicTrain(){
 function previewTopicList(){
   const ids = topicQuery();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
-  const st = state[$('tqSubj').value] || {};
+  /* 2026-09-18 修复：学科筛选已改为 tqSubjSel 勾选弹窗（原生 tqSubj select 已删），
+     旧代码 $('tqSubj').value 抛 null →「预览清单」点了没反应。现按每卡科目逐个取训练状态。 */
   const names = {1:'记住了', 2:'没记住', 3:'模糊'};
-  const lines = ids.slice(0, 12).map(id => { const it = itemById(id); return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）'; });
+  const lines = ids.slice(0, 12).map(id => {
+    const it = itemById(id);
+    const subj = subjectOfId(id);
+    const st = (subj && state[subj]) || {};
+    return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）';
+  });
   alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
 }
 /* 专题练查询结果导出 xlsx（含卡片全部字段 + 训练状态/最近答题/最近浏览/审核标记） */
