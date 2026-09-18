@@ -193,6 +193,8 @@
     await _mcCloudWrite(CARDS_TABLE, {
       card_id: cid, subject: p.subject, chapter: p.chapter || '', signal: p.signal, conclusion: p.conclusion,
       src: p.src || '', orig: p.orig || '', link: p.link || '', status: 'active',
+      /* 2026-09-18：编号随卡入库（no 放 payload.no 随行，避免 cards_pending 无 no 列时整条 400） */
+      no: p.no || (p.payload && p.payload.no) || '',
       source_module: p.source_module || '', source_type: p.source_type || 'manual', source_id: p.source_id || String(p.id || ''),
       tags: tgs,
       fingerprint: _mcNormText(p.signal, p.conclusion), updated_at: new Date().toISOString()
