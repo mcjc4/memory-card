@@ -4698,9 +4698,19 @@ async function toggleTqTrain(){
   hint.textContent='加载中…';
   try{
     const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,signal,conclusion&limit=500');
-    tqTrainIds=new Set((rows||[]).map(r=>r.card_id));
-    let mapped=0;
-    (rows||[]).forEach(r=>{ const m=matchLocalCard(r.signal,r.conclusion); if(m){ tqTrainIds.add(m.id); mapped++; } });
+    /* 2026-09-18 语义修正（用户反馈"两个匹配数量没关联起来"）：tqTrainIds 只收「本地可练」的卡——
+       云端行若与本库卡同内容（Dice≥0.55）→ 记映射后的本地 id（内容去重，不重复练）；
+       若云端 id 本身已在本库（P3 合并过）→ 直接记；都没有 → 未入库，进 unmatched 提示。
+       这样 角标数=匹配数=开始训练张数 三者恒等。 */
+    tqTrainIds=new Set();
+    let matched=0, unmatched=0;
+    (rows||[]).forEach(r=>{
+      const m=matchLocalCard(r.signal,r.conclusion);
+      if(m){ tqTrainIds.add(m.id); matched++; return; }
+      let found=false;
+      SUBJ_NAMES.forEach(n=>{ const sd=subjDef(n); if(sd&&sd.items&&sd.items.some(x=>x.id===r.card_id)) found=true; });
+      if(found){ tqTrainIds.add(r.card_id); matched++; } else unmatched++;
+    });
     tqTrainOnly=true;
     btn.style.borderColor='#7C3AED'; btn.style.background='#f5f3ff'; btn.style.fontWeight='600';
     /* 2026-09-18 修复（用户反馈"两个匹配数量没关联起来"）：启用训练队列过滤时自动清掉日期范围——
@@ -4714,7 +4724,7 @@ async function toggleTqTrain(){
        （如 cur=物理 → 数学的训练卡全被拦掉，匹配数=0、开始训练内容不对）。 */
     let subjReset=false;
     if(tqSubjSel.size !== SUBJ_NAMES.length){ tqSubjSel.clear(); SUBJ_NAMES.forEach(n=>tqSubjSel.add(n)); subjReset=true; try{updateTqSubjBtn();}catch(eS){} }
-    hint.textContent=tqTrainIds.size+' 张 · 再点取消' + (mapped?'（含本库映射）':'') + ((dateCleared||subjReset)?' · 已重置日期/学科筛选':'');
+    hint.textContent=tqTrainIds.size+' 张训练卡 · 再点取消（云端队列 '+rows.length+' 张'+(unmatched?'，'+unmatched+' 张未入库，可去「☁ 云端入库卡」合并':'')+'）';
     refreshTqCount();
     if(!tqTrainIds.size) hint.textContent='暂无训练卡 · 再点取消';
   }catch(e){ hint.textContent='加载失败：'+(e.message||e); }
