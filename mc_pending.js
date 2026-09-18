@@ -38,6 +38,8 @@
   var CARDS_TABLE = 'cards';
   var PENDING_TABLE = 'cards_pending';
   var MISTAKES_TABLE = 'mistakes';
+  var LINKS_TABLE = 'card_links';     // Phase 4：互链
+  var REVIEWS_TABLE = 'card_reviews'; // Phase 4：重练标注（仅陈昕言，无 executor）
 
   /* ---------------- 传输层（逐字对齐 P2）------------------------------------ */
   function _mcSbBase(u) { return (u || '').replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, ''); }
@@ -64,13 +66,11 @@
     if (!res.ok) throw new Error('GET ' + table + ' ' + res.status);
     return res.json();
   }
-  async function _mcSbInsert(table, rows) {
+  async function _mcSbInsert(table, rows, extraHeaders) {
     var url = _mcSbBase(CFG.url) + '/rest/v1/' + table;
-    var res = await _mcFetchTimeout(url, {
-      method: 'POST',
-      headers: Object.assign(_mcSbHeaders(CFG.key, true), { 'Prefer': 'return=representation' }),
-      body: JSON.stringify(rows)
-    }, 12000);
+    var h = Object.assign(_mcSbHeaders(CFG.key, true), { 'Prefer': 'return=representation' });
+    if (extraHeaders) Object.assign(h, extraHeaders);
+    var res = await _mcFetchTimeout(url, { method: 'POST', headers: h, body: JSON.stringify(rows) }, 12000);
     if (!res.ok) throw new Error('POST ' + table + ' ' + res.status);
     return res.json();
   }
@@ -231,6 +231,54 @@
     if (filter.sourceId) q = 'source_id=eq.' + encodeURIComponent(filter.sourceId) + '&' + q;
     if (filter.limit) q += '&limit=' + filter.limit;
     return _mcSbSelect(PENDING_TABLE, q);
+  }
+
+  /* ---------------- Phase 4：受信模块全自动入库 + 互链 + 重练 ---------------- */
+  // 受信模块（courseware / knowledge / homework）产出的卡，直接写 cards 主表（不经过 pending 人工闸门），
+  // 并写入 card_links（互链）与 card_reviews（重练标注）。仅陈昕言一人 → card_reviews 无 executor 维度。
+  // opts : {subject, chapter, signal, conclusion, sourceModule, sourceType, sourceId, tags, orig, link, no, note}
+  // links: [{target_kind:'wrong_question'|'courseware'|'knowledge_node'|'card', target_id, relation}]
+  // review: {level:0|1|2|3, needs_repractice:bool, reason, next_due_at}
+  async function autoIngest(opts, links, review) {
+    if (!opts || !opts.subject || !opts.signal || !opts.conclusion) throw new Error('autoIngest 缺少 subject/signal/conclusion');
+    var cid = _mcCardIdOf(opts.subject, opts.signal, opts.conclusion);
+    var tgs = Array.isArray(opts.tags) ? opts.tags.slice() : (opts.tags ? [opts.tags] : []);
+    if ((opts.sourceModule || '') === 'homework' && tgs.indexOf('hw-train') < 0) tgs.push('hw-train');
+    var now = new Date().toISOString();
+    await _mcCloudWrite(CARDS_TABLE, {
+      card_id: cid, subject: opts.subject, chapter: opts.chapter || '', signal: opts.signal, conclusion: opts.conclusion,
+      src: opts.src || '', orig: opts.orig || '', link: opts.link || '', status: 'active',
+      no: opts.no || '', note: opts.note || '',
+      source_module: opts.sourceModule || '', source_type: opts.sourceType || 'auto', source_id: opts.sourceId || '',
+      tags: tgs, fingerprint: _mcNormText(opts.signal, opts.conclusion), updated_at: now
+    });
+    if (links && links.length) {
+      var exist = {};
+      try {
+        var ex = await _mcSbSelect(LINKS_TABLE, 'card_id=eq.' + encodeURIComponent(cid) + '&select=target_kind,target_id');
+        (ex || []).forEach(function (r) { exist[r.target_kind + '|' + r.target_id] = 1; });
+      } catch (e) {}
+      var toAdd = links.filter(function (l) {
+        if (!l || !l.target_kind || !l.target_id) return false;
+        var k = l.target_kind + '|' + l.target_id;
+        if (exist[k]) return false; exist[k] = 1; return true;
+      }).map(function (l) {
+        return { card_id: cid, target_kind: l.target_kind, target_id: String(l.target_id), relation: l.relation || '', created_at: now };
+      });
+      for (var i = 0; i < toAdd.length; i++) {
+        try { await _mcSbInsert(LINKS_TABLE, [toAdd[i]]); } catch (e) { console.warn('[mc_pending] link write failed', e); }
+      }
+    }
+    if (review) {
+      try {
+        await _mcSbInsert(REVIEWS_TABLE, [{
+          card_id: cid, level: review.level || 0, last_result: review.level || 0, review_count: review.count || 1,
+          needs_repractice: !!review.needs_repractice, reason: review.reason || '',
+          next_due_at: review.next_due_at || null, last_reviewed_at: now, updated_at: now
+        }], { 'Prefer': 'resolution=merge-duplicates' });
+      } catch (e) { console.warn('[mc_pending] review write failed', e); }
+    }
+    return cid;
   }
 
   /* ---------------- UI：轻量 toast + 弹窗样式（只注入一次）----------------- */
@@ -402,7 +450,7 @@
   var MC = {
     init: function (o) { if (o && o.url) CFG.url = o.url; if (o && o.key) CFG.key = o.key; if (o && o.reviewer) CFG.reviewer = o.reviewer; if (o && o.prefilterMatch) CFG.prefilterMatch = o.prefilterMatch; if (o && o.prefilterPartial) CFG.prefilterPartial = o.prefilterPartial; },
     config: CFG,
-    tables: { cards: CARDS_TABLE, pending: PENDING_TABLE, mistakes: MISTAKES_TABLE },
+    tables: { cards: CARDS_TABLE, pending: PENDING_TABLE, mistakes: MISTAKES_TABLE, links: LINKS_TABLE, reviews: REVIEWS_TABLE },
     // 底层（高级用法）
     select: _mcSbSelect, insert: _mcSbInsert, update: _mcSbUpdate,
     cardIdOf: _mcCardIdOf, normCard: _mcNormCard, normText: _mcNormText,
@@ -410,6 +458,7 @@
     // 业务 API
     preFilterHit: preFilterHit,
     propose: propose,
+    autoIngest: autoIngest,
     approvePending: approvePending,
     mergePending: mergePending,
     rejectPending: rejectPending,
