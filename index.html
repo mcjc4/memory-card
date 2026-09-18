@@ -427,6 +427,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
     <button id="browseHistoryToolbarBtn" class="browse">📋 浏览历史</button>
     <button id="topicTrainBtn" class="manage">🎯 专题练</button>
+    <button id="practiceLibBtn" class="manage">📚 训练库</button>
     <button id="manageBtn" class="manage">🗂 管理</button>
     <button id="mistakesBtn" class="browse">📕 错题本</button>
     <button id="reviewBtn" class="manage">📋 待审入库</button>
@@ -774,6 +775,23 @@ h1{font-size:21px;font-weight:500;text-align:center}
         <button id="tqExportXlsx" title="把当前筛选条件下匹配的全部卡片导出为 Excel（xlsx）：科目 / 章节 / 题干 / 结论 / 出处 / 原题 / 链接 + 训练状态、最近答题、最近浏览、审核标记">📥 导出查询结果</button>
         <button id="tqStart" class="ok">开始训练</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 训练库弹窗（专题练的集合：作业批改报告「💾 存入训练库」写 Supabase practice_sessions，这里按浏览时间倒序列出，可一键开始专题练 / 删除） -->
+<div class="modalMask" id="practiceLibModal">
+  <div class="modalBox taskBox">
+    <h2><span>📚 训练库 · 专题练习集合</span><span class="x" id="practiceLibClose">×</span></h2>
+    <div class="bhFoot">
+      <span class="bhInfo">作业批改报告「💾 存入训练库」会把本次命中的记忆卡 + 新生成的卡片存为一次「专题练习」；按浏览时间倒序排列，点「🎯 开始专题练」即按该次日期注入训练队列。</span>
+      <button id="practiceLibRefresh" class="ok" style="background:#1D5C7C;color:#fff;border:1px solid #1D5C7C;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer">🔄 刷新</button>
+    </div>
+    <div class="bhTableWrap">
+      <table class="browseTable">
+        <thead><tr><th style="width:170px">浏览时间</th><th style="width:120px">练习名称</th><th style="width:64px">学科</th><th style="width:90px">命中卡</th><th style="width:90px">新卡</th><th>操作</th></tr></thead>
+        <tbody id="practiceLibTbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -5006,6 +5024,122 @@ function startTopicTrain(){
   show();
   toast('专题练开始：' + ids.length + ' 张卡片');
 }
+/* ---------- 📚 训练库（practice_sessions 专题练习集合，2026-09-19） ----------
+   报告页「💾 存入训练库」把本次命中的卡 + 新卡写入 Supabase practice_sessions（含 browsed_at）。
+   这里按 browsed_at 倒序列出；「开始专题练」把该次 card_ids 注入当前执行人 browseHistory（ts=browsed_at）
+   → 专题练「上次浏览时间」选当天即可筛出，满足"按浏览时间搜索得到本次作业形成的专题练习"。 */
+function practiceLibFmtDate(iso){
+  if(!iso) return '-';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function practiceLibShortDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+}
+async function openPracticeLib(){
+  try{
+    $('practiceLibModal').classList.add('show');
+    const tbody = $('practiceLibTbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr>';
+    if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">未配置云端，无法读取训练库</td></tr>';
+      return;
+    }
+    const rows = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at&order=browsed_at.desc&limit=200');
+    if(!rows || !rows.length){
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">训练库暂无记录（去作业批改报告点「💾 存入训练库」即可生成）</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    rows.forEach(s => {
+      const hitN = Array.isArray(s.card_ids) ? s.card_ids.length : 0;
+      const newN = Array.isArray(s.new_card_ids) ? s.new_card_ids.length : 0;
+      const rid = escHtml(s.rid || '');
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td class="ts">' + practiceLibFmtDate(s.browsed_at) + '</td>'
+        + '<td>' + escHtml(s.title || '(未命名)') + '</td>'
+        + '<td>' + escHtml(s.subject || '化学') + '</td>'
+        + '<td>' + hitN + ' 张</td>'
+        + '<td>' + newN + ' 张</td>'
+        + '<td><button class="actBtn plStart" data-rid="' + rid + '">🎯 开始专题练</button>'
+        + '<button class="actBtn plDel" data-rid="' + rid + '" style="margin-left:6px;color:#b91c1c">🗑 删除</button></td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('button.plStart').forEach(b => b.addEventListener('click', () => startPracticeSession(b.getAttribute('data-rid'))));
+    tbody.querySelectorAll('button.plDel').forEach(b => b.addEventListener('click', () => deletePracticeSession(b.getAttribute('data-rid'))));
+  }catch(e){
+    console.error('openPracticeLib failed:', e);
+    const tbody = $('practiceLibTbody');
+    if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">读取失败：' + escHtml(e.message) + '</td></tr>';
+  }
+}
+async function startPracticeSession(rid){
+  try{
+    const rows = await sbSelect('practice_sessions', 'rid=eq.' + encodeURIComponent(rid) + '&select=card_ids,new_card_ids,browsed_at,title,subject');
+    const s = rows && rows[0];
+    if(!s){ toast('未找到该次练习记录'); return; }
+    const ids = (s.card_ids || []).concat(s.new_card_ids || []);
+    if(!ids.length){ toast('该次练习没有卡片'); return; }
+    const ts = s.browsed_at ? (new Date(s.browsed_at).getTime() || Date.now()) : Date.now();
+    /* 1) 本地库若无该卡（如报告新入库的卡），注入占位，保证可训练、能被日期筛出 */
+    ids.forEach(id => {
+      const subj = (id.split('_')[0]) || '化学';
+      const sd = subjDef(subj);
+      if(!sd || !sd.items.some(x => x.id === id)){
+        const store = CUSTOM[subj] || IMPORTED[subj] || (IMPORTED[subj] = {items: []});
+        if(!store.items.some(x => x.id === id)){
+          store.items.push({id: id, s: '', c: '', t: '专题练', src: '', orig: '', link: '', no: '', note: ''});
+        }
+      }
+    });
+    rebuildSubjects();
+    /* 2) 注入 browseHistory（ts=browsed_at）+ browseMeta.lastBrowse，使专题练「上次浏览时间」当天可筛出 */
+    const seenH = new Set(browseHistory.map(e => e.id));
+    ids.forEach(id => {
+      const subj = (id.split('_')[0]) || '化学';
+      if(!seenH.has(id)){
+        browseHistory.unshift({ts: ts, id: id, mode: '专题练', subject: subj, src: s.rid || '', t: s.title || '专题练'});
+        seenH.add(id);
+      }
+      const bm = browseMeta[subj] || (browseMeta[subj] = {});
+      const mm = bm[id] || {browsed: false, lastBrowse: 0};
+      if(ts > mm.lastBrowse) mm.lastBrowse = ts;
+      bm[id] = mm;
+    });
+    if(browseHistory.length > 500) browseHistory.length = 500;
+    savePerson();
+    /* 3) 打开专题练并预置日期=该次浏览时间当天，清空学科/专题限制以兼容多科会话 */
+    openTopicTrain();
+    tqSubjSel.clear(); updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList();
+    const ds = practiceLibShortDate(s.browsed_at);
+    $('tqDateStart').value = ds; $('tqDateEnd').value = ds;
+    refreshTqCount();
+    $('practiceLibModal').classList.remove('show');
+    toast('已载入「' + (s.title || '专题练') + '」：' + ids.length + ' 张卡片，专题练日期已设为 ' + ds);
+  }catch(e){
+    console.error('startPracticeSession failed:', e);
+    toast('载入练习失败：' + e.message);
+  }
+}
+async function deletePracticeSession(rid){
+  if(!confirm('确定删除该次专题练习记录？此操作不可撤销。')) return;
+  try{
+    const url = sbBase(cloudCfg.url) + '/rest/v1/practice_sessions?rid=eq.' + encodeURIComponent(rid);
+    const res = await fetchTimeout(url, {method: 'DELETE', headers: sbHeaders(cloudCfg.key, true)}, 12000);
+    if(!res.ok) throw new Error('DELETE practice_sessions ' + res.status);
+    toast('已删除');
+    openPracticeLib();
+  }catch(e){
+    console.error('deletePracticeSession failed:', e);
+    toast('删除失败：' + e.message);
+  }
+}
 function previewTopicList(){
   const ids = topicQuery();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
@@ -5299,6 +5433,10 @@ $('fSpeakBtn').addEventListener('click', e => { e.stopPropagation(); toggleSpeak
 $('fSpeakBtn').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleSpeak(); }, {passive:false});
 /* 专题练 */
 $('topicTrainBtn').addEventListener('click', openTopicTrain);
+$('practiceLibBtn').addEventListener('click', openPracticeLib);
+$('practiceLibClose').addEventListener('click', () => $('practiceLibModal').classList.remove('show'));
+$('practiceLibRefresh').addEventListener('click', openPracticeLib);
+$('practiceLibModal').addEventListener('click', e => { if(e.target === $('practiceLibModal')) $('practiceLibModal').classList.remove('show'); });
 /* 进入科目模式弹窗按钮 */
 $('modeTrainBtn').addEventListener('click', () => handleModeChoice('train'));
 $('modeBrowseBtn').addEventListener('click', () => handleModeChoice('browse'));
