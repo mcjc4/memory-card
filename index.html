@@ -4778,6 +4778,11 @@ async function seedTrainHistory(){
       if(needRebuild){ try{ rebuildSubjects(); }catch(eR){} }
       savePerson();
       try{ refreshTqCount(); }catch(e2){}   /* 刷一下专题练匹配数，让日期筛选立即生效 */
+      /* 2026-09-18：seed 注入完成后，若「只看作业训练」已启用（深链 ?train=hw 在 800ms 触发，
+         早于本函数 2.5s——当时本地还没有卡，队列映射必为空），关闭后重建一次队列。 */
+      try{
+        if(typeof tqTrainOnly!=='undefined' && tqTrainOnly){ tqTrainOnly=false; toggleTqTrain(); }
+      }catch(eT){}
     }
   }catch(e){ console.warn('[seed-train] failed:', e); }
 }
