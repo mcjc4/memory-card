@@ -2375,7 +2375,10 @@ function renderManage(){
   tbl.innerHTML = '';
   const filtered = its.filter(it => {
     if(mt && it.t !== mt) return false;
-    if(search){ const s = (it.s + it.c + (it.src||'') + (it.t||'')).toLowerCase(); if(!s.includes(search)) return false; }
+    if(search){ const s = (it.s + it.c + (it.src||'') + (it.t||'')).toLowerCase();
+      /* 关键词归一化（2026-09-18）：剥引导词/包装引号后再匹配，与专题练搜索一致 */
+      const q = search.replace(/^(见到|遇到|看到|已知|对于|题目中)[，,：:]?/, '').replace(/[「」『』“”‘’"']/g, '');
+      if(q && !s.includes(q)) return false; if(!q && !s.includes(search)) return false; }
     return true;
   });
   /* 表头 */
@@ -4600,7 +4603,10 @@ function topicQuery(){
   const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
   const topicFilter = tqTopicSel;
   const kw = $('tqKeyword').value.trim();
-  const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()) : [];
+  /* 关键词归一化（2026-09-18）：剥「见到/遇到/看到/已知」等引导词 + 包装引号，避免被包装词卡死 */
+  const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()
+      .replace(/^(见到|遇到|看到|已知|对于|题目中)[，,：:]?/, '')
+      .replace(/[「」『』“”‘’"']/g, '')).filter(Boolean) : [];
   const stSet = tqStatusSel;   /* 空 = 全部状态；非空 = 多选（unt/fail/half/pass 任一命中即保留） */
   const ds = $('tqDateStart').value;
   const de = $('tqDateEnd').value;
@@ -4623,6 +4629,9 @@ function topicQuery(){
       if(topicFilter.size && !topicFilter.has(it.t)) return;
       if(srcChecked.size && !srcChecked.has(it.src || '')) return;
       if(kws.length){
+        /* 2026-09-18 修复（用户反馈"报告页显示已入库却搜不到"）：报告生成的卡信号带包装词
+           （如 见到「…」），本地卡库同内容卡信号无前缀 → 完整串搜索永无命中。
+           关键词归一化：剥引导词与包装引号后再子串匹配。 */
         const hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
         if(!kws.some(k => hay.includes(k))) return;
       }
