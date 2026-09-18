@@ -185,11 +185,16 @@
   /* ---------------- 审核动作（通过入库 / 合并 / 拒绝 / 编辑）--------------- */
   async function approvePending(p, targetCardId) {
     var cid = targetCardId || _mcCardIdOf(p.subject, p.signal, p.conclusion);
+    /* 2026-09-18 修复（用户反馈"报告页显示已入库却搜不到"）：homework 来源的卡审核通过时
+       自动打 hw-train 标签——否则卡只落云端、不进训练队列，本地 seed 注入也不会带上它，
+       专题练搜索/日期筛选都找不到，必须手动「☁ 云端入库卡」合并。 */
+    var tgs = Array.isArray(p.tags) ? p.tags.slice() : [];
+    if ((p.source_module || '') === 'homework' && tgs.indexOf('hw-train') < 0) tgs.push('hw-train');
     await _mcCloudWrite(CARDS_TABLE, {
       card_id: cid, subject: p.subject, chapter: p.chapter || '', signal: p.signal, conclusion: p.conclusion,
       src: p.src || '', orig: p.orig || '', link: p.link || '', status: 'active',
       source_module: p.source_module || '', source_type: p.source_type || 'manual', source_id: p.source_id || String(p.id || ''),
-      tags: Array.isArray(p.tags) ? p.tags : [],
+      tags: tgs,
       fingerprint: _mcNormText(p.signal, p.conclusion), updated_at: new Date().toISOString()
     });
     if (p.source_type === 'mistake' && p.source_id) {
