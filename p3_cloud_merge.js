@@ -97,19 +97,9 @@
     setMergeLabel(document.getElementById('dashCloudMergeBtn'), n); /* 首页看板按钮同步角标 */
   }
 
-  /* 取待合并候选（去重 + 转成本地 rec，带上 subject）
-   * 并入时把本地 id 直接定为「指纹 id」（见 commit），与 applyStableIds 保持一致，
-   * 这样合并完当次就能在库里按新 id 找到，且下次刷新 id 不会再漂移。 */
-  async function fetchCandidates() {
-    /* no/note 两列是后补的（add_cards_no_note.sql），执行前选择投影里不能含它们，否则整条查询 400。
-     * 故先探测列是否存在，再决定 select 是否追加 no,note（与 index.html 的 cardsHasNoteCols 同源）。 */
-    var hasNote = false;
-    try { hasNote = !!(typeof cardsHasNoteCols === 'function' && (await cardsHasNoteCols())); } catch (e) { hasNote = false; }
-    var sel = 'card_id,subject,chapter,signal,conclusion,src,link,orig,tags,source_module,source_type,source_id,status,created_at' + (hasNote ? ',no,note' : '');
-    var rows = await sbSelect('cards',
-      P3_SRC_FILTER + '&status=eq.active' +
-      '&select=' + encodeURIComponent(sel) +
-      '&limit=5000');
+  /* 云端行 → 本地候选列表（去重 + 转成本地 rec，带上 subject）
+   * 并入时把本地 id 直接定为「指纹 id」（见 commit），与 applyStableIds 保持一致。 */
+  function rowsToList(rows, hasNote) {
     var list = [], seen = new Set(), set = localIdSet();
     (rows || []).forEach(function (r) {
       if (!r.subject || !r.card_id) return;
@@ -137,6 +127,20 @@
       });
     });
     return list;
+  }
+
+  /* 取待合并候选（手动「☁ 云端入库卡」用，弹预览核对） */
+  async function fetchCandidates() {
+    /* no/note 两列是后补的（add_cards_no_note.sql），执行前选择投影里不能含它们，否则整条查询 400。
+     * 故先探测列是否存在，再决定 select 是否追加 no,note（与 index.html 的 cardsHasNoteCols 同源）。 */
+    var hasNote = false;
+    try { hasNote = !!(typeof cardsHasNoteCols === 'function' && (await cardsHasNoteCols())); } catch (e) { hasNote = false; }
+    var sel = 'card_id,subject,chapter,signal,conclusion,src,link,orig,tags,source_module,source_type,source_id,status,created_at' + (hasNote ? ',no,note' : '');
+    var rows = await sbSelect('cards',
+      P3_SRC_FILTER + '&status=eq.active' +
+      '&select=' + encodeURIComponent(sel) +
+      '&limit=5000');
+    return rowsToList(rows, hasNote);
   }
 
   /* ---------- 预览核对弹窗 ---------- */
@@ -256,8 +260,10 @@
   }
 
   /* ---------- 真正的合并（仅合并 sel 列表，按 subject 归并） ---------- */
-  async function commit(sel) {
-    if (!sel || !sel.length) { toast('未选择任何卡片'); updateBadge(); return; }
+  // opts.silent=true：自动同步调用，跳过「未选择/没有新的」提示，仅在真正并入时轻提示
+  async function commit(sel, opts) {
+    opts = opts || {};
+    if (!sel || !sel.length) { if (!opts.silent) toast('未选择任何卡片'); updateBadge(); return; }
     try {
       var bySubj = {};
       sel.forEach(function (o) {
@@ -312,16 +318,17 @@
         }
         afterCardChange();
         if (savedOk) {
-          toast('已合并 ' + added + ' 张云端入库卡 · 浏览时间=此刻（今天日期可直接筛出）');
+          if (opts.silent) toast('🔄 自动并入 ' + added + ' 张新卡（来自其他设备/模块）');
+          else toast('已合并 ' + added + ' 张云端入库卡 · 浏览时间=此刻（今天日期可直接筛出）');
         } else {
           toast('⚠️ 合并 ' + added + ' 张完成，但本地保存失败（存储空间不足），刷新后会丢——请先清理备份快照再试');
           console.error('[cloudMerge] 本地保存失败：', saveErr);
         }
       } else {
-        toast('没有新的云端入库卡');
+        if (!opts.silent) toast('没有新的云端入库卡');
       }
     } catch (e) {
-      toast('合并失败：' + (e && e.message ? e.message : e));
+      if (!opts.silent) toast('合并失败：' + (e && e.message ? e.message : e));
     } finally {
       updateBadge();
     }
@@ -341,15 +348,47 @@
     }
   }
 
+  /* ---------- Phase 4：自动同步（代替手动 p3 合并，跨设备/模块实时顺畅） ----------
+   * 思路：云端 cards 表为唯一真源；本机用「水印」增量拉取新卡并自动并入本地 + 写浏览时间，
+   *       不再依赖人工点「☁ 云端入库卡」。首次启用水印=此刻（不回填历史全库，避免一次性灌入），
+   *       之后只拉 created_at>水印 的新卡；离线期间 A 生成的卡，B 上线后也会自动补齐。
+   * 这是「pull 模型」的自动版：每台设备定时自取，B 无需任何动作即能看到 A 的卡。
+   * （相比 supabase Realtime，delta 轮询更稳、egress 远低于现状 60s 全表轮询，且不依赖 WebSocket。） */
+  var WM_KEY = 'p3_autosync_watermark';
+  var AUTO_MS = 30000;
+
+  async function autoSyncOnce() {
+    var wm = parseInt(localStorage.getItem(WM_KEY) || '0', 10);
+    if (!wm) { wm = Date.now(); localStorage.setItem(WM_KEY, String(wm)); } // 首次：从此刻起，不回填历史
+    var since = new Date(wm - 2000).toISOString();
+    try {
+      var hasNote = !!(typeof cardsHasNoteCols === 'function' && (await cardsHasNoteCols()));
+      var sel = 'card_id,subject,chapter,signal,conclusion,src,link,orig,tags,source_module,source_type,source_id,status,created_at' + (hasNote ? ',no,note' : '');
+      var rows = await sbSelect('cards',
+        P3_SRC_FILTER + '&status=eq.active&created_at=gte.' + encodeURIComponent(since) +
+        '&select=' + encodeURIComponent(sel) + '&order=created_at.asc&limit=5000');
+      var list = rowsToList(rows, hasNote);
+      if (list.length) { await commit(list, { silent: true }); }
+    } catch (e) {
+      /* 静默：自动同步失败不影响手动合并与常规使用 */
+    }
+    localStorage.setItem(WM_KEY, String(Date.now()));
+  }
+
   function init() {
     var b = elBtn();
-    if (!b) return;
-    b.addEventListener('click', doMerge);
+    if (b) { b.addEventListener('click', doMerge); }
     updateBadgeBtnText();
+    /* 启动自动同步：首次延迟 3s（等本地库加载完），之后每 30s 增量拉取 */
+    setTimeout(autoSyncOnce, 3000);
+    setInterval(autoSyncOnce, AUTO_MS);
   }
   function updateBadgeBtnText() {
     updateBadge();
   }
+
+  /* 对外暴露（供 phase4_links_reviews.js / 其他模块复用） */
+  window.P3Merge = { commit: commit, fetchCandidates: fetchCandidates, autoSyncOnce: autoSyncOnce, rowsToList: rowsToList };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
