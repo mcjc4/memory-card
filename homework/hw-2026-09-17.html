@@ -39,7 +39,7 @@ a{color:#1a6ee0;text-decoration:none}a:hover{text-decoration:underline}
 .imgs figcaption{font-size:11.5px;color:#8aa0b8;margin-top:4px}
 .ana{font-size:14px;line-height:1.95;background:#fffdf5;border:1px solid #f2e8c9;border-left:4px solid #e8b93c;border-radius:10px;padding:12px 14px}
 .pair{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-.pair span{border-radius:8px;padding:3px 12px;font-size:13px;font-weight:600}
+.pair>span{border-radius:8px;padding:3px 12px;font-size:13px;font-weight:600}
 .pair .stu{background:#fdecec;color:#c0392b}.pair .corr{background:#e8f7ef;color:#1e8e5a}
 table.hit{width:100%;border-collapse:collapse;font-size:12.8px;margin-top:4px}
 table.hit th{background:linear-gradient(135deg,#1a6ee0,#18b3c7);color:#fff;padding:8px 9px;text-align:left;font-weight:600;white-space:nowrap}
@@ -80,10 +80,11 @@ html{-webkit-text-size-adjust:100%}
    改为让「块级容器」横向滚动来消化超宽，页面本体不被撑宽 */
 .stem,.ana{overflow-x:auto}
 .pair{min-width:0}
-.pair span{max-width:100%;overflow-x:auto}
+.pair>span{max-width:100%;overflow-x:auto}
 /* 长无语义串（URL / ID / 连写字母数字）允许断行 */
-.stem,.ana,td.sig,td.ccl,td.fit,td.src,td.note,td.cid,.pair span{overflow-wrap:anywhere;word-break:break-word}
-.pair span{max-width:100%}
+.stem,.ana,td.sig,td.ccl,td.fit,td.src,td.note,td.cid,.pair>span{overflow-wrap:anywhere;word-break:break-word}
+/* KaTeX 公式保护：容器断行规则不得渗入公式内部（否则内部 span 被拆散、间距错乱） */
+.katex,.katex *{overflow-wrap:normal;word-break:normal;word-break:normal;max-width:none;overflow:visible;padding:0;border-radius:0}
 img,svg{max-width:100%}
 /* 收窄屏幕：缩小留白与字号，表格改为横向滚动（保持可读列宽，避免竖排文字） */
 @media(max-width:900px){
@@ -115,7 +116,7 @@ img,svg{max-width:100%}
   .stat{min-width:88px;padding:8px 10px;border-radius:12px}
   .stat .num{font-size:19px}
   .stat .lab2{font-size:11px}
-  .pair span{font-size:12.4px;padding:3px 9px}
+  .pair>span{font-size:12.4px;padding:3px 9px}
   .lab{font-size:13.5px;padding-top:2px}
   table.ov{font-size:12.6px}
   table.ov th,table.ov td{padding:6px 8px}
