@@ -4736,6 +4736,23 @@ async function seedTrainHistory(){
   if(_seedTrainRan) return; _seedTrainRan = true;
   try{
     const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,signal,conclusion,chapter,src,updated_at&limit=500');
+    /* 2026-09-18 修复③（用户反馈"报告页显示已入库却搜不到"）：只点「通过入库」、没点「➕ 加入训练」
+       的 homework 卡没有 hw-train 标签，不进训练队列、也不会被 seed 注入本地 → 专题练搜索 0 命中。
+       此处补齐存量：拉取 homework 来源的卡，缺标签的 PATCH 补打 hw-train，再并入下方注入流程。
+       （approvePending 已改为新卡自动打标签，这里兜底处理历史卡。） */
+    try{
+      const hwRows=await sbSelect(CARDS_TABLE, 'source_module=eq.homework&select=card_id,signal,conclusion,chapter,src,updated_at,tags&limit=500');
+      const seenQ=new Set((rows||[]).map(r=>r.card_id));
+      for(const r of (hwRows||[])){
+        if(!r.card_id || seenQ.has(r.card_id)) continue;
+        let tg=Array.isArray(r.tags)?r.tags:[];
+        if(tg.indexOf('hw-train')<0){
+          tg=tg.concat(['hw-train']);
+          try{ await sbUpdate(CARDS_TABLE,{tags:tg},'card_id=eq.'+encodeURIComponent(r.card_id)); }catch(eP){}
+        }
+        rows.push(r); seenQ.add(r.card_id);
+      }
+    }catch(eH){ console.warn('[seed-train] homework backfill failed:', eH); }
     if(!rows || !rows.length) return;
     const haveTrain=new Set(browseHistory.filter(e => e && e.mode === '专题练').map(e => e.id));
     const now=Date.now(); let stamped=0, histAdded=0, needRebuild=false;
