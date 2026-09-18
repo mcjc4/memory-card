@@ -1,7 +1,7 @@
 /* mc_knowledge_err.js —— 知识地图（胶带版）易错栏目内联「编辑 / 审核」
  * 职责：扫描每页 .err-item，右侧挂【编辑】【审核】按钮；
- *   - 编辑：弹窗改 signal/conclusion/tags → 写 cards_pending（propose 或 patch）
- *   - 审核：通过入库 / 合并 / 拒绝（propose + approvePending/mergePending/rejectPending）
+ *   - 编辑：弹窗改 signal/conclusion/tags → 新卡直写 cards（autoIngest），旧待审行仍 patch
+ *   - 审核：直接入库（autoIngest 进 cards，去 cards_pending 闸门，决策#3：受信模块全自动入库）
  * 全部经 window.MC（mc_pending.js）写入同一 M 库，source_module='knowledge' source_type='tape'。
  * 依赖：先于本脚本加载 ../mc_pending.js（MC 命名空间）。
  *
@@ -64,7 +64,20 @@
     };
   }
 
+  // 决策#3：知识地图为受信模块 → 卡直写 cards（去 cards_pending 闸门）。用 source_id 查 cards 判「已入库」
+  async function cardRow(d) {
+    try { var rows = await MC.select('cards', 'source_id=eq.' + encodeURIComponent(d.sourceId) + '&select=card_id&limit=1'); return (rows && rows[0]) || null; }
+    catch (e) { return null; }
+  }
   async function refresh(actions, d) {
+    var card = await cardRow(d);
+    if (card) {
+      var b0 = document.createElement('span');
+      b0.style.cssText = 'font-size:12px;color:#166534;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;white-space:nowrap';
+      b0.textContent = '✅ 已入库 ' + (card.card_id || '');
+      actions.innerHTML = ''; actions.appendChild(b0);
+      return;
+    }
     var rows = [];
     try { rows = await MC.fetchPending({ sourceId: d.sourceId }); } catch (e) { rows = []; }
     var st = statusOf(rows);
@@ -128,9 +141,8 @@
           await MC.patchPending(existingRow.id, { signal: sig, conclusion: con, tags: tags, src: src, link: link, orig: orig });
           MC.toast('已更新待审卡');
         } else {
-          var m = metaFor(d);
-          await MC.propose({ subject: SUBJECT, chapter: CHAPTER, signal: sig, conclusion: con, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: tags, src: src, link: link, orig: orig });
-          MC.toast('已提交待审');
+          await MC.autoIngest({ subject: SUBJECT, chapter: CHAPTER, signal: sig, conclusion: con, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: tags, src: src, link: link, orig: orig });
+          MC.toast('已入库（去待审闸门）');
         }
         document.body.removeChild(mask);
         refresh(actions, d);
@@ -138,6 +150,7 @@
     });
   }
 
+  // 决策#3：受信模块(知识地图) → 直接 autoIngest 进 cards，去掉「待审/通过」闸门（合并/拒绝不再需要）
   function openReview(actions, d, existingRow) {
     actions.innerHTML = '';
     var act = document.createElement('div');
@@ -148,31 +161,16 @@
       b.style.cssText = 'border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;background:' + bg + ';color:' + color;
       return b;
     }
-    var pass = btn('通过入库', '#16a34a', '#fff');
-    var merge = btn('合并', '#fef3c7', '#92400e');
-    var reject = btn('拒绝', '#fee2e2', '#991b1b');
+    var pass = btn('直接入库（去待审闸门）', '#16a34a', '#fff');
     var cancel = btn('取消', '#f3f4f6', '#374151');
-    act.appendChild(pass); act.appendChild(merge); act.appendChild(reject); act.appendChild(cancel);
+    act.appendChild(pass); act.appendChild(cancel);
     cancel.addEventListener('click', function () { refresh(actions, d); });
-    async function ensureRow() {
-      if (existingRow) return existingRow;
-      var m = metaFor(d);
-      return await MC.propose({ subject: SUBJECT, chapter: CHAPTER, signal: d.signal, conclusion: d.conclusion, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: m.tags, src: m.src, link: m.link, orig: d.orig });
-    }
     pass.addEventListener('click', async function () {
-      try { var row = await ensureRow(); await MC.approvePending(row); MC.toast('已入库 ' + (row.card_id || '')); refresh(actions, d); }
-      catch (e) { MC.toast('入库失败：' + e.message); }
-    });
-    merge.addEventListener('click', async function () {
-      var def = (existingRow && existingRow.payload && existingRow.payload.prefilter_card) ? existingRow.payload.prefilter_card : '';
-      var target = window.prompt('合并到已有卡的 card_id（默认预筛命中）：', def);
-      if (!target) return;
-      try { var row = await ensureRow(); await MC.mergePending(row, target.trim()); MC.toast('已合并到 ' + target.trim()); refresh(actions, d); }
-      catch (e) { MC.toast('合并失败：' + e.message); }
-    });
-    reject.addEventListener('click', async function () {
-      try { var row = await ensureRow(); await MC.rejectPending(row); MC.toast('已拒绝'); refresh(actions, d); }
-      catch (e) { MC.toast('拒绝失败：' + e.message); }
+      try {
+        var m = metaFor(d);
+        await MC.autoIngest({ subject: SUBJECT, chapter: CHAPTER, signal: d.signal, conclusion: d.conclusion, sourceModule: SRC_MOD, sourceType: SRC_TYP, sourceId: d.sourceId, tags: m.tags, src: m.src, link: m.link, orig: d.orig });
+        MC.toast('已入库（去待审闸门）'); refresh(actions, d);
+      } catch (e) { MC.toast('入库失败：' + e.message); }
     });
   }
 
