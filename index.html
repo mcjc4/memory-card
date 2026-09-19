@@ -788,7 +788,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
   <div class="modalBox taskBox">
     <h2><span>📚 训练库 · 待训练卡聚合</span><span class="x" id="practiceLibClose">×</span></h2>
     <div class="bhFoot">
-      <span class="bhInfo">聚合所有带「待训练」标签的记忆卡（作业报告点「➕ 加入训练」/「记忆卡入库」即打标）；点「🎯 开始专题练」整队开练，练完这批卡会自动标记「已训练」并从本列表退出。</span>
+      <span class="bhInfo">聚合所有带「待训练」标签的记忆卡（作业报告点「➕ 加入训练」/「记忆卡入库」即打标）；点「💾 存入训练库」后这批卡标签改为「已入训练队列」并退出本列表；点「🎯 开始专题练」整队开练，练完自动标记「已训练」。</span>
       <button id="practiceLibRefresh" class="ok" style="background:#1D5C7C;color:#fff;border:1px solid #1D5C7C;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer">🔄 刷新</button>
     </div>
     <div id="plQueuedBox" style="border:1px solid #dbe7f5;background:#F5F9FF;border-radius:10px;padding:10px 12px;margin-bottom:12px">
@@ -4625,7 +4625,7 @@ function updateTqStatusBtn(){
 }
 
 /* ---------- 🏷 标签筛选（待训练/作业收集等，云端 cards.tags） ---------- */
-function TQ_TAG_ITEMS(){ return ['待训练', '作业收集', '新卡待下载']; }
+function TQ_TAG_ITEMS(){ return ['待训练', '已入训练队列', '作业收集', '新卡待下载']; }
 async function tqTagLocalIds(tag){
   const now = Date.now();
   if(_tqTagCache[tag] && now - _tqTagCacheAt < 120000) return _tqTagCache[tag];
@@ -5233,7 +5233,7 @@ async function renderQueuedCards(){
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ cnt.textContent = '未配置云端'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
   try{
     const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
-    /* 待训练聚合 = 云端所有带「待训练」标签的卡（实时查询，打标即出现，练完自动改标「已训练」后退出本列表） */
+    /* 待训练聚合 = 云端所有带「待训练」标签的卡（实时查询；作业报告打标即出现；点「存入训练库」改标「已入训练队列」后退出本列表；练完自动改标「已训练」退役） */
     _plQueuedRows = (rows || []).slice();
     _plQueuedIds = _plQueuedRows.map(r => r.card_id);
     cnt.textContent = _plQueuedIds.length + ' 张待训练';
@@ -5284,7 +5284,7 @@ async function startQueuedTrain(){
   const seenH = new Set(browseHistory.map(e => e.id));
   ids.forEach(id => {
     const subj = subjMap[id] || '化学';
-    if(!seenH.has(id)){ browseHistory.unshift({ts: ts, id: id, mode: '专题练', subject: subj, src: '', t: '训练库待训练'}); seenH.add(id); }
+    if(!seenH.has(id)){ browseHistory.unshift({ts: ts, id: id, mode: '专题练', subject: subj, src: '', t: '已入训练队列'}); seenH.add(id); }
     const bm = browseMeta[subj] || (browseMeta[subj] = {});
     const mm = bm[id] || {browsed: false, lastBrowse: 0};
     if(ts > mm.lastBrowse) mm.lastBrowse = ts;
@@ -5296,14 +5296,33 @@ async function startQueuedTrain(){
   queuedFromLib = true; lastTopicTrainIds = ids.slice();
   startQueueDirect(ids, '待训练队列开始');
 }
+/* 把一批卡的「待训练」标签替换为「已入训练队列」（保留其他标签如作业收集/新卡待下载），使其退出待训练明细 */
+async function retagToQueued(ids){
+  let ok = 0;
+  for(const id of ids){
+    try{
+      const rr = await sbSelect(CARDS_TABLE, 'card_id=eq.' + encodeURIComponent(id) + '&select=tags');
+      if(rr && rr[0]){
+        const cur = Array.isArray(rr[0].tags) ? rr[0].tags : [];
+        if(cur.indexOf('已入训练队列') >= 0) continue;
+        const nt = [...new Set(cur.filter(t => t !== '待训练').concat(['已入训练队列']))];
+        await sbUpdate(CARDS_TABLE, {tags: nt, updated_at: new Date().toISOString()}, 'card_id=eq.' + encodeURIComponent(id));
+        ok++;
+      }
+    }catch(e){}
+  }
+  return ok;
+}
 async function saveQueuedToLib(){
   if(!_plQueuedIds.length){ toast('暂无待训练卡可存'); return; }
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法保存记录'); return; }
   try{
     const ids = _plQueuedIds.slice();
+    const n = await retagToQueued(ids);
     const rid = 'tl-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
-    await plUpsertSession({rid: rid, title: '训练库待训练 · ' + ids.length + '张', subject: '跨科', source: 'app-lib', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
-    toast('✅ 已保存本次专题练记录（' + ids.length + ' 张）· 卡片仍留在待训练列表，练完将自动标记「已训练」');
+    await plUpsertSession({rid: rid, title: '已入训练队列 · ' + ids.length + '张', subject: '跨科', source: 'app-lib', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
+    toast('✅ 已存入训练库（' + ids.length + ' 张）· 标签「待训练」→「已入训练队列」，已退出待训练明细');
+    openPracticeLib();
   }catch(e){ toast('保存失败：' + (e.message || e)); }
 }
 /* 方案 A：专题练结束后，把本次练过的卡「待训练」→「已训练」，使其自动退出待训练聚合 */
@@ -5316,8 +5335,8 @@ async function maybeRetagTrained(ids){
       const rr = await sbSelect(CARDS_TABLE, 'card_id=eq.' + encodeURIComponent(id) + '&select=tags');
       if(rr && rr[0]){
         const cur = Array.isArray(rr[0].tags) ? rr[0].tags : [];
-        if(cur.indexOf('已训练') >= 0 && cur.indexOf('待训练') < 0) continue;
-        const nt = [...new Set(cur.filter(t => t !== '待训练').concat(['已训练']))];
+        if(cur.indexOf('已训练') >= 0) continue;
+        const nt = [...new Set(cur.filter(t => t !== '待训练' && t !== '已入训练队列').concat(['已训练']))];
         await sbUpdate(CARDS_TABLE, {tags: nt, updated_at: new Date().toISOString()}, 'card_id=eq.' + encodeURIComponent(id));
         ok++;
       }
@@ -5331,9 +5350,10 @@ async function saveQueueToLib(){
   if(!ids.length){ toast('当前队列没有卡片'); return; }
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法存入训练库'); return; }
   try{
+    const n = await retagToQueued(ids);
     const rid = 'tq-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
-    await plUpsertSession({rid: rid, title: '专题练队列 · ' + ids.length + '张 · ' + new Date().toLocaleDateString('zh-CN'), subject: '跨科', source: 'app-topic', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
-    toast('✅ 当前专题练队列已存入训练库（' + ids.length + ' 张）');
+    await plUpsertSession({rid: rid, title: '已入训练队列 · ' + ids.length + '张 · ' + new Date().toLocaleDateString('zh-CN'), subject: '跨科', source: 'app-topic', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
+    toast('✅ 已存入训练库（' + ids.length + ' 张）· 标签「待训练」→「已入训练队列」');
   }catch(e){ toast('存入失败：' + (e.message || e)); }
 }
 async function openPracticeLib(){
@@ -5348,7 +5368,7 @@ async function openPracticeLib(){
     }
     const rows = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at&order=browsed_at.desc&limit=200');
     if(!rows || !rows.length){
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">训练库暂无记录（去作业批改报告点「💾 存入训练库」即可生成）</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">训练库暂无记录（在上方「待训练」明细中勾选卡片，点「💾 存入训练库」即可生成）</td></tr>';
       return;
     }
     tbody.innerHTML = '';
