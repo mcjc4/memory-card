@@ -369,6 +369,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="dashStat"><span class="k">待重练</span><span class="v" id="dWeak" style="color:#A32D2D">0</span></div>
     </div>
     <div id="crossRetryBanner"></div>
+    <div id="trainLibBanner" style="display:none"></div>
     <div class="dashGrid" id="dashGrid"></div>
     <div class="foot">完全离线单文件 · 六科进度保存在本机浏览器<br>未导入科目：点卡片直接选 Excel（列：章节|信号|结论|出处）</div>
   </div>
@@ -2127,6 +2128,7 @@ function renderDash(){
   }
   dashStats();
   renderCrossBanner();
+  renderTrainLibBanner();
   renderTimeRing();   /* 顶部：各科投入时间分布 */
   const grid = $('dashGrid');
   grid.innerHTML = '';
@@ -4277,6 +4279,27 @@ function renderCrossBanner(){
     b.innerHTML = '<span>✅ 暂无待重练，全部已掌握</span>';
   }
 }
+/* ---------- 训练库未练队列横幅（首页，对齐跨科重练样式，2026-09-19 用户指定） ----------
+   提醒的是「已存入训练库但还没练完的队列名称」（practice_sessions 中 title 以「已入训练队列」开头 / subject=跨科），
+   点击打开训练库弹窗，由用户在队列里点「🎯 开始专题练」。无待练队列则隐藏。 */
+function renderTrainLibBanner(){
+  const b = $('trainLibBanner'); if(!b) return;
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ b.style.display = 'none'; return; }
+  (async () => {
+    try{
+      const rows = await sbSelect('practice_sessions', 'select=rid,title,subject&order=browsed_at.desc&limit=200');
+      const qs = (rows || []).filter(s => String(s.title || '').indexOf('已入训练队列') === 0 || s.subject === '跨科');
+      if(!qs.length){ b.style.display = 'none'; return; }
+      const names = qs.map(s => s.title || '(未命名)');
+      const shown = names.slice(0, 3).join('、');
+      const more = names.length > 3 ? (' 等' + names.length + '个') : '';
+      b.className = 'crossBanner';
+      b.innerHTML = '<span>📚 训练库 · <b style="font-size:16px">' + qs.length + '</b> 个队列待训练：' + escHtml(shown) + more + '</span><span class="bannerArrow">›</span>';
+      b.style.display = 'flex';
+      b.onclick = () => { if(b.className.indexOf('done') < 0) openPracticeLib(); };
+    }catch(e){ b.style.display = 'none'; }
+  })();
+}
 function enterCrossRetry(){
   const ids = [];
   SUBJ_NAMES.forEach(nm => {
@@ -5100,16 +5123,10 @@ function renderBrowseHistory(){
   });
 }
 /* 直接开练：跳过专题练查询/筛选页，进入刷题界面（用户 2026-09-19 指定：点「开始专题练」直接进练习页） */
-function setTopicBarLabel(txt){
-  const bEl = document.querySelector('#topicTrainBar b');
-  if(bEl) bEl.textContent = txt || '🎯 专题练';
-}
-function startQueueDirect(ids, title, cross, qname){
+function startQueueDirect(ids, title){
   if(!ids.length){ toast('没有可练习的卡片'); return; }
   queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
   browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
-  /* 跨科训练队列（已入训练队列）：训练页顶栏像首页跨科重练那样给出提示 */
-  setTopicBarLabel(cross ? ('🎯 跨科训练' + (qname ? ' · ' + qname : '')) : '🎯 专题练');
   $('browseBar').style.display = 'none';
   $('topicTrainBar').style.display = 'flex';
   $('topicTrainPos').textContent = '本次第 1 / ' + queue.length + ' 张';
@@ -5127,7 +5144,6 @@ function startBhPractice(){
     if(!ids.length){ toast('没有可练习的卡片，请调整筛选条件'); return; }
     queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
     browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
-    setTopicBarLabel('🎯 专题练');
     $('browseBar').style.display = 'none';
     $('topicTrainBar').style.display = 'flex';
     $('topicTrainPos').textContent = '本次第 1 / ' + queue.length + ' 张';
@@ -5207,7 +5223,6 @@ function startTopicTrain(){
   pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
   browseMode = false;
   isTopicTrain = true;
-  setTopicBarLabel('🎯 专题练');
   $('browseBar').style.display = 'none';
   $('topicTrainBar').style.display = 'flex';
   $('topicTrainPos').textContent = '本次第 0 / ' + queue.length + ' 张';
@@ -5413,12 +5428,9 @@ async function openPracticeLib(){
       const hitN = Array.isArray(s.card_ids) ? s.card_ids.length : 0;
       const newN = Array.isArray(s.new_card_ids) ? s.new_card_ids.length : 0;
       const rid = escHtml(s.rid || '');
-      /* 跨科训练队列（已入训练队列）：像首页跨科重练那样给出醒目提示徽章（用户 2026-09-19 指定） */
-      const isCross = (s.subject === '跨科') || String(s.title || '').indexOf('已入训练队列') === 0;
-      const crossBadge = isCross ? ' <span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:11px;background:#FDEBE7;border:1px solid #F0997B;color:#A32D2D;font-weight:600;white-space:nowrap;vertical-align:1px">🎯 跨科训练</span>' : '';
       const tr = document.createElement('tr');
       tr.innerHTML = '<td class="ts">' + practiceLibFmtDate(s.browsed_at) + '</td>'
-        + '<td>' + escHtml(s.title || '(未命名)') + crossBadge + '</td>'
+        + '<td>' + escHtml(s.title || '(未命名)') + '</td>'
         + '<td>' + escHtml(s.subject || '化学') + '</td>'
         + '<td>' + hitN + ' 张</td>'
         + '<td>' + newN + ' 张</td>'
@@ -5483,8 +5495,7 @@ async function startPracticeSession(rid){
     if(browseHistory.length > 500) browseHistory.length = 500;
     savePerson();
     /* 3) 直接进刷题界面（用户 2026-09-19 指定：不再跳专题练查询页） */
-    const isCrossQ = (s.subject === '跨科') || String(s.title || '').indexOf('已入训练队列') === 0;
-    startQueueDirect(ids, '已载入「' + (s.title || '专题练') + '」', isCrossQ, isCrossQ ? (s.title || '') : '');
+    startQueueDirect(ids, '已载入「' + (s.title || '专题练') + '」');
   }catch(e){
     console.error('startPracticeSession failed:', e);
     toast('载入练习失败：' + e.message);
