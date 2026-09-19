@@ -151,6 +151,14 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseTable .stUnt{background:#F1F5F9;color:#6b7280}
 .browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5;white-space:nowrap}
 .browseTable .actBtn:hover{background:#E6F1FB;border-color:#185FA5}
+/* 2026-09-19 浏览历史补列：结论/编号/原题/题目链接/备注（用户要求数据里有的列都要显示） */
+.browseTable .colConc{color:#5b21b6;line-height:1.5;max-width:240px;word-break:break-word;vertical-align:top}
+.browseTable .colOrig{color:#475569;line-height:1.5;max-width:260px;word-break:break-word;vertical-align:top;max-height:88px;overflow:hidden}
+.browseTable .colNote{color:#64748b;line-height:1.5;max-width:200px;word-break:break-word;vertical-align:top;max-height:88px;overflow:hidden}
+.browseTable .colLink{vertical-align:middle}
+.browseTable .colLink a.bhLink{display:inline-block;background:#E0EFFB;color:#0C447C;font-size:12px;padding:3px 10px;border-radius:999px;white-space:nowrap;text-decoration:none}
+.browseTable .colLink a.bhLink:hover{filter:brightness(.94)}
+.browseTable .colEmpty{color:#cbd5e1}
 .card.collapsing .signal-zone{transform:translateY(-32px) scale(.95);opacity:0;transition:transform .35s ease,opacity .25s ease}
 .sig{font-size:var(--sig-fit,24px);line-height:1.45;color:#042C53;font-weight:500;transition:font-size .45s cubic-bezier(.4,0,.2,1),line-height .45s cubic-bezier(.4,0,.2,1)}
 .concl{font-size:var(--concl-fit,16px);line-height:2.0;color:#1f2329}
@@ -718,7 +726,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     </div>
     <div class="bhTableWrap">
       <table class="browseTable">
-        <thead><tr><th style="width:150px">浏览时间</th><th style="width:70px">模式</th><th>题干信号</th><th style="width:64px">状态</th><th style="width:72px">学科</th><th>出处</th><th style="width:96px">章节</th><th style="width:56px">操作</th></tr></thead>
+        <thead><tr><th style="width:150px">浏览时间</th><th style="width:70px">模式</th><th style="min-width:160px">题干信号</th><th style="min-width:160px">结论</th><th style="width:64px">状态</th><th style="width:72px">学科</th><th style="min-width:120px">出处</th><th style="width:96px">章节</th><th style="width:78px">编号</th><th style="min-width:220px">原题</th><th style="width:120px">题目链接</th><th style="min-width:160px">备注</th><th style="width:56px">操作</th></tr></thead>
         <tbody id="browseTbody"></tbody>
       </table>
     </div>
@@ -5101,7 +5109,7 @@ function renderBrowseHistory(){
   $('bhCardCount').textContent = cardN;
   if(!filtered.length){
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="8" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的浏览记录</td>';
+    tr.innerHTML = '<td colspan="13" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的浏览记录</td>';
     tbody.appendChild(tr);
     return;
   }
@@ -5109,17 +5117,24 @@ function renderBrowseHistory(){
   filtered.forEach(e => {
     const it = itemById(e.id);
     const sig = it ? (it.s || '').slice(0, 36) : '(卡片已删除)';
-    const conc = it ? (it.c || '').slice(0, 48) : '';
     const v = (state[e.subject] || {})[e.id];
     const st = stMap[v] || ['未测','stUnt'];
+    const linkCell = (it && it.link)
+      ? '<a class="bhLink" href="' + escHtml(it.link).replace(/\"/g,'&quot;') + '" target="_blank" rel="noopener">🔗 原题链接</a>'
+      : '<span class="colEmpty">—</span>';
     const tr = document.createElement('tr');
     tr.innerHTML = '<td class="ts">' + relTime(e.ts) + '<small>' + new Date(e.ts).toLocaleString('zh-CN', {hour12:false}) + '</small></td>'
       + '<td><span class="modeTag ' + modeClass(e.mode) + '">' + escHtml(e.mode) + '</span></td>'
-      + '<td class="sig">' + escHtml(sig) + (conc ? '<small>' + escHtml(conc) + '…</small>' : '') + '</td>'
+      + '<td class="sig">' + escHtml(sig) + '</td>'
+      + '<td class="colConc">' + (it ? escHtml(it.c || '') : '<span class="colEmpty">—</span>') + '</td>'
       + '<td><span class="stTag ' + st[1] + '">' + st[0] + '</span></td>'
       + '<td>' + escHtml(e.subject || '-') + '</td>'
       + '<td>' + escHtml(it ? (it.src || '') : (e.src || '')) + '</td>'
       + '<td>' + escHtml(it ? (it.t || '') : (e.t || '')) + '</td>'
+      + '<td>' + (it && it.no ? escHtml(it.no) : '<span class="colEmpty">—</span>') + '</td>'
+      + '<td class="colOrig">' + (it ? escHtml(it.orig || '') : '<span class="colEmpty">—</span>') + '</td>'
+      + '<td class="colLink">' + linkCell + '</td>'
+      + '<td class="colNote">' + (it ? escHtml(it.note || '') : '<span class="colEmpty">—</span>') + '</td>'
       + '<td><button class="actBtn" data-bid="' + escHtml(e.id) + '">跳转</button></td>';
     tbody.appendChild(tr);
   });
