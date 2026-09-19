@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>互动课件 · Q1 函数图像逐选项解析</title>
+<style>
+:root{--ink:#1f2430;--line:#e6e8ec;--mut:#6b7280;--ok:#1a8f5f;--bad:#c0392b}
+*{box-sizing:border-box}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:#f6f7f9;color:var(--ink);line-height:1.7;margin:0;padding:16px}
+h2{font-size:18px;margin:0 0 4px}
+.sub{font-size:13px;color:var(--mut);margin-bottom:14px}
+.stem{background:#fafbfc;border:1px solid var(--line);border-left:3px solid #9aa4b2;border-radius:8px;padding:11px 13px;font-size:14px;margin-bottom:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.opt{flex:1;min-width:120px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:12px;cursor:pointer;transition:.15s}
+.opt:hover{border-color:#0b6bd1;box-shadow:0 2px 10px rgba(11,107,209,.12)}
+.opt b{font-size:15px}
+.opt .exp{display:none;margin-top:8px;font-size:13px;border-top:1px dashed var(--line);padding-top:8px}
+.opt.show .exp{display:block}
+.opt.ok{border-color:var(--ok)}.opt.ok.show{background:#f0fdf4}
+.opt.bad{border-color:var(--bad)}.opt.bad.show{background:#fef2f2}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:6px;margin-left:6px}
+.tag.ok{background:#d1fae5;color:#065f46}.tag.bad{background:#fee2e2;color:#991b1b}
+.hint{font-size:13px;color:var(--mut);background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+</style></head>
+<body>
+<h2>📐 互动课件：函数图像逐选项解析</h2>
+<div class="sub">点击每个选项卡片，展开它的图像特征与对错理由（本题正解 A）</div>
+<div class="stem">下列函数中，既是奇函数又在区间 (−∞,+∞) 上单调递增的是：<br>
+A. f(x)=x³　B. f(x)=2<sup>x</sup>　C. f(x)=e<sup>x</sup>·e<sup>−x</sup>　D. f(x)=lg x</div>
+<div class="row">
+  <div class="opt ok" onclick="this.classList.toggle('show')"><b>A. x³</b><span class="tag ok">✓ 正解</span>
+    <div class="exp">图象过原点的立方曲线，(1,1) 与 (−1,−1) 关于原点对称 ⇒ <b>奇函数</b>；奇次幂在 R 上<b>递增</b>。两项全满足。</div></div>
+  <div class="opt bad" onclick="this.classList.toggle('show')"><b>B. 2<sup>x</sup></b><span class="tag bad">✗ 排除</span>
+    <div class="exp">指数增长曲线，f(1)=2、f(−1)=1/2，图象<b>不对称</b> ⇒ 非奇非偶。虽递增但第一项不满足。</div></div>
+  <div class="opt bad" onclick="this.classList.toggle('show')"><b>C. e<sup>x</sup>·e<sup>−x</sup></b><span class="tag bad">✗ 学生错选</span>
+    <div class="exp">e<sup>x</sup> 与 e<sup>−x</sup> 一升一降相乘恒为 <b>1</b>，图象是水平直线 y=1 ⇒ 常函数（偶函数）、且<b>不递增</b>。两项全不满足——这是题目埋的陷阱。</div></div>
+  <div class="opt bad" onclick="this.classList.toggle('show')"><b>D. lg x</b><span class="tag bad">✗ 排除</span>
+    <div class="exp">只在 y 轴右侧有定义，定义域 (0,+∞) <b>不对称</b> ⇒ 非奇非偶。第一项不满足。</div></div>
+</div>
+<div class="hint">💡 判断口诀：<b>先查奇偶（定义域对称 → 算 f(−x)），再验单调</b>。C 选项的陷阱在于「两个非奇非偶因子相乘」让人误以为结果奇，实则恒为常数。</div>
+<script>// 逐选项点击揭示，纯前端无依赖
+document.querySelectorAll('.opt').forEach(function(o){o.addEventListener('click',function(){o.classList.toggle('show');});});</script>
+</body></html>
