@@ -4939,10 +4939,15 @@ async function seedTrainHistory(){
     try{
       const hwRows=await sbSelect(CARDS_TABLE, 'or=(source_module.eq.homework,source_type.eq.homework)&select=card_id,subject,signal,conclusion,chapter,src,orig,link' + (hasNo?',no,note':'') + ',updated_at,tags&limit=500');
       const seenQ=new Set((rows||[]).map(r=>r.card_id));
+      const _TRAIN_TAGS=['待训练','已入训练队列','已训练'];
       for(const r of (hwRows||[])){
         if(!r.card_id || seenQ.has(r.card_id)) continue;
         let tg=Array.isArray(r.tags)?r.tags:[];
-        if(tg.indexOf('待训练')<0){
+        /* 2026-09-19 修复：兜底补「待训练」只对“从未进入训练流程”的 homework 卡生效；
+           已带 待训练/已入训练队列/已训练 任一口粮的卡一律不碰，否则会把已存库的卡打回待训练明细
+           （用户点「存入训练库」改标后，一刷新又被补回 待训练 → 明细“多出”卡片的根因）。 */
+        const _hasTrain = tg.some(t=>_TRAIN_TAGS.indexOf(t)>=0);
+        if(!_hasTrain){
           tg=tg.concat(['待训练']);
           try{ await sbUpdate(CARDS_TABLE,{tags:tg},'card_id=eq.'+encodeURIComponent(r.card_id)); }catch(eP){}
         }
