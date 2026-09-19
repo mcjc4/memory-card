@@ -504,11 +504,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <span id="topicTrainPos" style="color:#0C447C"></span>
   </div>
   <div class="actions" id="markActions">
-    <button class="btn lv1" id="btnL1">\uD83D\uDE36 完全不记得</button>
-    <button class="btn lv2" id="btnL2">\uD83E\uDDCF 勉强记得一点</button>
-    <button class="btn lv3" id="btnL3">\uD83E\uDD14 记得小部分</button>
-    <button class="btn lv4" id="btnL4">\uD83D\uDE0A 记得大部分</button>
-    <button class="btn lv5" id="btnL5">\uD83C\uDFAF 完全记住</button>
+    <button class="btn lv1" id="btnL1">😶 完全不记得</button>
+    <button class="btn lv2" id="btnL2">😯 勉强记得一点</button>
+    <button class="btn lv3" id="btnL3">🤔 记得小部分</button>
+    <button class="btn lv4" id="btnL4">😊 记得大部分</button>
+    <button class="btn lv5" id="btnL5">🎯 完全记住</button>
   </div>
   <div class="browseActions" id="browseActions" style="display:none">
     <button class="btn" id="btnPrev">← 上一张</button>
@@ -1454,7 +1454,7 @@ function refreshToday(){
 /* ============ 记忆程度五档（1=完全不记得 … 5=完全记住；档位<=WEAK_MAX 算未完全=待重练） ============ */
 const WEAK_MAX = 4;
 const LEVEL_NAME = {1:'完全不记得',2:'勉强记得一点',3:'记得小部分',4:'记得大部分',5:'完全记住'};
-const LEVEL_EMOJI = {1:'\uD83D\uDE36',2:'\uD83E\uDDCF',3:'\uD83E\uDD14',4:'\uD83D\uDE0A',5:'\uD83C\uDFAF'};
+const LEVEL_EMOJI = {1:'😶',2:'😯',3:'🤔',4:'😊',5:'🎯'};
 const LEVEL_COLOR = {1:'#A32D2D',2:'#C2410C',3:'#BA7517',4:'#3F7D1E',5:'#2E7D13'};
 function isWeak(v){ return v !== undefined && v !== null && v >= 1 && v <= WEAK_MAX; }
 function levelName(v){ return v ? (LEVEL_NAME[v] || '未测') : '未测'; }
@@ -1904,10 +1904,10 @@ function mark(level){ /* 1=完全不记得 2=勉强记得一点 3=记得小部�
     combo = 0;
     if(fxCfg.wrongShake){ cd.classList.remove('shake'); void cd.offsetWidth; cd.classList.add('shake'); setTimeout(() => cd.classList.remove('shake'), 500); }
     if(!isCrossRetry && !retryOrder.includes(id)) retryOrder.push(id);
-    if(level === 1) toast('\uD83D\uDE36 完全不记得，已加入待重练');
-    else if(level === 2) toast('\uD83E\uDDCF 勉强记得一点，已加入待重练');
-    else if(level === 3) toast('\uD83E\uDD14 记得小部分，已加入待重练');
-    else toast('\uD83D\uDE0A 记得大部分，已加入待重练');
+    if(level === 1) toast('😶 完全不记得，已加入待重练');
+    else if(level === 2) toast('😯 勉强记得一点，已加入待重练');
+    else if(level === 3) toast('🤔 记得小部分，已加入待重练');
+    else toast('😊 记得大部分，已加入待重练');
   } else {
     combo++;
     if(combo > (best[sName]||0)){ best[sName] = combo; savePerson(); }
@@ -1919,8 +1919,8 @@ function mark(level){ /* 1=完全不记得 2=勉强记得一点 3=记得小部�
     if(combo >= th && combo % th === 0) confetti();
     if(fxCfg.comboBurst && combo >= 5){ const c = $('comboBar'); c.classList.add('comboBurst'); setTimeout(() => c.classList.remove('comboBurst'), 600); confetti({count: 18}); }
     if(combo >= 2){ const c = $('comboBar'); c.textContent = '连击 ×' + combo + ' 🔥'; c.classList.remove('show'); void c.offsetWidth; c.classList.add('show'); }
-    if(level === 5) toast('\uD83C\uDFAF 完全记住');
-    else toast('\uD83D\uDE0A 记得大部分，不错');
+    if(level === 5) toast('🎯 完全记住');
+    else toast('😊 记得大部分，不错');
   }
   sMarkSound(level, combo);
   sessionSeen++;
