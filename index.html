@@ -347,6 +347,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
         <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;min-width:80px;text-align:left">☁ 同步状态</button>
         <button id="dashBrowseBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="查看浏览历史（全部学科/全部执行人本机记录）">📋 浏览历史</button>
         <button id="dashCrossTopicBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#E6F1FB;color:#0C447C;cursor:pointer">🎯 跨科专题练</button>
+        <button id="dashPracticeLibBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #1D5C7C;background:#E8F4F8;color:#1D5C7C;cursor:pointer;font-weight:600">📚 训练库</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
       </div>
     </div>
@@ -426,7 +427,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
     <button id="browseHistoryToolbarBtn" class="browse">📋 浏览历史</button>
     <button id="topicTrainBtn" class="manage">🎯 专题练</button>
-    <button id="practiceLibBtn" class="manage">📚 训练库</button>
     <button id="manageBtn" class="manage">🗂 管理</button>
     <button id="mistakesBtn" class="browse">📕 错题本</button>
     <button id="reviewBtn" class="manage">📋 待审入库</button>
@@ -4820,12 +4820,22 @@ async function toggleTqTrain(){
 /* ---------- 科目归属与库容器辅助（2026-09-19） ---------- */
 /* 按科目名取/建本地库容器：内置科目走 CUSTOM 覆盖层（方案 B 语义），
    避免往 IMPORTED 塞裸 {items:[]} 遮蔽内置科目的 display（「undefined」根因之一） */
+/* 卡编号（例如 che0535 / math12）被误当科目名的判定：真实科目都是中文名，纯 ASCII+数字后缀必为卡编号 */
+function isCardIdLike(k){
+  if(!k || typeof k !== 'string') return false;
+  return /^[A-Za-z]+\d{2,}$/.test(k) || (k.indexOf('_') >= 0 && /^[A-Za-z]+_\d/.test(k));
+}
 function ensureSubjectStore(subj){
   if(CUSTOM[subj]) return CUSTOM[subj];
   if(IMPORTED[subj]) return IMPORTED[subj];
   if(SUBJECTS[subj]){
     CUSTOM[subj] = { color: SUBJECTS[subj].color, display: SUBJECTS[subj].display || subj, items: (SUBJECTS[subj].items || []).slice() };
     return CUSTOM[subj];
+  }
+  /* 2026-09-19 防护：拒绝把卡编号当科目建容器（否则出现「che0535 · 1」污染科目标签），归位到「化学」 */
+  if(isCardIdLike(subj)){
+    console.warn('[ensureSubjectStore] 拒绝卡编号当科目:', subj, '→ 归位「化学」');
+    return ensureSubjectStore('化学');
   }
   IMPORTED[subj] = { color: (typeof SUBJ_COLORS!=='undefined' && SUBJ_COLORS[subj]) || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length], display: subj, items: [] };
   return IMPORTED[subj];
@@ -4850,11 +4860,14 @@ let _undefCleanupRan = false;
 async function cleanupUndefinedSubjects(){
   if(_undefCleanupRan) return; _undefCleanupRan = true;
   try{
-    const FLAG = 'wulun_undefsubj_cleanup_v1';
+    const FLAG = 'wulun_undefsubj_cleanup_v2';
     if(localStorage.getItem(FLAG)) return;
     const bad = [];
-    Object.keys(IMPORTED).forEach(k => { const d = IMPORTED[k]; if(d && (!d.display || d.display === 'undefined')) bad.push(k); });
-    Object.keys(CUSTOM).forEach(k => { const d = CUSTOM[k]; if(d && !SUBJECTS[k] && (!d.display || d.display === 'undefined')) bad.push(k); });
+    /* 2026-09-19 加严：① 无 display / 显示「undefined」的科目；② 卡编号被误当科目（如 che0535）。
+       注意旧版只抓 display=undefined，但 ensureSubjectStore 会把 display 设为卡编号本身（che0535），导致漏网——
+       现在用 isCardIdLike 一并清除，并 bump 到 v2 让已带 v1 标记的老浏览器再跑一次。 */
+    Object.keys(IMPORTED).forEach(k => { const d = IMPORTED[k]; if(d && (isCardIdLike(k) || !d.display || d.display === 'undefined')) bad.push(k); });
+    Object.keys(CUSTOM).forEach(k => { const d = CUSTOM[k]; if(d && !SUBJECTS[k] && (isCardIdLike(k) || !d.display || d.display === 'undefined')) bad.push(k); });
     if(!bad.length){ localStorage.setItem(FLAG, '1'); return; }
     const moved = [];
     bad.forEach(k => {
@@ -5079,6 +5092,19 @@ function renderBrowseHistory(){
     b.addEventListener('click', () => jumpToCard(b.getAttribute('data-bid')));
   });
 }
+/* 直接开练：跳过专题练查询/筛选页，进入刷题界面（用户 2026-09-19 指定：点「开始专题练」直接进练习页） */
+function startQueueDirect(ids, title){
+  if(!ids.length){ toast('没有可练习的卡片'); return; }
+  queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
+  browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
+  $('browseBar').style.display = 'none';
+  $('topicTrainBar').style.display = 'flex';
+  $('topicTrainPos').textContent = '本次第 1 / ' + queue.length + ' 张';
+  $('practiceLibModal').classList.remove('show');
+  showView('train');
+  show();
+  toast((title ? title + '：' : '专题练开始：') + ids.length + ' 张卡片');
+}
 /* 由浏览历史筛选结果一键生成专题练（支持跨学科） */
 function startBhPractice(){
   try{
@@ -5196,13 +5222,18 @@ function practiceLibShortDate(iso){
 /* ---------- 📚 训练库：待训练卡聚合 + 队列存库（2026-09-19 用户指定） ---------- */
 let _plQueuedIds = [];
 let _plQueuedRows = [];
+/* 已存入训练库队列的卡 id（本地持久化）：存入后即从「待训练聚合」明细移除，避免重复堆着；
+   报告页新打「待训练」标签的卡作为新增量仍会出现。 */
+let _plSavedIds = (function(){ try{ return new Set(JSON.parse(localStorage.getItem('wulun_pl_saved_v1') || '[]')); }catch(e){ return new Set(); } })();
+function _plPersistSaved(){ try{ localStorage.setItem('wulun_pl_saved_v1', JSON.stringify([..._plSavedIds])); }catch(e){} }
 async function renderQueuedCards(){
   const cnt = $('plQueuedCount'), list = $('plQueuedList');
   if(!cnt || !list) return;
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ cnt.textContent = '未配置云端'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
   try{
     const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
-    _plQueuedRows = rows || [];
+    /* 过滤掉「已存入队列」的卡：存入后明细即清空（用户 2026-09-19 指定） */
+    _plQueuedRows = (rows || []).filter(r => !_plSavedIds.has(r.card_id));
     _plQueuedIds = _plQueuedRows.map(r => r.card_id);
     cnt.textContent = _plQueuedIds.length + ' 张待训练';
     if(!_plQueuedRows.length){ list.innerHTML = '<div style="color:#9ca3af">暂无待训练卡：去作业批改报告点「➕ 加入训练」或「记忆卡入库」即可打标</div>'; return; }
@@ -5260,21 +5291,21 @@ async function startQueuedTrain(){
   });
   if(browseHistory.length > 500) browseHistory.length = 500;
   savePerson();
-  openTopicTrain();
-  tqSubjSel.clear(); try{ updateTqSubjBtn(); }catch(eS){}
-  try{ refreshTqTopic(); }catch(eT){}
-  tqTagSel = new Set(['待训练']); updateTqTagBtn(); _tqTagReady = false; refreshTqTagFilter();
-  $('practiceLibModal').classList.remove('show');
-  toast('待训练队列开始：' + ids.length + ' 张（标签=待训练）');
+  startQueueDirect(ids, '待训练队列开始');
 }
 async function saveQueuedToLib(){
   if(!_plQueuedIds.length){ toast('暂无待训练卡可存'); return; }
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法存入训练库'); return; }
   try{
+    const ids = _plQueuedIds.slice();
     const rid = 'tl-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
-    await plUpsertSession({rid: rid, title: '训练库待训练 · ' + _plQueuedIds.length + '张', subject: '跨科', source: 'app-lib', card_ids: _plQueuedIds, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
-    toast('✅ 已存入训练库（' + _plQueuedIds.length + ' 张）');
-    openPracticeLib();
+    await plUpsertSession({rid: rid, title: '训练库待训练 · ' + ids.length + '张', subject: '跨科', source: 'app-lib', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
+    /* 标记已存入：从「待训练聚合」明细移除（用户 2026-09-19 指定：存入队列后即清空） */
+    ids.forEach(id => _plSavedIds.add(id));
+    _plPersistSaved();
+    _plQueuedIds = []; _plQueuedRows = [];
+    toast('✅ 已存入训练库（' + ids.length + ' 张），待训练明细已清空');
+    renderQueuedCards();
   }catch(e){ toast('存入失败：' + (e.message || e)); }
 }
 async function saveQueueToLib(){
@@ -5373,14 +5404,8 @@ async function startPracticeSession(rid){
     });
     if(browseHistory.length > 500) browseHistory.length = 500;
     savePerson();
-    /* 3) 打开专题练并预置日期=该次浏览时间当天，清空学科/专题限制以兼容多科会话 */
-    openTopicTrain();
-    tqSubjSel.clear(); updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList();
-    const ds = practiceLibShortDate(s.browsed_at);
-    $('tqDateStart').value = ds; $('tqDateEnd').value = ds;
-    refreshTqCount();
-    $('practiceLibModal').classList.remove('show');
-    toast('已载入「' + (s.title || '专题练') + '」：' + ids.length + ' 张卡片，专题练日期已设为 ' + ds);
+    /* 3) 直接进刷题界面（用户 2026-09-19 指定：不再跳专题练查询页） */
+    startQueueDirect(ids, '已载入「' + (s.title || '专题练') + '」');
   }catch(e){
     console.error('startPracticeSession failed:', e);
     toast('载入练习失败：' + e.message);
@@ -5691,7 +5716,7 @@ $('fSpeakBtn').addEventListener('click', e => { e.stopPropagation(); toggleSpeak
 $('fSpeakBtn').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleSpeak(); }, {passive:false});
 /* 专题练 */
 $('topicTrainBtn').addEventListener('click', openTopicTrain);
-$('practiceLibBtn').addEventListener('click', openPracticeLib);
+$('dashPracticeLibBtn').addEventListener('click', openPracticeLib);
 $('practiceLibClose').addEventListener('click', () => $('practiceLibModal').classList.remove('show'));
 $('practiceLibRefresh').addEventListener('click', openPracticeLib);
 $('practiceLibModal').addEventListener('click', e => { if(e.target === $('practiceLibModal')) $('practiceLibModal').classList.remove('show'); });
