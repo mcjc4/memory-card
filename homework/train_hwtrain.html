@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🎯 作业训练 · hw-train 卡</title>
+<style>
+  body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#F4F7FB;color:#1F2733;line-height:1.65;font-size:16.5px;margin:0}
+  .top{position:sticky;top:0;z-index:5;background:linear-gradient(90deg,#2E9E5B,#27C08A);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+  .top h1{font-size:18px;margin:0;font-weight:700}
+  .top .cnt{margin-left:auto;font-size:14px;opacity:.95}
+  .wrap{max-width:760px;margin:18px auto;padding:0 14px}
+  .empty{text-align:center;color:#8A94A6;margin-top:60px;font-size:15px}
+  .empty a{color:#2563EB}
+  .card{background:#fff;border-radius:16px;box-shadow:0 6px 20px rgba(30,40,60,.10);padding:22px 22px 18px;min-height:200px;cursor:pointer;position:relative;border:1px solid #E7EDF4}
+  .card .tagrow{font-size:12.5px;color:#9AA4B2;margin-bottom:10px}
+  .card .cid{font-family:ui-monospace,Menlo,monospace;color:#5A6472}
+  .card .q{font-size:15px;color:#7A8698;margin-bottom:6px}
+  .card .sig{font-size:18px;font-weight:600;margin:6px 0 4px}
+  .card .con{font-size:18px;color:#0F7A45;margin-top:14px;padding-top:14px;border-top:1px dashed #D8E2EC;display:none}
+  .card.flip .con{display:block}
+  .card .hint{position:absolute;right:16px;bottom:12px;font-size:12.5px;color:#A8B2C0}
+  .bar{display:flex;gap:10px;margin-top:14px;align-items:center}
+  .btn{font-size:14px;border:1px solid #CBD5E1;background:#fff;border-radius:10px;padding:7px 16px;cursor:pointer;color:#334;font-weight:600}
+  .btn:hover{background:#F1F5F9}
+  .btn.primary{background:#2E9E5B;border-color:#2E9E5B;color:#fff}
+  .btn.primary:hover{background:#27914F}
+  .btn.ghost{border-color:#E2C2C2;color:#B5453B}
+  .prog{flex:1;text-align:center;font-size:13.5px;color:#7A8698}
+  .src{font-size:13px;color:#2F6F4F;margin-top:8px}
+  .foot{font-size:12.5px;color:#8A94A6;text-align:center;margin:24px 0}
+  .err{background:#FDECEC;border:1px solid #F3C0C0;color:#B5453B;border-radius:10px;padding:12px 14px;font-size:14px;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>🎯 作业训练</h1>
+  <span style="font-size:13px;opacity:.9">hw-train 标签卡 · 信号→结论翻卡</span>
+  <span class="cnt" id="cnt">加载中…</span>
+</div>
+<div class="wrap">
+  <div id="root"><div class="empty">正在从卡库加载 hw-train 卡…</div></div>
+  <div class="foot">由小宇生成 · 点击卡片翻面看结论 · 训练状态即时写回卡库</div>
+</div>
+
+<script src="./katex_inc.html"></script>
+<script>
+var SB={url:'https://mixuqjognbdrafrrlivc.supabase.co',key:'sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX',TAG:'hw-train'};
+function sbHeaders(ct){var h={'apikey':SB.key,'Authorization':'Bearer '+SB.key};if(ct)h['Content-Type']='application/json';return h;}
+function renderLatexIn(root){
+  if(!root)return;
+  var n,k,txt,frag,last;
+  var els=root.querySelectorAll('.latex');
+  [].slice.call(els).forEach(function(n){
+    if(n.dataset.rx)return; n.dataset.rx='1';
+    try{renderMathInElement(n,{delimiters:[{left:'$',right:'$',display:false}],throwOnError:false});}catch(e){}
+  });
+}
+var CARDS=[],idx=0;
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function load(){
+  var url=SB.url+'/rest/v1/cards?select=card_id,signal,conclusion,src,tags&tags=cs.'+encodeURIComponent('{"'+SB.TAG+'"}')+'&order=card_id';
+  fetch(url,{headers:sbHeaders(false)}).then(function(r){return r.ok?r.json():Promise.reject('HTTP '+r.status);}).then(function(rows){
+    CARDS=(rows||[]);
+    if(!CARDS.length){document.getElementById('root').innerHTML='<div class="empty">还没有 hw-train 卡。<br>回到作业报告点「➕ 加入训练」即可把卡加进来。<br><br><a href="./hw-2026-09-17.html">↩ 打开 9-17 报告</a></div>';document.getElementById('cnt').textContent='0 张';return;}
+    render();
+  }).catch(function(e){document.getElementById('root').innerHTML='<div class="err">加载失败：'+e+'<br>（M库网络偶发抖动，刷新重试）</div>';});
+}
+function render(){
+  document.getElementById('cnt').textContent=(idx+1)+' / '+CARDS.length+' 张';
+  var c=CARDS[idx];
+  var root=document.getElementById('root');
+  root.innerHTML=
+    '<div class="card" id="cc">'+
+      '<div class="tagrow">卡号 <span class="cid">'+esc(c.card_id)+'</span></div>'+
+      '<div class="q">📌 信号（题目特征）</div>'+
+      '<div class="sig latex">'+esc(c.signal||'(无信号)')+'</div>'+
+      '<div class="con"><div class="q">✅ 结论 / 易错点</div><div class="latex">'+esc(c.conclusion||'(无结论)')+'</div>'+
+        (c.src?'<div class="src">出处：'+esc(c.src)+'</div>':'')+'</div>'+
+      '<div class="hint">点击翻面 ↻</div>'+
+    '</div>'+
+    '<div class="bar">'+
+      '<button class="btn" id="prev">◀ 上一张</button>'+
+      '<span class="prog" id="prog"></span>'+
+      '<button class="btn" id="next">下一张 ▶</button>'+
+    '</div>'+
+    '<div class="bar">'+
+      '<button class="btn primary" id="known">✅ 记住了（移出训练）</button>'+
+      '<button class="btn ghost" id="out">🚫 移出训练</button>'+
+    '</div>';
+  document.getElementById('cc').addEventListener('click',function(){this.classList.toggle('flip');});
+  document.getElementById('prev').onclick=function(){if(idx>0){idx--;render();}};
+  document.getElementById('next').onclick=function(){if(idx<CARDS.length-1){idx++;render();}};
+  document.getElementById('known').onclick=function(){removeTrain(c.card_id,'已记住，移出训练队列');};
+  document.getElementById('out').onclick=function(){removeTrain(c.card_id,'已移出训练队列');};
+  renderLatexIn(root);
+}
+function removeTrain(cid,msg){
+  var r=CARDS.filter(function(x){return x.card_id===cid;})[0];
+  if(!r)return;
+  var tags=Array.isArray(r.tags)?r.tags.slice():[];
+  tags=tags.filter(function(t){return t!==SB.TAG;});
+  fetch(SB.url+'/rest/v1/cards?card_id=eq.'+encodeURIComponent(cid),{method:'PATCH',headers:sbHeaders(true),body:JSON.stringify({tags:tags})}).then(function(r2){
+    if(!r2.ok)throw new Error('HTTP '+r2.status);
+    CARDS=CARDS.filter(function(x){return x.card_id!==cid;});
+    if(!CARDS.length){document.getElementById('root').innerHTML='<div class="empty">🎉 训练队列已清空！<br><a href="./hw-2026-09-17.html">↩ 回到报告</a></div>';document.getElementById('cnt').textContent='0 张';return;}
+    if(idx>=CARDS.length)idx=CARDS.length-1;
+    render();
+    flash(msg);
+  }).catch(function(e){alert('操作失败：'+e.message);});
+}
+function flash(m){var t=document.getElementById('cnt');var old=t.textContent;t.textContent=m;setTimeout(function(){t.textContent=old;},1400);}
+load();
+</script>
+</body>
+</html>
