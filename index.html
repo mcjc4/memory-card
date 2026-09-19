@@ -345,7 +345,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button id="dashSettingsBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer">⚙ 设置</button>
         <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;min-width:80px;text-align:left">☁ 同步状态</button>
-        <button id="dashCloudMergeBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #bcd6f0;background:#E6F1FB;color:#0C447C;cursor:pointer;min-width:96px;text-align:left">☁ 云端入库卡</button>
         <button id="dashBrowseBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="查看浏览历史（全部学科/全部执行人本机记录）">📋 浏览历史</button>
         <button id="dashCrossTopicBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#E6F1FB;color:#0C447C;cursor:pointer">🎯 跨科专题练</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
@@ -431,7 +430,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <button id="manageBtn" class="manage">🗂 管理</button>
     <button id="mistakesBtn" class="browse">📕 错题本</button>
     <button id="reviewBtn" class="manage">📋 待审入库</button>
-    <button id="cloudMergeBtn" class="browse">☁ 云端入库卡</button>
     <button id="importBtn" class="add">＋ 导入科目</button>
     <button id="cloudBtn" class="browse">☁ 同步</button>
     <button id="settingsBtn" class="browse">⚙ 设置</button>
@@ -486,6 +484,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
   <div class="topicTrainBar" id="topicTrainBar" style="display:none">
     <b>🎯 专题练</b>
     <span id="topicTrainPos" style="color:#0C447C"></span>
+    <button id="tqSaveLibBtn" style="margin-left:auto;font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #1D5C7C;background:#1D5C7C;color:#fff;cursor:pointer">💾 存入训练库</button>
   </div>
   <div class="actions" id="markActions">
     <button class="btn fail" id="btnFail">没记住</button>
@@ -752,8 +751,13 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <input id="tqDateEnd" type="date">
     </div>
     <div class="tqRow tqFull">
-      <label>作业训练队列（作业批改报告里点「➕ 加入训练」= 打 hw-train 标签 + 记录加入时间。点下方按钮只看这些卡；或在上方「上次浏览时间」日期范围选当天，同样能筛出当天加入的卡）</label>
+      <label>作业训练队列（作业批改报告里点「➕ 加入训练」= 打「待训练」标签 + 记录加入时间。点下方按钮只看这些卡；或在上方「上次浏览时间」日期范围选当天，同样能筛出当天加入的卡）</label>
       <div class="tqMultiBtn" id="tqTrainBtn">🎯 只看作业训练<span class="tqMultiHint" id="tqTrainHint">点击加载</span></div>
+    </div>
+    <div class="tqRow tqFull">
+      <label>标签筛选（可多选，不选 = 全部；作业报告卡带「待训练 / 作业收集」等标签）</label>
+      <div class="tqMultiBtn" id="tqTagBtn">全部标签<span class="tqMultiHint">▼</span></div>
+      <div class="tqInlinePop" id="tqTagPop"></div>
     </div>
     <div class="tqRow tqFull">
       <label>上次训练状态（可多选，不选 = 全部）</label>
@@ -782,11 +786,21 @@ h1{font-size:21px;font-weight:500;text-align:center}
 <!-- 训练库弹窗（专题练的集合：作业批改报告「💾 存入训练库」写 Supabase practice_sessions，这里按浏览时间倒序列出，可一键开始专题练 / 删除） -->
 <div class="modalMask" id="practiceLibModal">
   <div class="modalBox taskBox">
-    <h2><span>📚 训练库 · 专题练习集合</span><span class="x" id="practiceLibClose">×</span></h2>
+    <h2><span>📚 训练库 · 待训练卡聚合</span><span class="x" id="practiceLibClose">×</span></h2>
     <div class="bhFoot">
-      <span class="bhInfo">作业批改报告「💾 存入训练库」会把本次命中的记忆卡 + 新生成的卡片存为一次「专题练习」；按浏览时间倒序排列，点「🎯 开始专题练」即按该次日期注入训练队列。</span>
+      <span class="bhInfo">聚合所有带「待训练」标签的记忆卡（作业报告点「➕ 加入训练」/「记忆卡入库」即打标）；点「🎯 开始专题练」整队开练，「💾 存入训练库」把当前队列存为一次专题练习。</span>
       <button id="practiceLibRefresh" class="ok" style="background:#1D5C7C;color:#fff;border:1px solid #1D5C7C;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer">🔄 刷新</button>
     </div>
+    <div id="plQueuedBox" style="border:1px solid #dbe7f5;background:#F5F9FF;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <b style="font-size:13px;color:#0C447C">🏷 待训练卡</b>
+        <span id="plQueuedCount" style="font-size:12px;color:#6b7280">读取中…</span>
+        <button id="plQueuedStart" style="margin-left:auto;font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #7C3AED;background:#f5f3ff;color:#7C3AED;cursor:pointer;font-weight:600">🎯 开始专题练</button>
+        <button id="plQueuedSave" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #1D5C7C;background:#1D5C7C;color:#fff;cursor:pointer">💾 存入训练库</button>
+      </div>
+      <div id="plQueuedList" style="max-height:220px;overflow:auto;font-size:12px;line-height:1.7;color:#374151"></div>
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#374151;margin:2px 0 6px">已存的专题练习（按浏览时间倒序）</div>
     <div class="bhTableWrap">
       <table class="browseTable">
         <thead><tr><th style="width:170px">浏览时间</th><th style="width:120px">练习名称</th><th style="width:64px">学科</th><th style="width:90px">命中卡</th><th style="width:90px">新卡</th><th>操作</th></tr></thead>
@@ -4437,6 +4451,11 @@ let tqTopicSel = new Set();   /* 专题练选中的专题集合，空=全部 */
 let tqSrcSel = new Set();     /* 专题练选中的出处集合，空=全部 */
 let tqSubjMode = 'single';    /* 'single' = 单科（训练页），'cross' = 跨科（主页），影响默认初始化 */
 let tqStatusSel = new Set();  /* 上次训练状态多选：集合元素 ∈ {unt,fail,half,pass}，空=全部 */
+let tqTagSel = new Set();     /* 标签多选（待训练/作业收集等），空=全部；依赖云端 cards.tags */
+let _tqTagIdsActive = new Set();  /* 已选标签对应本地卡 id 并集（异步加载后生效） */
+let _tqTagReady = false;          /* 标签集合是否已加载完成 */
+let _tqTagCache = {};             /* tag → Set(localIds) 缓存 */
+let _tqTagCacheAt = 0;
 
 /* 弹窗内关键字搜索过滤：根据 input 值返回匹配列表 */
 function tqPopSearchFilter(rows, kw){
@@ -4603,9 +4622,48 @@ function updateTqStatusBtn(){
   }
 }
 
+/* ---------- 🏷 标签筛选（待训练/作业收集等，云端 cards.tags） ---------- */
+function TQ_TAG_ITEMS(){ return ['待训练', '作业收集', '新卡待下载']; }
+async function tqTagLocalIds(tag){
+  const now = Date.now();
+  if(_tqTagCache[tag] && now - _tqTagCacheAt < 120000) return _tqTagCache[tag];
+  const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent(JSON.stringify([tag])) + '&select=card_id,signal,conclusion&limit=500');
+  const set = new Set();
+  (rows || []).forEach(r => {
+    set.add(r.card_id);
+    try{ const m = matchLocalCard(r.signal, r.conclusion); if(m) set.add(m.id); }catch(eM){}
+  });
+  _tqTagCache[tag] = set; _tqTagCacheAt = now;
+  return set;
+}
+async function refreshTqTagFilter(){
+  try{
+    const union = new Set();
+    for(const t of tqTagSel){ const s = await tqTagLocalIds(t); s.forEach(x => union.add(x)); }
+    _tqTagIdsActive = union; _tqTagReady = true;
+  }catch(e){ console.warn('[tq-tag] load failed:', e); _tqTagIdsActive = new Set(); _tqTagReady = true; }
+  refreshTqCount();
+}
+function openTqTagPop(){
+  const pop = $('tqTagPop');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+  renderTqCheckPop(pop, {
+    items: TQ_TAG_ITEMS(),
+    selected: tqTagSel,
+    onChange: () => { updateTqTagBtn(); _tqTagReady = false; refreshTqTagFilter(); }
+  });
+  positionTqPop('tqTagPop', 'tqTagBtn');
+}
+function updateTqTagBtn(){
+  const btn = $('tqTagBtn');
+  if(!btn) return;
+  if(tqTagSel.size === 0) btn.innerHTML = '全部标签<span class="tqMultiHint">▼</span>';
+  else btn.innerHTML = escHtml([...tqTagSel].join('、')) + '<span class="tqMultiHint">▼</span>';
+}
+
 /* 点击弹窗外区域关闭 */
 document.addEventListener('click', e => {
-  const popBtnPairs = [['tqSubjPop','tqSubjBtn'],['tqTopicPop','tqTopicBtn'],['tqSrcPop','tqSrcBtn'],['tqStatusPop','tqStatusBtn']];
+  const popBtnPairs = [['tqSubjPop','tqSubjBtn'],['tqTopicPop','tqTopicBtn'],['tqSrcPop','tqSrcBtn'],['tqStatusPop','tqStatusBtn'],['tqTagPop','tqTagBtn']];
   popBtnPairs.forEach(([popId, btnId]) => {
     const p = $(popId);
     if(p && p.style.display === 'block' && !p.contains(e.target)){
@@ -4672,7 +4730,8 @@ function topicQuery(){
         if(!hit) return;
       }
       const bsF = $('tqBrowseStatus').value;
-      if(tqTrainOnly){ if(!tqTrainIds || !tqTrainIds.has(it.id)) return; }  /* 🎯 只看作业训练（hw-train 标签） */
+      if(tqTrainOnly){ if(!tqTrainIds || !tqTrainIds.has(it.id)) return; }  /* 🎯 只看作业训练（待训练标签） */
+      if(tqTagSel.size && _tqTagReady){ if(!_tqTagIdsActive.has(it.id)) return; }  /* 🏷 标签筛选（异步加载后生效） */
       if(bsF !== 'all'){
         const bmSubj = browseMeta[subjName] || {};
         const bmItem = bmSubj[it.id];
@@ -4691,7 +4750,7 @@ function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
    报告页「加入训练」会把 hw-train 写进 M 库 cards.tags（jsonb 列）并刷新该卡 updated_at；
    ⚠️ tags 是 jsonb 不是 text[]：contains 必须用 cs.["hw-train"]（URL 编码），
    旧写法 cs.{hw-train} 是 text[] 语法 → PostgREST 400，导致「只看作业训练」一直查不到。 */
-const TQ_TRAIN_Q = 'tags=cs.' + encodeURIComponent('["hw-train"]');
+const TQ_TRAIN_Q = 'tags=cs.' + encodeURIComponent('["待训练"]');
 let tqTrainIds=null, tqTrainOnly=false;
 /* —— 内容映射（2026-09-18）：本地库是旧 genId（数学-imp63-xxx），云端是指纹 id（数学_hex8），
    同内容双 id 会让「只看作业训练/日期筛选」匹配不到 → 用规范化文本 Dice 相似度把云端卡映射到本地条目 —— */
@@ -4751,13 +4810,103 @@ async function toggleTqTrain(){
        （如 cur=物理 → 数学的训练卡全被拦掉，匹配数=0、开始训练内容不对）。 */
     let subjReset=false;
     if(tqSubjSel.size !== SUBJ_NAMES.length){ tqSubjSel.clear(); SUBJ_NAMES.forEach(n=>tqSubjSel.add(n)); subjReset=true; try{updateTqSubjBtn();}catch(eS){} }
-    hint.textContent=tqTrainIds.size+' 张训练卡 · 再点取消（云端队列 '+rows.length+' 张'+(unmatched?'，'+unmatched+' 张未入库，可去「☁ 云端入库卡」合并':'')+'）';
+    hint.textContent=tqTrainIds.size+' 张训练卡 · 再点取消（云端队列 '+rows.length+' 张'+(unmatched?'，'+unmatched+' 张未入库，可去「📚 训练库」处理':'')+'）';
     refreshTqCount();
     if(!tqTrainIds.size) hint.textContent='暂无训练卡 · 再点取消';
   }catch(e){ hint.textContent='加载失败：'+(e.message||e); }
 }
 /* 种子回填（2026-09-18）：已打 hw-train 标签但浏览历史里没有「专题练」记录的卡（如旧数据），
    以当前时刻补一条训练记录 → 最近浏览时间=现在 → 日期范围选今天即可筛出（用户指定机制）。 */
+/* ---------- 科目归属与库容器辅助（2026-09-19） ---------- */
+/* 按科目名取/建本地库容器：内置科目走 CUSTOM 覆盖层（方案 B 语义），
+   避免往 IMPORTED 塞裸 {items:[]} 遮蔽内置科目的 display（「undefined」根因之一） */
+function ensureSubjectStore(subj){
+  if(CUSTOM[subj]) return CUSTOM[subj];
+  if(IMPORTED[subj]) return IMPORTED[subj];
+  if(SUBJECTS[subj]){
+    CUSTOM[subj] = { color: SUBJECTS[subj].color, display: SUBJECTS[subj].display || subj, items: (SUBJECTS[subj].items || []).slice() };
+    return CUSTOM[subj];
+  }
+  IMPORTED[subj] = { color: (typeof SUBJ_COLORS!=='undefined' && SUBJ_COLORS[subj]) || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length], display: subj, items: [] };
+  return IMPORTED[subj];
+}
+/* 解析一批卡 id 的科目归属：先扫本地库，再查云端 cards.subject，兜底按「科目_指纹」前缀 */
+async function subjectForIds(ids){
+  const map = {};
+  SUBJ_NAMES.forEach(n => { const sd = subjDef(n); if(sd && sd.items) sd.items.forEach(it => { if(map[it.id] === undefined) map[it.id] = n; }); });
+  const missing = ids.filter(id => map[id] === undefined);
+  if(missing.length && cloudCfg && cloudCfg.url){
+    try{
+      const rows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,subject&limit=500');
+      (rows || []).forEach(r => { if(r.subject) map[r.card_id] = r.subject; });
+    }catch(e){ console.warn('[subjectForIds] cloud lookup failed:', e); }
+  }
+  ids.forEach(id => { if(map[id] === undefined) map[id] = (id.indexOf('_') >= 0 ? id.split('_')[0] : '化学') || '化学'; });
+  return map;
+}
+/* 一次性清理：seed 旧版把 cheXXXX 卡各塞进无 display 的科目 → 标签页渲染「undefined · 1」。
+   把这些污染科目的卡归位到正确科目（云端 subject 查询），迁移浏览时间戳与历史行 subject。 */
+let _undefCleanupRan = false;
+async function cleanupUndefinedSubjects(){
+  if(_undefCleanupRan) return; _undefCleanupRan = true;
+  try{
+    const FLAG = 'wulun_undefsubj_cleanup_v1';
+    if(localStorage.getItem(FLAG)) return;
+    const bad = [];
+    Object.keys(IMPORTED).forEach(k => { const d = IMPORTED[k]; if(d && (!d.display || d.display === 'undefined')) bad.push(k); });
+    Object.keys(CUSTOM).forEach(k => { const d = CUSTOM[k]; if(d && !SUBJECTS[k] && (!d.display || d.display === 'undefined')) bad.push(k); });
+    if(!bad.length){ localStorage.setItem(FLAG, '1'); return; }
+    const moved = [];
+    bad.forEach(k => {
+      const d = IMPORTED[k] || CUSTOM[k];
+      (d.items || []).forEach(it => moved.push({from: k, it: it}));
+      delete IMPORTED[k]; delete CUSTOM[k];
+      if(browseMeta[k]) delete browseMeta[k];
+    });
+    if(!moved.length){ localStorage.setItem(FLAG, '1'); savePerson(); return; }
+    const subjMap = await subjectForIds(moved.map(m => m.it.id));
+    const groups = {};
+    moved.forEach(m => {
+      const subj = subjMap[m.it.id] || '化学';
+      (groups[subj] = groups[subj] || []).push(m.it);
+      const oldBm = browseMeta[m.from] && browseMeta[m.from][m.it.id];
+      if(oldBm){
+        const bm = browseMeta[subj] || (browseMeta[subj] = {});
+        const mm = bm[m.it.id] || {browsed: false, lastBrowse: 0};
+        if(oldBm.lastBrowse > mm.lastBrowse) mm.lastBrowse = oldBm.lastBrowse;
+        bm[m.it.id] = mm;
+      }
+      browseHistory.forEach(e => { if(e && e.id === m.it.id && e.subject === m.from) e.subject = subj; });
+    });
+    Object.keys(groups).forEach(subj => {
+      const store = ensureSubjectStore(subj);
+      groups[subj].forEach(it => { if(!store.items.some(x => x.id === it.id)) store.items.push(it); });
+    });
+    rebuildSubjects(); savePerson();
+    try{ renderTabs(); refreshToday(); }catch(eR){}
+    toast('已清理 ' + bad.length + ' 个异常科目，「' + moved.length + '」张卡归位');
+    localStorage.setItem(FLAG, '1');
+  }catch(e){ console.warn('[cleanup-undef] failed:', e); }
+}
+/* 一次性云端标签迁移：hw-train → 待训练（用户 2026-09-19 指定统一中文标签） */
+let _tagMigRan = false;
+async function migrateHwTrainTags(){
+  if(_tagMigRan) return; _tagMigRan = true;
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  try{
+    const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["hw-train"]') + '&select=card_id,tags&limit=500');
+    if(!rows || !rows.length) return;
+    for(const r of rows){
+      const tg = Array.isArray(r.tags) ? r.tags : [];
+      const nt = [...new Set(tg.map(t => t === 'hw-train' ? '待训练' : t))];
+      try{ await sbUpdate(CARDS_TABLE, {tags: nt}, 'card_id=eq.' + encodeURIComponent(r.card_id)); }catch(eP){}
+    }
+    console.log('[tag-migrate] hw-train → 待训练 完成:', rows.length, '张');
+  }catch(e){ console.warn('[tag-migrate] failed:', e); }
+}
+setTimeout(function(){ try{ migrateHwTrainTags(); }catch(e){} }, 3200);
+setTimeout(function(){ try{ cleanupUndefinedSubjects(); }catch(e){} }, 5200);
+
 let _seedTrainRan = false;
 async function seedTrainHistory(){
   if(_seedTrainRan) return; _seedTrainRan = true;
@@ -4767,19 +4916,19 @@ async function seedTrainHistory(){
        老版本 xlsx 导入 / 旧 seed 注入的作业卡没有这三类字段，编号徽章、原题预览、原题链接全不显示。
        no/note 是后补列，先探测再选（同 p3_cloud_merge 的 cardsHasNoteCols），避免整条查询 400。 */
     const hasNo=await cardsHasNoteCols().catch(()=>false);
-    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,signal,conclusion,chapter,src,orig,link' + (hasNo?',no,note':'') + ',updated_at&limit=500');
+    const rows=await sbSelect(CARDS_TABLE, TQ_TRAIN_Q + '&select=card_id,subject,signal,conclusion,chapter,src,orig,link' + (hasNo?',no,note':'') + ',updated_at&limit=500');
     /* 2026-09-18 修复③（用户反馈"报告页显示已入库却搜不到"）：只点「通过入库」、没点「➕ 加入训练」
        的 homework 卡没有 hw-train 标签，不进训练队列、也不会被 seed 注入本地 → 专题练搜索 0 命中。
        此处补齐存量：拉取 homework 来源的卡，缺标签的 PATCH 补打 hw-train，再并入下方注入流程。
        （approvePending 已改为新卡自动打标签，这里兜底处理历史卡。） */
     try{
-      const hwRows=await sbSelect(CARDS_TABLE, 'source_module=eq.homework&select=card_id,signal,conclusion,chapter,src,orig,link' + (hasNo?',no,note':'') + ',updated_at,tags&limit=500');
+      const hwRows=await sbSelect(CARDS_TABLE, 'or=(source_module.eq.homework,source_type.eq.homework)&select=card_id,subject,signal,conclusion,chapter,src,orig,link' + (hasNo?',no,note':'') + ',updated_at,tags&limit=500');
       const seenQ=new Set((rows||[]).map(r=>r.card_id));
       for(const r of (hwRows||[])){
         if(!r.card_id || seenQ.has(r.card_id)) continue;
         let tg=Array.isArray(r.tags)?r.tags:[];
-        if(tg.indexOf('hw-train')<0){
-          tg=tg.concat(['hw-train']);
+        if(tg.indexOf('待训练')<0){
+          tg=tg.concat(['待训练']);
           try{ await sbUpdate(CARDS_TABLE,{tags:tg},'card_id=eq.'+encodeURIComponent(r.card_id)); }catch(eP){}
         }
         rows.push(r); seenQ.add(r.card_id);
@@ -4791,14 +4940,16 @@ async function seedTrainHistory(){
     rows.forEach(r => {
       const cid=r.card_id; if(!cid) return;
       const m=matchLocalCard(r.signal, r.conclusion);
-      let useId=cid, subj=cid.split('_')[0]||'数学';
+      /* 2026-09-19 修复「undefined」根因：科目优先读云端 subject 字段，
+         不再用 cid.split('_')[0] 推断（cheXXXX 无下划线 → 每卡各成一个无 display 的科目）。 */
+      let useId=cid, subj=r.subject||cid.split('_')[0]||'数学';
       if(m){ useId=m.id; subj=m.subj; }
       else{
         /* 本地无同内容卡（如作业报告新入库的卡）：注入本地库，保证可训练、可被日期筛出。
            ⚠️ 2026-09-18 修复（用户反馈"两个匹配数量没关联起来"）：原实现固定注入 IMPORTED，
            但 subjDef=CUSTOM 优先——数学已有 CUSTOM 库时，注入 IMPORTED 的卡被整体遮蔽，
            永远进不了专题练查询 → 匹配数凑不齐、开始训练缺卡。改为注入「实际解析到的库」。 */
-        const store = CUSTOM[subj] || IMPORTED[subj] || (IMPORTED[subj]={items:[]});
+        const store = ensureSubjectStore(subj);
         if(!store.items.some(x=>x.id===cid)){
           store.items.push({id:cid, s:r.signal||'', c:r.conclusion||'', t:r.chapter||subj, src:r.src||'',
             orig:r.orig||'', link:r.link||'', no:hasNo?(r.no||''):'', note:hasNo?(r.note||''):''});
@@ -5042,9 +5193,104 @@ function practiceLibShortDate(iso){
   const p = n => String(n).padStart(2,'0');
   return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
 }
+/* ---------- 📚 训练库：待训练卡聚合 + 队列存库（2026-09-19 用户指定） ---------- */
+let _plQueuedIds = [];
+let _plQueuedRows = [];
+async function renderQueuedCards(){
+  const cnt = $('plQueuedCount'), list = $('plQueuedList');
+  if(!cnt || !list) return;
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ cnt.textContent = '未配置云端'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
+  try{
+    const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
+    _plQueuedRows = rows || [];
+    _plQueuedIds = _plQueuedRows.map(r => r.card_id);
+    cnt.textContent = _plQueuedIds.length + ' 张待训练';
+    if(!_plQueuedRows.length){ list.innerHTML = '<div style="color:#9ca3af">暂无待训练卡：去作业批改报告点「➕ 加入训练」或「记忆卡入库」即可打标</div>'; return; }
+    list.innerHTML = _plQueuedRows.map(r => {
+      const sig = mcEsc((r.signal || '').slice(0, 60));
+      const tm = r.updated_at ? new Date(r.updated_at).toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
+      const chap = r.chapter ? '<span style="color:#9ca3af">（' + mcEsc(r.chapter) + '）</span>' : '';
+      return '<div>• <b style="color:#0C447C">' + mcEsc(r.card_id) + '</b> ' + chap + ' ' + sig + ' <span style="color:#9ca3af;font-size:11px">🏷 待训练 · ' + tm + '</span></div>';
+    }).join('');
+  }catch(e){
+    cnt.textContent = '读取失败';
+    list.innerHTML = '<div style="color:#b91c1c">' + mcEsc(e.message || e) + '</div>';
+  }
+}
+async function plUpsertSession(row){
+  const url = sbBase(cloudCfg.url) + '/rest/v1/practice_sessions';
+  const res = await fetchTimeout(url, {method: 'POST', headers: Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer': 'resolution=merge-duplicates'}), body: JSON.stringify([row])}, 12000);
+  if(!res.ok) throw new Error('POST practice_sessions ' + res.status);
+}
+async function startQueuedTrain(){
+  if(!_plQueuedIds.length){ toast('暂无待训练卡'); return; }
+  const rows = _plQueuedRows.slice();
+  const byId = {}; rows.forEach(r => byId[r.card_id] = r);
+  /* 内容匹配优先：本地已有同内容卡 → 用本地 id，避免重复练 */
+  const ids = [], subjMap = {};
+  for(const r of rows){
+    let useId = r.card_id, subj = r.subject || '化学';
+    try{ const m = matchLocalCard(r.signal, r.conclusion); if(m){ useId = m.id; subj = m.subj; } }catch(eM){}
+    ids.push(useId); subjMap[useId] = subj;
+    if(useId !== r.card_id) subjMap[r.card_id] = subj;
+  }
+  let needRebuild = false;
+  ids.forEach(id => {
+    const subj = subjMap[id] || '化学';
+    const sd = subjDef(subj);
+    if(!sd || !sd.items.some(x => x.id === id)){
+      const store = ensureSubjectStore(subj);
+      if(!store.items.some(x => x.id === id)){
+        const r = byId[id] || {};
+        store.items.push({id: id, s: r.signal || '', c: r.conclusion || '', t: r.chapter || '待训练', src: r.src || '', orig: '', link: '', no: '', note: ''});
+        needRebuild = true;
+      }
+    }
+  });
+  if(needRebuild) rebuildSubjects();
+  const ts = Date.now();
+  const seenH = new Set(browseHistory.map(e => e.id));
+  ids.forEach(id => {
+    const subj = subjMap[id] || '化学';
+    if(!seenH.has(id)){ browseHistory.unshift({ts: ts, id: id, mode: '专题练', subject: subj, src: '', t: '训练库待训练'}); seenH.add(id); }
+    const bm = browseMeta[subj] || (browseMeta[subj] = {});
+    const mm = bm[id] || {browsed: false, lastBrowse: 0};
+    if(ts > mm.lastBrowse) mm.lastBrowse = ts;
+    bm[id] = mm;
+  });
+  if(browseHistory.length > 500) browseHistory.length = 500;
+  savePerson();
+  openTopicTrain();
+  tqSubjSel.clear(); try{ updateTqSubjBtn(); }catch(eS){}
+  try{ refreshTqTopic(); }catch(eT){}
+  tqTagSel = new Set(['待训练']); updateTqTagBtn(); _tqTagReady = false; refreshTqTagFilter();
+  $('practiceLibModal').classList.remove('show');
+  toast('待训练队列开始：' + ids.length + ' 张（标签=待训练）');
+}
+async function saveQueuedToLib(){
+  if(!_plQueuedIds.length){ toast('暂无待训练卡可存'); return; }
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法存入训练库'); return; }
+  try{
+    const rid = 'tl-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
+    await plUpsertSession({rid: rid, title: '训练库待训练 · ' + _plQueuedIds.length + '张', subject: '跨科', source: 'app-lib', card_ids: _plQueuedIds, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
+    toast('✅ 已存入训练库（' + _plQueuedIds.length + ' 张）');
+    openPracticeLib();
+  }catch(e){ toast('存入失败：' + (e.message || e)); }
+}
+async function saveQueueToLib(){
+  const ids = topicQuery();
+  if(!ids.length){ toast('当前队列没有卡片'); return; }
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法存入训练库'); return; }
+  try{
+    const rid = 'tq-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
+    await plUpsertSession({rid: rid, title: '专题练队列 · ' + ids.length + '张 · ' + new Date().toLocaleDateString('zh-CN'), subject: '跨科', source: 'app-topic', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
+    toast('✅ 当前专题练队列已存入训练库（' + ids.length + ' 张）');
+  }catch(e){ toast('存入失败：' + (e.message || e)); }
+}
 async function openPracticeLib(){
   try{
     $('practiceLibModal').classList.add('show');
+    renderQueuedCards();
     const tbody = $('practiceLibTbody');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr>';
     if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){
@@ -5087,22 +5333,35 @@ async function startPracticeSession(rid){
     const ids = (s.card_ids || []).concat(s.new_card_ids || []);
     if(!ids.length){ toast('该次练习没有卡片'); return; }
     const ts = s.browsed_at ? (new Date(s.browsed_at).getTime() || Date.now()) : Date.now();
-    /* 1) 本地库若无该卡（如报告新入库的卡），注入占位，保证可训练、能被日期筛出 */
+    /* 0) 科目归属：先扫本地库、再查云端 subject（2026-09-19 修复 cheXXXX 被误判为科目名） */
+    const subjMap = await subjectForIds(ids);
+    /* 1) 本地库若无该卡（如报告新入库的卡），从云端补内容后注入（不再放空占位卡） */
+    const missing = ids.filter(id => { const sd = subjDef(subjMap[id]); return !sd || !sd.items.some(x => x.id === id); });
+    const contentMap = {};
+    if(missing.length && cloudCfg && cloudCfg.url){
+      try{
+        const crows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,signal,conclusion,chapter,src&limit=500');
+        (crows || []).forEach(r => contentMap[r.card_id] = r);
+      }catch(eC){ console.warn('[startPracticeSession] content lookup failed:', eC); }
+    }
+    let needRebuild = false;
     ids.forEach(id => {
-      const subj = (id.split('_')[0]) || '化学';
+      const subj = subjMap[id] || '化学';
       const sd = subjDef(subj);
       if(!sd || !sd.items.some(x => x.id === id)){
-        const store = CUSTOM[subj] || IMPORTED[subj] || (IMPORTED[subj] = {items: []});
+        const store = ensureSubjectStore(subj);
         if(!store.items.some(x => x.id === id)){
-          store.items.push({id: id, s: '', c: '', t: '专题练', src: '', orig: '', link: '', no: '', note: ''});
+          const r = contentMap[id] || {};
+          store.items.push({id: id, s: r.signal || '', c: r.conclusion || '', t: r.chapter || '专题练', src: r.src || '', orig: '', link: '', no: '', note: ''});
+          needRebuild = true;
         }
       }
     });
-    rebuildSubjects();
+    if(needRebuild) rebuildSubjects();
     /* 2) 注入 browseHistory（ts=browsed_at）+ browseMeta.lastBrowse，使专题练「上次浏览时间」当天可筛出 */
     const seenH = new Set(browseHistory.map(e => e.id));
     ids.forEach(id => {
-      const subj = (id.split('_')[0]) || '化学';
+      const subj = subjMap[id] || '化学';
       if(!seenH.has(id)){
         browseHistory.unshift({ts: ts, id: id, mode: '专题练', subject: subj, src: s.rid || '', t: s.title || '专题练'});
         seenH.add(id);
@@ -5411,7 +5670,6 @@ $('settingsBtn').addEventListener('click', openSettings);
 /* 仪表盘快捷按钮（设置/同步/导入） */
 $('dashSettingsBtn').addEventListener('click', openSettings);
 $('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(b) b.click(); });
-$('dashCloudMergeBtn').addEventListener('click', () => { const b = $('cloudMergeBtn'); if(b) b.click(); });
 $('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('fileInput').click(); });
 $('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
 $('settingsModalClose').addEventListener('click', () => { $('settingsModal').classList.remove('show'); renderDash(); });
@@ -5437,6 +5695,9 @@ $('practiceLibBtn').addEventListener('click', openPracticeLib);
 $('practiceLibClose').addEventListener('click', () => $('practiceLibModal').classList.remove('show'));
 $('practiceLibRefresh').addEventListener('click', openPracticeLib);
 $('practiceLibModal').addEventListener('click', e => { if(e.target === $('practiceLibModal')) $('practiceLibModal').classList.remove('show'); });
+$('plQueuedStart').addEventListener('click', startQueuedTrain);
+$('plQueuedSave').addEventListener('click', saveQueuedToLib);
+$('tqSaveLibBtn').addEventListener('click', saveQueueToLib);
 /* 进入科目模式弹窗按钮 */
 $('modeTrainBtn').addEventListener('click', () => handleModeChoice('train'));
 $('modeBrowseBtn').addEventListener('click', () => handleModeChoice('browse'));
@@ -5450,6 +5711,7 @@ $('tqSubjBtn').addEventListener('click', e => { e.stopPropagation(); openTqSubjP
 $('tqTopicBtn').addEventListener('click', e => { e.stopPropagation(); openTqTopicPop(); });
 $('tqSrcBtn').addEventListener('click', e => { e.stopPropagation(); openTqSrcPop(); });
 $('tqStatusBtn').addEventListener('click', e => { e.stopPropagation(); openTqStatusPop(); });
+$('tqTagBtn').addEventListener('click', e => { e.stopPropagation(); openTqTagPop(); });
 ['tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
 $('tqKeyword').addEventListener('input', refreshTqCount);
 $('tqBrowseStatus').addEventListener('change', refreshTqCount);
@@ -5779,7 +6041,7 @@ function resumeLastBrowsed(){
   return true;
 }
 </script>
-<script src="p3_cloud_merge.js"></script>
+<!-- ☁ 云端入库卡已彻底下线（2026-09-19 用户指定），p3_cloud_merge.js 不再引用 -->
 <script src="phase4_links_reviews.js"></script>
 </body>
 </html>
