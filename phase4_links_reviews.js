@@ -3,13 +3,12 @@
  * 能力：
  *   ① 卡片详情弹窗内注入「🔗 互链」区块（读取 card_links，双向展示；可添加/删除关联）
  *   ② 卡片详情弹窗内注入「🔁 重练」区块（读取 card_reviews；可一键标重练/取消）
- *   ③ 专题查询栏新增「只看待重练」筛选 chip（通过包裹 topicQuery 实现，影响计数/导出/专题练）
  * 说明：云端表需先在 Supabase Dashboard 执行 phase4_links_reviews.sql 后方可读写；否则区块提示「未启用」。
  */
 (function () {
   'use strict';
 
-  var P4 = { currentCardId: null, repracticeOnly: false, repracticeSet: null, _wrapped: false };
+  var P4 = { currentCardId: null, _wrapped: false };
 
   function sbBase() {
     var u = (window.MC && MC.config && MC.config.url) || 'https://mixuqjognbdrafrrlivc.supabase.co';
@@ -160,55 +159,13 @@
     catch (e) { toast('删除失败：' + e.message); }
   }
 
-  /* ---------------- ② 专题查询栏「只看待重练」筛选 ---------------- */
-  function injectRepracticeChip() {
-    var cnt = document.getElementById('tqCount');
-    if (!cnt) return;
-    var row = cnt.closest('.tqRow');
-    if (!row || document.getElementById('p4rprChip')) return;
-    var chip = document.createElement('div');
-    chip.className = 'tqRow tqFull';
-    chip.innerHTML = '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:#991b1b;font-weight:600">' +
-      '<input type="checkbox" id="p4rprChip"> 🔁 只看待重练</label>' +
-      '<span id="p4rprNote" style="color:#9ca3af;font-weight:400;margin-left:8px"></span>';
-    row.parentNode.insertBefore(chip, row);
-    chip.querySelector('#p4rprChip').addEventListener('change', function () { onChipChange(this.checked); });
-  }
-
-  async function onChipChange(checked) {
-    if (!checked) { P4.repracticeOnly = false; P4.repracticeSet = null; document.getElementById('p4rprNote').textContent = ''; if (window.refreshTqCount) refreshTqCount(); return; }
-    try {
-      var rows = await MC.select('card_reviews', 'needs_repractice=eq.true&select=card_id');
-      var set = new Set((rows || []).map(function (r) { return r.card_id; }));
-      P4.repracticeOnly = true; P4.repracticeSet = set;
-      document.getElementById('p4rprNote').textContent = '（共 ' + set.size + ' 张）';
-      toast('已筛选待重练卡 ' + set.size + ' 张');
-    } catch (e) {
-      P4.repracticeOnly = false; P4.repracticeSet = null;
-      document.getElementById('p4rprNote').textContent = '（未启用）';
-      toast('重练筛选不可用：请先在 Dashboard 执行建表 SQL');
-    }
-    if (window.refreshTqCount) refreshTqCount();
-  }
-
-  function wrapTopicQuery() {
-    if (typeof window.topicQuery !== 'function') return;
-    var _tq = window.topicQuery;
-    window.topicQuery = function () {
-      var ids = _tq.apply(this, arguments);
-      if (P4.repracticeOnly && P4.repracticeSet) return ids.filter(function (id) { return P4.repracticeSet.has(id); });
-      return ids;
-    };
-  }
 
   function init() {
     ensureWrapped();
-    wrapTopicQuery();
-    injectRepracticeChip();
     /* 防 openCardModal 在脚本加载后才定义：轮询兜底包裹 */
     var tries = 0;
     var t = setInterval(function () {
-      tries++; ensureWrapped(); wrapTopicQuery(); injectRepracticeChip();
+      tries++; ensureWrapped();
       if (P4._wrapped && document.getElementById('tqCount')) { clearInterval(t); }
       if (tries > 40) clearInterval(t);
     }, 500);
