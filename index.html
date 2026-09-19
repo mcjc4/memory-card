@@ -926,7 +926,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       </div>
     </div>
     <div style="background:#EFF4FB;border-radius:10px;padding:12px 14px;margin-bottom:10px">
-      <div style="font-size:13px;color:#0C447C;font-weight:500">💾 本地多版本快照（进度数据 · 自动 · 保留最近 <b id="bakLocalKeepTxt">7</b> 份）</div>
+      <div style="font-size:13px;color:#0C447C;font-weight:500">💾 本地多版本快照（进度数据 · 自动 · 保留最近 <b id="bakLocalKeepTxt">3</b> 份）</div>
       <div class="modalHint">每次重要操作（打卡/导入/云端同步）前自动留档，纯本地无需联网；可随时回滚到任一历史版本。</div>
       <div id="bakLocalList" style="max-height:120px;overflow:auto;margin:6px 0;font-size:12px"></div>
       <div class="row2" style="grid-template-columns:1fr 1fr">
@@ -935,7 +935,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
         <label style="margin:0;white-space:nowrap;font-size:13px">本地保留份数</label>
-        <input id="bakLocalCount" type="number" min="1" max="10" value="7" style="width:64px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
+        <input id="bakLocalCount" type="number" min="1" max="10" value="3" style="width:64px;padding:4px 6px;border:1px solid #d1d5db;border-radius:6px">
       </div>
     </div>
     <div style="background:#F6F1E7;border-radius:10px;padding:12px 14px;margin-bottom:10px">
@@ -1198,7 +1198,30 @@ const today = () => {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 };
 function loadJ(key, def){ try{ return JSON.parse(localStorage.getItem(key)) || def; }catch(e){ return def; } }
-function saveJ(key, v){ try { localStorage.setItem(key, JSON.stringify(v)); } catch(e){ toast('存储已满，建议导出备份后清理'); } }
+function saveJ(key, v){
+  try { localStorage.setItem(key, JSON.stringify(v)); return; }
+  catch(e){
+    /* 配额自救：① 本地快照减半 ② 清理拉云前冗余备份 → 各重试一次 */
+    try{
+      const store = loadJ('wulun_bak_local', null);
+      if(key !== 'wulun_bak_local' && store && Array.isArray(store.list) && store.list.length > 1){
+        store.list = store.list.slice(0, Math.max(1, Math.floor(store.list.length / 2)));
+        try{ localStorage.setItem('wulun_bak_local', JSON.stringify(store)); }
+        catch(_){ try{ localStorage.removeItem('wulun_bak_local'); }catch(__){} }
+      }
+      localStorage.setItem(key, JSON.stringify(v));
+      toast('存储接近上限，已自动清理旧快照后保存');
+      return;
+    }catch(e2){}
+    try{
+      localStorage.removeItem('wulun_person_v2_prepull_backup');
+      localStorage.setItem(key, JSON.stringify(v));
+      toast('存储接近上限，已自动清理冗余备份后保存');
+      return;
+    }catch(e3){}
+    toast('存储已满，建议导出备份后清理');
+  }
+}
 
 /* ---------- 存储 keys ---------- */
 const K = {
@@ -1662,6 +1685,7 @@ function fitAnsText(){
     _ansAnim.onfinish = function(){ _ansAnim = null; };
   }
 }
+function setMarkBtns(disabled){ for(let n = 1; n <= 5; n++){ const b = $('btnL' + n); if(b) b.disabled = !!disabled; } }
 function show(){
   if(pos >= queue.length){
     const empty = $('empty');
@@ -1669,14 +1693,14 @@ function show(){
     const sfEmpty = srcFilterSets[cur] && srcFilterSets[cur].size === 0 && allSrcNames(cur).length > 0;
     empty.textContent = sfEmpty ? '出处筛选已全部取消（重置为空）· 点「📄 出处」选「☑ 全选」恢复全部卡片' : (onlyWeak ? '该范围内没有薄弱点，太棒了！' : '该范围内所有条目都测完了！可以重置进度或换专题继续。');
     $('card').style.display = 'none';
-    $('btnFail').disabled = $('btnHalf').disabled = $('btnPass').disabled = true;
+    setMarkBtns(true);
     $('trainPos').textContent = '';
     viewingCard = false;
     return;
   }
   viewingCard = true;
   $('card').style.display = '';
-  $('btnFail').disabled = $('btnHalf').disabled = $('btnPass').disabled = false;
+  setMarkBtns(false);
   $('trainPos').textContent = '第 ' + (pos + 1) + ' / ' + queue.length + ' 张';
   const d = itemById(queue[pos]);
   if(!d){ pos++; show(); return; }
@@ -1851,7 +1875,7 @@ function jumpToNextTopic(){
   toast('本章已看完，自动进入下一节「' + t + '」');
   return true;
 }
-function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
+function mark(level){ /* 1=完全不记得 2=勉强记得一点 3=记得小部分 4=记得大部分 5=完全记住 */
   if(!shown || markBusy || pos >= queue.length) return;
   stopSpeak();      /* 点标记立即停止当前语音 */
   /* 立即播放下一卡正面语音（预加载缓存命中零等待；ttsLastId 预置防 show() 重复朗读） */
@@ -3327,8 +3351,8 @@ const BAK_CFG_KEY = 'wulun_bak_cfg';
 const BAK_LOCAL_KEY = 'wulun_bak_local';          /* {list:[{ts, at, data}]} */
 const BAK_CLOUD_DAY_KEY = 'wulun_bak_cloud_day';  /* 上次云端快照的日期字符串 YYYY-MM-DD */
 function loadBakCfg(){
-  try{ const c = JSON.parse(localStorage.getItem(BAK_CFG_KEY) || 'null'); if(c) return {localKeep: Math.max(1, Number(c.localKeep)||7), cloudDays: Math.max(1, Number(c.cloudDays)||5)}; }catch(e){}
-  return {localKeep: 7, cloudDays: 5};
+  try{ const c = JSON.parse(localStorage.getItem(BAK_CFG_KEY) || 'null'); if(c) return {localKeep: Math.max(1, Number(c.localKeep)||3), cloudDays: Math.max(1, Number(c.cloudDays)||5)}; }catch(e){}
+  return {localKeep: 3, cloudDays: 5};
 }
 function saveBakCfg(c){ try{ localStorage.setItem(BAK_CFG_KEY, JSON.stringify(c)); }catch(e){ toast('存储已满，备份设置保存失败'); } }
 /* 全量备份内容（所有执行人 + 题库卡片） */
@@ -3336,6 +3360,27 @@ function fullBackup(){
   return { app:'memory-card-backup', kind:'full', v:2, exportedAt: Date.now(),
            personStore: PERSON_STORE, imported: IMPORTED, custom: CUSTOM,
            cloudCfg: loadCloudCfg(), active: personKey };
+}
+/* 瘦身快照：不含卡库（卡库已有独立 key，避免整份卡库在环形快照里被复制 N 遍撑爆 5MB 配额） */
+function fullBackupLite(){
+  return { app:'memory-card-backup', kind:'slim', v:2, exportedAt: Date.now(),
+           personStore: PERSON_STORE, cloudCfg: loadCloudCfg(), active: personKey };
+}
+/* 旧版胖快照迁移：剥掉内嵌卡库立即释放被重复占用的配额；写不进去则整块清空（云端每日快照兜底） */
+function migrateBakLocalSlim(){
+  try{
+    const store = loadJ(BAK_LOCAL_KEY, null);
+    if(!store || !Array.isArray(store.list) || !store.list.length) return;
+    let changed = false;
+    store.list.forEach(it => {
+      if(it && it.data && (it.data.imported || it.data.custom)){
+        delete it.data.imported; delete it.data.custom; it.data.kind = 'slim'; changed = true;
+      }
+    });
+    if(!changed) return;
+    try{ localStorage.setItem(BAK_LOCAL_KEY, JSON.stringify(store)); }
+    catch(e){ try{ localStorage.removeItem(BAK_LOCAL_KEY); }catch(_){} }
+  }catch(e){}
 }
 function bakDayStr(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function bakTsLabel(ts){ const d = new Date(ts); return (d.getMonth()+1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
@@ -3361,17 +3406,17 @@ function applyBackup(b){
 function snapshotLocal(manual){
   try{
     const cfg = loadBakCfg();
-    const b = fullBackup();
+    const b = fullBackupLite();
     const store = loadJ(BAK_LOCAL_KEY, {list:[]});
     const today = bakDayStr();
     /* 自动留档按天去重：同一天已有则跳过（手动按钮不受限） */
     const hasToday = store.list.some(x => x.day === today);
     if(!manual && hasToday){ renderBakLists(); return true; }
     store.list.unshift({ts: Date.now(), day: today, at: bakTsLabel(Date.now()), data: b});
-    const keep = cfg.localKeep || 7;
+    const keep = cfg.localKeep || 3;
     store.list = store.list.slice(0, keep);
     /* 容量保护：localStorage 约 5MB，超限时从最旧开始丢 */
-    while(store.list.length > 1 && JSON.stringify(store).length > 4600000) store.list.pop();
+    while(store.list.length > 1 && JSON.stringify(store).length > 3400000) store.list.pop();
     saveJ(BAK_LOCAL_KEY, store);
     if(manual) toast('✅ 已保存本地快照（保留 ' + store.list.length + ' 份）');
     renderBakLists();
@@ -3383,7 +3428,7 @@ function restoreLocalByTs(ts){
   const hit = store.list.find(x => x.ts === ts);
   if(!hit){ toast('未找到该快照'); return; }
   if(!confirm('用 ' + hit.at + ' 的本地快照覆盖当前数据？（当前数据将被替换）')) return;
-  try{ applyBackup(hit.data); toast('✅ 已恢复本地快照（' + hit.at + '）'); renderBakLists(); }
+  try{ applyBackup(hit.data); toast('✅ 已恢复本地快照（' + hit.at + '）' + (hit.data && hit.data.kind === 'slim' ? '（进度回溯，卡库沿用当前）' : '')); renderBakLists(); }
   catch(e){ toast('恢复失败：' + e.message); }
 }
 /* ---- C：云端每日快照（独立文档 jikaka-<personKey>-bak，保留 N 天） ---- */
@@ -3539,7 +3584,7 @@ function importBackupFile(file){
 function saveBakCfgFromUI(){
   const dd = document.getElementById('bakCloudDays'); if(!dd) return;
   const ld = document.getElementById('bakLocalCount');
-  saveBakCfg({cloudDays: parseInt(dd.value, 10) || 5, localKeep: parseInt(ld.value, 10) || 7});
+  saveBakCfg({cloudDays: parseInt(dd.value, 10) || 5, localKeep: parseInt(ld.value, 10) || 3});
   toast('已保存备份设置');
   renderBakLists();
 }
@@ -3629,7 +3674,7 @@ function bindBakUI(){
   const lb = b('bakLocalBtn'); if(lb) lb.addEventListener('click', () => snapshotLocal(true));
   const cb = b('bakCloudBtn'); if(cb) cb.addEventListener('click', () => uploadCloudBak(true));
   const cs = b('bakCfgSave'); if(cs) cs.addEventListener('click', saveBakCfgFromUI);
-  const rs = b('bakCfgReset'); if(rs) rs.addEventListener('click', () => { saveBakCfg({cloudDays:5, localKeep:7}); renderBakLists(); toast('备份设置已恢复默认（云端 5 天 · 本地 7 份）'); });
+  const rs = b('bakCfgReset'); if(rs) rs.addEventListener('click', () => { saveBakCfg({cloudDays:5, localKeep:3}); renderBakLists(); toast('备份设置已恢复默认（云端 5 天 · 本地 3 份）'); });
   const sd = b('bakStorageDiag'); if(sd) sd.addEventListener('click', storageDiag);
   const sc = b('settingsModalClose'); if(sc) sc.addEventListener('click', () => $('settingsModal').classList.remove('show'));
   /* 设置面板打开时刷新列表（含云端列表拉取） */
@@ -4622,9 +4667,8 @@ function startTopicTrain(){
 function previewTopicList(){
   const ids = topicQuery();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
-  const st = state[$('tqSubj').value] || {};
   const names = {1:'完全不记得',2:'勉强记得一点',3:'记得小部分',4:'记得大部分',5:'完全记住'};
-  const lines = ids.slice(0, 12).map(id => { const it = itemById(id); return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）'; });
+  const lines = ids.slice(0, 12).map(id => { const it = itemById(id); const sn = subjectOfId(id) || cur; const stx = state[sn] || {}; return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[stx[id]] || '未测') + '）'; });
   alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
 }
 /* 专题练查询结果导出 xlsx（含卡片全部字段 + 训练状态/最近答题/最近浏览/审核标记） */
@@ -5169,6 +5213,7 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
 
 (function init(){
   try{
+    migrateBakLocalSlim();   /* 旧胖快照瘦身：先释放配额，避免启动留档时报「存储已满」 */
     rebuildSubjects();
     migrateStateToId();
     if(!ALL_SUBJECTS[cur]){ toast('当前执行人暂无科目数据，请在设置页切换或导入'); showView('dash'); }
