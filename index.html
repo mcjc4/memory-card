@@ -788,7 +788,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
   <div class="modalBox taskBox">
     <h2><span>📚 训练库 · 待训练卡聚合</span><span class="x" id="practiceLibClose">×</span></h2>
     <div class="bhFoot">
-      <span class="bhInfo">聚合所有带「待训练」标签的记忆卡（作业报告点「➕ 加入训练」/「记忆卡入库」即打标）；点「🎯 开始专题练」整队开练，「💾 存入训练库」把当前队列存为一次专题练习。</span>
+      <span class="bhInfo">聚合所有带「待训练」标签的记忆卡（作业报告点「➕ 加入训练」/「记忆卡入库」即打标）；点「🎯 开始专题练」整队开练，练完这批卡会自动标记「已训练」并从本列表退出。</span>
       <button id="practiceLibRefresh" class="ok" style="background:#1D5C7C;color:#fff;border:1px solid #1D5C7C;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer">🔄 刷新</button>
     </div>
     <div id="plQueuedBox" style="border:1px solid #dbe7f5;background:#F5F9FF;border-radius:10px;padding:10px 12px;margin-bottom:12px">
@@ -2192,6 +2192,8 @@ function renderDash(){
 
 /* ---------- 视图切换 ---------- */
 function showView(v){
+  /* 方案 A：离开训练页（从训练库「开始专题练」进入的队列）即把练过的卡改标「已训练」 */
+  if(v !== 'train' && queuedFromLib){ const _ids = lastTopicTrainIds; queuedFromLib = false; lastTopicTrainIds = []; maybeRetagTrained(_ids); }
   $('viewDash').style.display = v === 'dash' ? '' : 'none';
   $('viewTrain').style.display = v === 'train' ? '' : 'none';
   if(v === 'dash'){ if(isCrossRetry){ isCrossRetry = false; restoreTrainUI(); } viewingCard = false; flushTime(); lastView = {view:'dash'}; savePerson(); renderDash(); }
@@ -5222,18 +5224,17 @@ function practiceLibShortDate(iso){
 /* ---------- 📚 训练库：待训练卡聚合 + 队列存库（2026-09-19 用户指定） ---------- */
 let _plQueuedIds = [];
 let _plQueuedRows = [];
-/* 已存入训练库队列的卡 id（本地持久化）：存入后即从「待训练聚合」明细移除，避免重复堆着；
-   报告页新打「待训练」标签的卡作为新增量仍会出现。 */
-let _plSavedIds = (function(){ try{ return new Set(JSON.parse(localStorage.getItem('wulun_pl_saved_v1') || '[]')); }catch(e){ return new Set(); } })();
-function _plPersistSaved(){ try{ localStorage.setItem('wulun_pl_saved_v1', JSON.stringify([..._plSavedIds])); }catch(e){} }
+/* 由「待训练队列」进入专题练时的标记：练完后把这批卡「待训练」→「已训练」（方案 A：练完自动退役） */
+let queuedFromLib = false;
+let lastTopicTrainIds = [];
 async function renderQueuedCards(){
   const cnt = $('plQueuedCount'), list = $('plQueuedList');
   if(!cnt || !list) return;
   if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ cnt.textContent = '未配置云端'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
   try{
     const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
-    /* 过滤掉「已存入队列」的卡：存入后明细即清空（用户 2026-09-19 指定） */
-    _plQueuedRows = (rows || []).filter(r => !_plSavedIds.has(r.card_id));
+    /* 待训练聚合 = 云端所有带「待训练」标签的卡（实时查询，打标即出现，练完自动改标「已训练」后退出本列表） */
+    _plQueuedRows = (rows || []).slice();
     _plQueuedIds = _plQueuedRows.map(r => r.card_id);
     cnt.textContent = _plQueuedIds.length + ' 张待训练';
     if(!_plQueuedRows.length){ list.innerHTML = '<div style="color:#9ca3af">暂无待训练卡：去作业批改报告点「➕ 加入训练」或「记忆卡入库」即可打标</div>'; return; }
@@ -5291,22 +5292,39 @@ async function startQueuedTrain(){
   });
   if(browseHistory.length > 500) browseHistory.length = 500;
   savePerson();
+  /* 方案 A：记住本次专题练的卡，练完后自动改标「已训练」 */
+  queuedFromLib = true; lastTopicTrainIds = ids.slice();
   startQueueDirect(ids, '待训练队列开始');
 }
 async function saveQueuedToLib(){
   if(!_plQueuedIds.length){ toast('暂无待训练卡可存'); return; }
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法存入训练库'); return; }
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法保存记录'); return; }
   try{
     const ids = _plQueuedIds.slice();
     const rid = 'tl-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
     await plUpsertSession({rid: rid, title: '训练库待训练 · ' + ids.length + '张', subject: '跨科', source: 'app-lib', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
-    /* 标记已存入：从「待训练聚合」明细移除（用户 2026-09-19 指定：存入队列后即清空） */
-    ids.forEach(id => _plSavedIds.add(id));
-    _plPersistSaved();
-    _plQueuedIds = []; _plQueuedRows = [];
-    toast('✅ 已存入训练库（' + ids.length + ' 张），待训练明细已清空');
-    renderQueuedCards();
-  }catch(e){ toast('存入失败：' + (e.message || e)); }
+    toast('✅ 已保存本次专题练记录（' + ids.length + ' 张）· 卡片仍留在待训练列表，练完将自动标记「已训练」');
+  }catch(e){ toast('保存失败：' + (e.message || e)); }
+}
+/* 方案 A：专题练结束后，把本次练过的卡「待训练」→「已训练」，使其自动退出待训练聚合 */
+async function maybeRetagTrained(ids){
+  if(!ids || !ids.length) return;
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  let ok = 0;
+  for(const id of ids){
+    try{
+      const rr = await sbSelect(CARDS_TABLE, 'card_id=eq.' + encodeURIComponent(id) + '&select=tags');
+      if(rr && rr[0]){
+        const cur = Array.isArray(rr[0].tags) ? rr[0].tags : [];
+        if(cur.indexOf('已训练') >= 0 && cur.indexOf('待训练') < 0) continue;
+        const nt = [...new Set(cur.filter(t => t !== '待训练').concat(['已训练']))];
+        await sbUpdate(CARDS_TABLE, {tags: nt, updated_at: new Date().toISOString()}, 'card_id=eq.' + encodeURIComponent(id));
+        ok++;
+      }
+    }catch(e){}
+  }
+  if(ok) toast('已训练 ' + ok + ' 张 → 标记「已训练」');
+  renderQueuedCards();
 }
 async function saveQueueToLib(){
   const ids = topicQuery();
