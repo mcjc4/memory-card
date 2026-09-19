@@ -144,6 +144,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseTable .stTag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap}
 .browseTable .stPass{background:#DCFCE7;color:#3B6D11}
 .browseTable .stFail{background:#FDE2E2;color:#A32D2D}
+.browseTable .stTag.lv1{background:#FDE2E2;color:#A32D2D}
+.browseTable .stTag.lv2{background:#FCE3D6;color:#C2410C}
+.browseTable .stTag.lv3{background:#FAEEDA;color:#854F0B}
+.browseTable .stTag.lv4{background:#EAF3DE;color:#3F7D1E}
+.browseTable .stTag.lv5{background:#DCEFD0;color:#2E7D13}
 .browseTable .stHalf{background:#FEF3C7;color:#854F0B}
 .browseTable .stUnt{background:#F1F5F9;color:#6b7280}
 .browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5;white-space:nowrap}
@@ -190,6 +195,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .btn.fail{background:#A32D2D}
 .btn.half{background:#BA7517}
 .btn.pass{background:#3B6D11}
+.btn.lv1{background:#A32D2D}
+.btn.lv2{background:#C2410C}
+.btn.lv3{background:#BA7517}
+.btn.lv4{background:#3F7D1E}
+.btn.lv5{background:#2E7D13}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .empty{background:#fff;border:1px dashed #d1d5db;border-radius:12px;padding:30px;text-align:center;color:#9ca3af;font-size:14px;margin-bottom:12px}
 .panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;margin-bottom:12px}
@@ -205,6 +215,12 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .weak .retryItem .retryStatus{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;flex-shrink:0}
 .weak .retryItem .retryStatus.fail{background:#FDE2E2;color:#A32D2D}
 .weak .retryItem .retryStatus.half{background:#FEF3C7;color:#854F0B}
+.weak .retryItem .retryStatus.unt{background:#F1EFE8;color:#5F5E5A}
+.weak .retryItem .retryStatus.lv1{background:#FCEBEB;color:#A32D2D}
+.weak .retryItem .retryStatus.lv2{background:#FCE3D6;color:#C2410C}
+.weak .retryItem .retryStatus.lv3{background:#FAEEDA;color:#854F0B}
+.weak .retryItem .retryStatus.lv4{background:#EAF3DE;color:#3F7D1E}
+.weak .retryItem .retryStatus.lv5{background:#DCEFD0;color:#2E7D13}
 .weak .retryItem .retryStatus.unt{background:#F1F5F9;color:#6b7280}
 .weak .retryItem .retryDays{font-size:11px;color:#6b7280}
 .weak .retryItem .retryJump{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:2px 9px;font-size:14px;cursor:pointer;color:#185FA5;margin-left:auto;line-height:1.2;font-weight:500}
@@ -329,6 +345,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .manageTable .status.half{background:#FAEEDA;color:#854F0B}
 .manageTable .status.fail{background:#FCEBEB;color:#A32D2D}
 .manageTable .status.unt{background:#F1EFE8;color:#5F5E5A}
+.manageTable .status.lv1{background:#FCEBEB;color:#A32D2D}
+.manageTable .status.lv2{background:#FCE3D6;color:#C2410C}
+.manageTable .status.lv3{background:#FAEEDA;color:#854F0B}
+.manageTable .status.lv4{background:#EAF3DE;color:#3F7D1E}
+.manageTable .status.lv5{background:#DCEFD0;color:#2E7D13}
 .manageTable .act{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
 .manageTable .act button{border:1px solid #e5e7eb;background:#fff;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:#374151}
 .manageTable .act button:hover{background:#f3f4f6}
@@ -420,7 +441,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <option value="order">顺序</option>
       <option value="rand">随机</option>
     </select>
-    <button id="onlyWeak">专练没记住和模糊</button>
+    <button id="onlyWeak">专练未完全记住(1~4)</button>
     <button id="soundBtn">🔊 音效</button>
     <button id="browseBtn" class="browse">👁 审核</button>
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
@@ -454,7 +475,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       </span>
       <div class="sig" id="fSig"></div>
       <div class="orig-preview" id="fOrig" style="display:none"></div>
-      <div class="hint">点卡片展开答案 <span class="kbd">空格</span> · 或用 <span class="kbd">1</span> 没记住 <span class="kbd">2</span> 模糊 <span class="kbd">3</span> 记住了</div>
+      <div class="hint">点卡片展开答案 <span class="kbd">空格</span> · 或用 <span class="kbd">1</span> 完全不记得 <span class="kbd">2</span> 勉强 <span class="kbd">3</span> 小部分 <span class="kbd">4</span> 大部分 <span class="kbd">5</span> 完全记住</div>
     </div>
     <div class="answer-zone">
       <div class="answer-inner">
@@ -483,9 +504,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <span id="topicTrainPos" style="color:#0C447C"></span>
   </div>
   <div class="actions" id="markActions">
-    <button class="btn fail" id="btnFail">没记住</button>
-    <button class="btn half" id="btnHalf">模糊</button>
-    <button class="btn pass" id="btnPass">记住了</button>
+    <button class="btn lv1" id="btnL1">\uD83D\uDE36 完全不记得</button>
+    <button class="btn lv2" id="btnL2">\uD83E\uDDCF 勉强记得一点</button>
+    <button class="btn lv3" id="btnL3">\uD83E\uDD14 记得小部分</button>
+    <button class="btn lv4" id="btnL4">\uD83D\uDE0A 记得大部分</button>
+    <button class="btn lv5" id="btnL5">\uD83C\uDFAF 完全记住</button>
   </div>
   <div class="browseActions" id="browseActions" style="display:none">
     <button class="btn" id="btnPrev">← 上一张</button>
@@ -633,9 +656,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
           <label>卡片状态</label>
           <select id="bhStatus">
             <option value="all">全部状态</option>
-            <option value="fail">没记住</option>
-            <option value="half">模糊</option>
-            <option value="pass">记住了</option>
+            <option value="lv1">完全不记得</option>
+            <option value="lv2">勉强记得一点</option>
+            <option value="lv3">记得小部分</option>
+            <option value="lv4">记得大部分</option>
+            <option value="lv5">完全记住</option>
           </select>
         </div>
       </div>
@@ -798,6 +823,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
     </label>
     <label>答对烟花片数</label>
     <input id="fxFireworkCount" type="number" min="3" max="40" placeholder="10">
+    <label>撒彩带最低档位（仅该档及以上才撒彩带）</label>
+    <select id="fxConfettiMinLevel">
+      <option value="4">记得大部分(4)及以上</option>
+      <option value="5">完全记住(5)才撒</option>
+    </select>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:8px 0 4px;cursor:pointer">
       <input type="checkbox" id="fxBurst" style="width:16px;height:16px"> 答对绿色脉冲扩散
     </label>
@@ -1097,6 +1127,12 @@ function bindPerson(key){
   browseHistory = d.browseHistory = d.browseHistory || [];
   browseMeta = d.browseMeta = d.browseMeta || {};
   trainCount = d.trainCount = d.trainCount || {};
+  /* 记忆程度五档迁移：旧存 1=记住→5, 2=没记住→1, 3=模糊→3（lastRes 同步） */
+  if(!state.__mig5){
+    Object.keys(state).forEach(nm => { const sm = state[nm]; if(!sm || typeof sm !== 'object') return; Object.keys(sm).forEach(id => { const v = sm[id]; if(v === 1) sm[id] = 5; else if(v === 2) sm[id] = 1; else if(v === 3) sm[id] = 3; }); });
+    Object.keys(lastRes).forEach(nm => { const lm = lastRes[nm]; if(!lm || typeof lm !== 'object') return; Object.keys(lm).forEach(id => { const e = lm[id]; if(e && e.v === 1) e.v = 5; else if(e && e.v === 2) e.v = 1; else if(e && e.v === 3) e.v = 3; }); });
+    state.__mig5 = true; savePerson();
+  }
   subjectTime = d.subjectTime = d.subjectTime || {};
   /* 从 browseHistory 回填 browseMeta：browsed 来自 mode==='审核' 的历史记录；lastBrowse 取最大 ts */
   browseHistory.forEach(e => {
@@ -1340,7 +1376,7 @@ function buildQueue(){
     ids = ids.filter(id => { const it = itemById(id); return it && !it.src; });
   }
   const st = state[cur] || {};
-  if(onlyWeak) ids = ids.filter(id => st[id] === 2 || st[id] === 3);
+  if(onlyWeak) ids = ids.filter(id => isWeak(st[id]));
   if(mode === "rand"){ for(let i = ids.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i],ids[j]] = [ids[j],ids[i]]; } }
   queue = ids; pos = 0;
 }
@@ -1392,40 +1428,57 @@ function refreshToday(){
   const ps = $('trainPersonSub');
   if(ps) ps.textContent = '今日 ' + cnt + '/' + g + ' 题';
 }
+/* ============ 记忆程度五档（1=完全不记得 … 5=完全记住；档位<=WEAK_MAX 算未完全=待重练） ============ */
+const WEAK_MAX = 4;
+const LEVEL_NAME = {1:'完全不记得',2:'勉强记得一点',3:'记得小部分',4:'记得大部分',5:'完全记住'};
+const LEVEL_EMOJI = {1:'\uD83D\uDE36',2:'\uD83E\uDDCF',3:'\uD83E\uDD14',4:'\uD83D\uDE0A',5:'\uD83C\uDFAF'};
+const LEVEL_COLOR = {1:'#A32D2D',2:'#C2410C',3:'#BA7517',4:'#3F7D1E',5:'#2E7D13'};
+function isWeak(v){ return v !== undefined && v !== null && v >= 1 && v <= WEAK_MAX; }
+function levelName(v){ return v ? (LEVEL_NAME[v] || '未测') : '未测'; }
+function levelCls(v){ return v ? ('lv' + v) : 'unt'; }
+function levelColor(v){ return v ? (LEVEL_COLOR[v] || '#5F5E5A') : '#5F5E5A'; }
+function sMarkSound(level, c){
+  if(level === 1) return sWrong();
+  if(level === 2) return beep(240, .16, 'sawtooth', .07);
+  if(level === 3) return sHalf();
+  if(level === 4) return beep(560, .12, 'sine', .12);
+  const cc = c || 0; const b = 520 + Math.min(cc, 24) * 14;
+  beep(b, .1, 'sine', .14); beep(b*1.25, .12, 'sine', .12, .09);
+  if(cc > 0 && cc % 5 === 0) beep(b*1.5, .22, 'triangle', .13, .16);
+}
 function updateStats(){
   const st = state[cur] || {};
-  let pass = 0, fail = 0, half = 0;
-  items().forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2) fail++; else if(v===3) half++; });
-  $('bar').style.width = ((pass + fail + half) / N() * 100).toFixed(1) + '%';
+  let tested = 0; const lv = {1:0,2:0,3:0,4:0,5:0};
+  items().forEach(it => { const v = st[it.id]; if(v >= 1 && v <= 5){ tested++; lv[v]++; } });
+  $('bar').style.width = (tested / N() * 100).toFixed(1) + '%';
   $('bestV') && ($('bestV').textContent = best[cur] || 0);
   renderRetryList();
-  renderStatePie();   /* 当前科目 4 种状态饼图 */
-  const weak = items().map(it => ({d:it, id:it.id})).filter(x => st[x.id] === 2);
+  renderStatePie();   /* 当前科目 5 档 + 未测 饼图 */
+  const weak = items().filter(it => isWeak(st[it.id]));
   $('weakCnt').textContent = weak.length;
-  renderList('weakList', 'weakEmpty', null, weak, true);
+  renderList('weakList', 'weakEmpty', null, weak.map(it => ({d:it, id:it.id})), true);
 }
-/* 4 种状态饼图（conic-gradient）：记住了 / 模糊 / 不记得 / 未测 */
+/* 5 档 + 未测 饼图（conic-gradient）：未测/完全不记得/勉强/小部分/大部分/完全记住 */
 function renderStatePie(){
   const def = subjDef(cur);
   const ring = $('pieRing'); if(!ring) return;
-  let pass = 0, fail = 0, half = 0, unt = 0;
+  const lv = {1:0,2:0,3:0,4:0,5:0}; let unt = 0;
   const total = def ? def.items.length : 0;
   if(def){
     const st = state[cur] || {};
-    def.items.forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2) fail++; else if(v===3) half++; else unt++; });
+    def.items.forEach(it => { const v = st[it.id]; if(v >= 1 && v <= 5) lv[v]++; else unt++; });
   }
   if(total === 0){ ring.style.background = '#eef0f3'; }
   else {
-    const passDeg = pass / total * 360;
-    const halfDeg = half / total * 360;
-    const failDeg = fail / total * 360;
-    /* 顺时针：未测(灰) → 不记得(红) → 模糊(黄) → 记住了(绿) */
-    ring.style.background = `conic-gradient(#d1d5db 0deg ${unt/total*360}deg, #A32D2D ${unt/total*360}deg ${(unt+fail)/total*360}deg, #BA7517 ${(unt+fail)/total*360}deg ${(unt+fail+half)/total*360}deg, #3B6D11 ${(unt+fail+half)/total*360}deg 360deg)`;
+    const segs = [['#d1d5db', unt], ['#A32D2D', lv[1]], ['#C2410C', lv[2]], ['#BA7517', lv[3]], ['#3F7D1E', lv[4]], ['#2E7D13', lv[5]]];
+    let acc = 0; const parts = [];
+    segs.forEach(([c, n]) => { const a = acc / total * 360, b = (acc + n) / total * 360; parts.push(c + ' ' + a + 'deg ' + b + 'deg'); acc = b; });
+    ring.style.background = 'conic-gradient(' + parts.join(', ') + ')';
   }
-  $('piePass') && ($('piePass').textContent = pass);
+  $('piePass') && ($('piePass').textContent = lv[5]);
   $('pieTotal') && ($('pieTotal').textContent = total);
   const lg = $('pieLegend');
-  if(lg) lg.innerHTML = `<i style="background:#d1d5db"></i>未测 ${unt} <i style="background:#A32D2D"></i>不记得 ${fail} <i style="background:#BA7517"></i>模糊 ${half}`;
+  if(lg) lg.innerHTML = `<i style="background:#d1d5db"></i>未测 ${unt} <i style="background:#A32D2D"></i>完全不记得 ${lv[1]} <i style="background:#C2410C"></i>勉强 ${lv[2]} <i style="background:#BA7517"></i>小部分 ${lv[3]} <i style="background:#3F7D1E"></i>大部分 ${lv[4]} <i style="background:#2E7D13"></i>完全 ${lv[5]}`;
 }
 function renderList(ulId, emptyId, cntId, arr, skipCount){
   const ul = $(ulId);
@@ -1454,8 +1507,8 @@ function renderRetryList(){
   empty.style.display = arr.length ? 'none' : 'block';
   arr.slice(0, 50).forEach(x => {
     const v = st[x.id];
-    const stCls = v === 2 ? 'fail' : v === 3 ? 'half' : 'unt';
-    const stTxt = v === 2 ? '没记住' : v === 3 ? '模糊' : '未测';
+    const stCls = levelCls(v);
+    const stTxt = levelName(v);
     const lrEntry = lr[x.id];
     let daysTxt = '';
     if(lrEntry){
@@ -1680,10 +1733,10 @@ function show(){
   /* 左上角：上次训练结果 + 距上次天数 */
   const lr = (sName && lastRes[sName]) ? lastRes[sName][d.id] : null;
   if(lr){
-    const vTxt = lr.v === 1 ? '记住了' : lr.v === 2 ? '没记住' : lr.v === 3 ? '模糊' : '';
+    const vTxt = levelName(lr.v);
     const days = Math.floor((Date.now() - lr.ts) / 86400000);
     const dTxt = days <= 0 ? '今天' : days + ' 天前';
-    const color = lr.v === 1 ? '#3B6D11' : lr.v === 2 ? '#A32D2D' : '#854F0B';
+    const color = levelColor(lr.v);
     $('fLast').textContent = '上次：' + vTxt + ' · ' + dTxt;
     $('fLast').style.display = '';
     $('fLast').style.color = color;
@@ -1792,7 +1845,7 @@ function jumpToNextTopic(){
   topicSet = new Set([t]);
   ffApplyValues('topicSel', [t]);
   onlyWeak = false;
-  $('onlyWeak').textContent = '专练没记住和模糊';
+  $('onlyWeak').textContent = '专练未完全记住(1~4)';
   buildQueue(); pos = 0;
   refreshToday(); updateStats(); show();
   toast('本章已看完，自动进入下一节「' + t + '」');
@@ -1813,36 +1866,41 @@ function mark(level){ /* 1=没记住 2=模糊 3=记住了 */
   const sName = subjectOfId(id);
   if(!sName) return;
   const st = state[sName] || (state[sName] = {});
-  st[id] = level === 1 ? 2 : level === 2 ? 3 : 1;   /* 存储：2=答错 3=模糊 1=记住（兼容旧数据） */
+  st[id] = level;   /* 存储 1-5 直接对应五档（旧数据由 loadPerson 迁移） */
   lastRes[sName] = lastRes[sName] || {};
   lastRes[sName][id] = {v: st[id], ts: Date.now()};
-  /* 累加 训练计数（不记得/模糊 次数，跨刷新跨会话累计） */
+  /* 累加 训练计数（按档位，跨刷新跨会话累计） */
   const tc = trainCount[sName] || (trainCount[sName] = {});
-  const cnt = tc[id] || (tc[id] = {fail:0, half:0});
-  if(level === 1) cnt.fail++;
-  else if(level === 2) cnt.half++;
+  const cnt = tc[id] || (tc[id] = {});
+  cnt[level] = (cnt[level] || 0) + 1;
   savePerson();
   markBusy = true;
-  if(level === 3){
+  const cd = $('card');
+  if(isWeak(level)){
+    combo = 0;
+    if(fxCfg.wrongShake){ cd.classList.remove('shake'); void cd.offsetWidth; cd.classList.add('shake'); setTimeout(() => cd.classList.remove('shake'), 500); }
+    if(!isCrossRetry && !retryOrder.includes(id)) retryOrder.push(id);
+    if(level === 1) toast('\uD83D\uDE36 完全不记得，已加入待重练');
+    else if(level === 2) toast('\uD83E\uDDCF 勉强记得一点，已加入待重练');
+    else if(level === 3) toast('\uD83E\uDD14 记得小部分，已加入待重练');
+    else toast('\uD83D\uDE0A 记得大部分，已加入待重练');
+  } else {
     combo++;
     if(combo > (best[sName]||0)){ best[sName] = combo; savePerson(); }
-    sCorrect(combo);
-    const cd = $('card');
     if(fxCfg.burst){ cd.classList.remove('burst'); void cd.offsetWidth; cd.classList.add('burst'); setTimeout(() => cd.classList.remove('burst'), 520); }
     if(fxCfg.checkPop){ cd.classList.remove('correctBounce'); void cd.offsetWidth; cd.classList.add('correctBounce'); setTimeout(() => cd.classList.remove('correctBounce'), 400); const ck = document.createElement('div'); ck.className = 'checkPop'; ck.textContent = '✅'; cd.appendChild(ck); setTimeout(() => ck.remove(), 700); }
-    if(fxCfg.answerFirework) confetti({count: fxCfg.fireworkCount || 10});
+    if(level === 5){ if(fxCfg.answerFirework) confetti({count: fxCfg.fireworkCount || 10}); }
+    else { if(fxCfg.confetti && (fxCfg.confettiMinLevel || 5) <= 4) confetti({count: Math.round((fxCfg.confettiCount || 26) / 2)}); }
     const th = fxCfg.confettiCombo || 3;
     if(combo >= th && combo % th === 0) confetti();
     if(fxCfg.comboBurst && combo >= 5){ const c = $('comboBar'); c.classList.add('comboBurst'); setTimeout(() => c.classList.remove('comboBurst'), 600); confetti({count: 18}); }
     if(combo >= 2){ const c = $('comboBar'); c.textContent = '连击 ×' + combo + ' 🔥'; c.classList.remove('show'); void c.offsetWidth; c.classList.add('show'); }
-  } else {
-    if(level === 2){ sHalf(); toast('已标记模糊，稍后重练'); }
-    else { combo = 0; sWrong(); toast('已加入待重练'); }
-    if(fxCfg.wrongShake){ const cd = $('card'); cd.classList.remove('shake'); void cd.offsetWidth; cd.classList.add('shake'); setTimeout(() => cd.classList.remove('shake'), 500); }
-    if(!isCrossRetry && !retryOrder.includes(id)) retryOrder.push(id);
+    if(level === 5) toast('\uD83C\uDFAF 完全记住');
+    else toast('\uD83D\uDE0A 记得大部分，不错');
   }
+  sMarkSound(level, combo);
   sessionSeen++;
-  if(level === 3) sessionCorrect++;
+  if(level === 5) sessionCorrect++;
   markLearned(sName);
   schedulePush();
   const card = $('card');
@@ -1883,7 +1941,7 @@ function dashStats(){
     const subj = subjDef(name); if(!subj) return;
     const st = state[name] || {};
     const n = subj.items.length; total += n;
-    subj.items.forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2 || v===3) weak++; });
+    subj.items.forEach(it => { const v = st[it.id]; if(v === 5) pass++; else if(isWeak(v)) weak++; });
     const td = todayD[name] || {};
     if(td.date === today()) tSum += td.count;
   });
@@ -1905,7 +1963,7 @@ function renameSubject(name){
   savePerson();
   rebuildSubjects();
   renderDash();
-  if($('viewTrain').style.display !== 'none'){ const _t=ALL_SUBJECTS[cur],_s=state[cur]||{},_r=Object.values(_s).filter(v=>v===1).length; $('trainTitle').textContent = (cur === name ? newDisp : (_t ? _t.display + ' · ' + _t.items.length + (_r>0?'  \u258E记住了 '+_r:'') + ' 条' : '')); renderTabs(); }
+  if($('viewTrain').style.display !== 'none'){ const _t=ALL_SUBJECTS[cur],_s=state[cur]||{},_r=Object.values(_s).filter(v=>v===5).length; $('trainTitle').textContent = (cur === name ? newDisp : (_t ? _t.display + ' · ' + _t.items.length + (_r>0?'  \u258E完全记住 '+_r:'') + ' 条' : '')); renderTabs(); }
   if(cur === name){ document.documentElement.style.setProperty('--badge-bg', (subj.color || '#185FA5') + '26'); }
   toast('已将「' + name + '」改名为「' + newDisp + '」');
 }
@@ -1948,7 +2006,7 @@ function renderDash(){
     const st = state[cur] || {};
     let pass = 0, total = 0;
     const def = subjDef(cur);
-    if(def){ total = def.items.length; def.items.forEach(it => { if(st[it.id] === 1) pass++; }); }
+    if(def){ total = def.items.length; def.items.forEach(it => { if(st[it.id] === 5) pass++; }); }
     sub.textContent = '今日 ' + cnt + '/' + goalN + ' 题 · 掌握 ' + (total ? Math.round(pass/total*100) : 0) + '%';
   }
   dashStats();
@@ -1963,7 +2021,7 @@ function renderDash(){
     const subj = subjDef(name); if(!subj) return;
     const st = state[name] || {};
     let w = 0;
-    subj.items.forEach(it => { if(st[it.id] === 2) w++; });
+    subj.items.forEach(it => { if(isWeak(st[it.id])) w++; });
     weakMap[name] = w;
     if(w > maxWeak) maxWeak = w;
   });
@@ -1981,8 +2039,8 @@ function renderDash(){
       card.addEventListener('click', () => $('fileInput').click());
     } else {
       const st = state[name] || {};
-      let pass = 0, fail = 0, half = 0;
-      subj.items.forEach(it => { const v = st[it.id]; if(v===1) pass++; else if(v===2) fail++; else if(v===3) half++; });
+      let pass = 0, weak = 0;
+      subj.items.forEach(it => { const v = st[it.id]; if(v === 5) pass++; else if(isWeak(v)) weak++; });
       const pct = Math.round(pass / subj.items.length * 100);
       /* 最近练习时间（取 lastRes 最大 ts） */
       const lr = lastRes[name] || {};
@@ -1998,11 +2056,11 @@ function renderDash(){
       const td = todayD[name] || {};
       const cnt = td.date === today() ? td.count : 0;
       const goalN = goal[name] || 300;
-      const pri = (fail === maxWeak && fail > 0) ? '<span class="priBadge">今日优先</span>' : '';
+      const pri = (weak === maxWeak && weak > 0) ? '<span class="priBadge">今日优先</span>' : '';
       card.innerHTML = '<div class="scTop"><span>' + escHtml(subj.display) + pri + '<button class="scEdit" data-rename="' + escHtml(name) + '" title="修改科目名称">✎</button></span><span class="scPct">' + pct + '%</span></div>'
         + '<div class="scBar"><i style="width:' + pct + '%;background:' + c + '"></i></div>'
         + '<div class="scRow">已掌握 ' + pass + ' / ' + subj.items.length + ' 条</div>'
-        + '<div class="scRow">薄弱 <span style="color:#A32D2D">' + fail + '</span> · 模糊 <span style="color:#854F0B">' + half + '</span> · 今日 ' + cnt + '/' + goalN + '</div>'
+        + '<div class="scRow">未完全(1~4) <span style="color:#A32D2D">' + weak + '</span> · 完全记住 <span style="color:#3B6D11">' + pass + '</span> · 今日 ' + cnt + '/' + goalN + '</div>'
         + '<div class="scRow" style="color:#6b7280">最近练习：' + lastTxt + '</div>'
         + '<div class="scGo" style="color:' + c + '">进入训练 ↗</div>';
       card.addEventListener('click', e => {
@@ -2080,8 +2138,8 @@ function renderTabs(){
     b.className = 'tab' + (name === cur ? ' active' : '');
     const total = s.items.length;
     const st = state[name] || {};
-    const remembered = Object.values(st).filter(v => v === 1).length;
-    b.textContent = s.display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '');
+    const remembered = Object.values(st).filter(v => v === 5).length;
+    b.textContent = s.display + ' · ' + total + (remembered > 0 ? '  \u258E完全记住 ' + remembered : '');
     if(name === cur) b.style.background = s.color;
     b.addEventListener('click', () => enterTrain(name));
     box.appendChild(b);
@@ -2091,7 +2149,7 @@ function renderTabs(){
 function seedRetryOrderFor(name){
   const st = state[name] || {};
   const lr = lastRes[name] || {};
-  const ids = Object.keys(st).filter(id => st[id] === 2 || st[id] === 3);
+  const ids = Object.keys(st).filter(id => isWeak(st[id]));
   /* 按 lastRes 时间正序：最早标记的在前（FIFO 重练语义） */
   ids.sort((a, b) => (lr[a] ? lr[a].ts : 0) - (lr[b] ? lr[b].ts : 0));
   retryOrder = ids;
@@ -2111,15 +2169,15 @@ function switchSubject(name){
   $('browseActions').style.display = 'none';
   $('markActions').style.display = '';
   $('browseBtn').classList.remove('active');
-  $('onlyWeak').textContent = '专练没记住和模糊';
+  $('onlyWeak').textContent = '专练未完全记住(1~4)';
   updateSrcBtn();
   const pop = $('srcPopover'); if(pop) pop.style.display = 'none';
   stopSpeak();   /* 切换科目时停止朗读 */
   ttsCache.clear(); ttsInFlight.clear();   /* 切科目清空语音缓存 */
   const total = ALL_SUBJECTS[name].items.length;
   const st = state[name] || {};
-  const remembered = Object.values(st).filter(v => v === 1).length;
-  $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + total + (remembered > 0 ? '  \u258E记住了 ' + remembered : '') + ' 条';
+  const remembered = Object.values(st).filter(v => v === 5).length;
+  $('trainTitle').textContent = ALL_SUBJECTS[name].display + ' · ' + total + (remembered > 0 ? '  \u258E完全记住 ' + remembered : '') + ' 条';
   $('trainPersonName').textContent = personName();
   const ps = $('trainPersonSub');
   if(ps){ const td = todayD[cur]||{}, g = goal[cur]||300, cnt = (td.date===today())?td.count:0; ps.textContent = '今日 ' + cnt + '/' + g + ' 题'; }
@@ -2247,8 +2305,8 @@ function renderManage(){
   filtered.forEach(it => {
     const row = document.createElement('div'); row.className = 'row';
     const v = st[it.id];
-    const statusTxt = v === 1 ? '已掌握' : v === 2 ? '答错' : v === 3 ? '模糊' : '未测';
-    const statusCls = v === 1 ? 'pass' : v === 2 ? 'fail' : v === 3 ? 'half' : 'unt';
+    const statusTxt = levelName(v);
+    const statusCls = levelCls(v);
     row.innerHTML = '<div class="ck"><input type="checkbox" data-id="' + it.id + '"' + (manageSel.has(it.id)?' checked':'') + '></div>'
       + '<div class="meta"><div class="topic">' + escHtml(it.t || '未分类') + '</div><div class="sig">' + escHtml(it.s) + '</div><div class="concl">' + escHtml(it.c) + '</div><div class="src">' + escHtml(it.src || '') + '</div></div>'
       + '<div class="status ' + statusCls + '">' + statusTxt + '</div>'
@@ -3126,8 +3184,8 @@ function applyCloudPayload(p){
     Object.keys(p.trainCount).forEach(subj => {
       const src = p.trainCount[subj] || {}; const dst = trainCount[subj] || (trainCount[subj] = {});
       Object.keys(src).forEach(id => {
-        const s = src[id] || {}; const d = dst[id] || (dst[id] = {fail:0, half:0});
-        d.fail = Math.max(d.fail||0, s.fail||0); d.half = Math.max(d.half||0, s.half||0);
+        const s = src[id] || {}; const d = dst[id] || (dst[id] = {});
+        Object.keys(s).forEach(k => { if(typeof s[k] === 'number') d[k] = Math.max(d[k] || 0, s[k]); });
       });
     });
   }
@@ -3815,6 +3873,7 @@ const DEFAULT_FX = {
   confettiPalette: 'default',
   answerFirework: true,
   fireworkCount: 10,
+  confettiMinLevel: 5,   /* 撒彩带最低档位：仅该档及以上才撒（默认 5=完全记住；设 4 则记得大部分也撒） */
   burst: true,
   checkPop: true,
   wrongShake: true,
@@ -3912,8 +3971,8 @@ function pushStartTraining(mode){
   if(last[key] && now - last[key] < 600000) return;
   last[key] = now; saveJ(PUSH_LAST_KEY, last);
   const st = state[cur] || {};
-  let pass = 0, fail = 0, half = 0;
-  items().forEach(it => { const v = st[it.id]; if(v === 1) pass++; else if(v === 2) fail++; else if(v === 3) half++; });
+  let pass = 0, weak = 0;
+  items().forEach(it => { const v = st[it.id]; if(v === 5) pass++; else if(isWeak(v)) weak++; });
   const td = todayD[cur] || {};
   const cnt = td.date === today() ? td.count : 0;
   const g = goal[cur] || 300;
@@ -3921,7 +3980,7 @@ function pushStartTraining(mode){
   const lines = [
     personName() + ' ' + verb + ' ' + ALL_SUBJECTS[cur].display + ' · ' + N() + ' 条',
     '今日进度：' + cnt + '/' + g + ' 题 · 连续打卡 ' + calcStreak() + ' 天',
-    '已掌握 ' + pass + ' · 待重练 ' + fail + ' · 模糊 ' + half,
+    '完全记住 ' + pass + ' · 未完全(1~4) ' + weak,
     verb + '开始，保持节奏！'
   ];
   const content = lines.join('\n');
@@ -3946,7 +4005,7 @@ function openModeModal(purpose){
 /* ---------- 跨科重练（首页入口：全部科目 答错/模糊 卡片 FIFO） ---------- */
 function crossRetryCount(){
   let n = 0;
-  SUBJ_NAMES.forEach(nm => { const st = state[nm] || {}; Object.keys(st).forEach(id => { if(st[id] === 2 || st[id] === 3) n++; }); });
+  SUBJ_NAMES.forEach(nm => { const st = state[nm] || {}; Object.keys(st).forEach(id => { if(isWeak(st[id])) n++; }); });
   return n;
 }
 function renderCrossBanner(){
@@ -3954,7 +4013,7 @@ function renderCrossBanner(){
   const n = crossRetryCount();
   if(n > 0){
     b.className = 'crossBanner';
-    b.innerHTML = '<span>🔁 跨科重练 · <b style="font-size:16px">' + n + '</b> 张待重练（答错+模糊）</span><span class="bannerArrow">›</span>';
+    b.innerHTML = '<span>🔁 跨科重练 · <b style="font-size:16px">' + n + '</b> 张待重练（1~4 未完全）</span><span class="bannerArrow">›</span>';
   } else {
     b.className = 'crossBanner done';
     b.innerHTML = '<span>✅ 暂无待重练，全部已掌握</span>';
@@ -3964,7 +4023,7 @@ function enterCrossRetry(){
   const ids = [];
   SUBJ_NAMES.forEach(nm => {
     const st = state[nm] || {}; const lr = lastRes[nm] || {};
-    Object.keys(st).forEach(id => { if(st[id] === 2 || st[id] === 3) ids.push({id: id, ts: (lr[id] && lr[id].ts) || 0}); });
+    Object.keys(st).forEach(id => { if(isWeak(st[id])) ids.push({id: id, ts: (lr[id] && lr[id].ts) || 0}); });
   });
   if(!ids.length){ toast('暂无待重练的卡片'); return; }
   ids.sort((a, b) => a.ts - b.ts);   /* 全局 FIFO：最先标记的优先 */
@@ -4072,7 +4131,7 @@ function renderPersonList(){
       if(!subj) return;
       total += subj.items.length;
       const st = (d.state || {})[name] || {};
-      subj.items.forEach(it => { const v = st[it.id]; if(v === 1) pass++; else if(v === 2) fail++; });
+      subj.items.forEach(it => { const v = st[it.id]; if(v === 5) pass++; else if(isWeak(v)) fail++; });
       const td = (d.today || {})[name] || {};
       if(td.date === today()) tSum += td.count;
     });
@@ -4095,7 +4154,7 @@ function switchPerson(pkey){
   document.documentElement.style.setProperty('--badge-bg', c + '26');
   document.documentElement.style.setProperty('--badge-fg', c);
   topic = ''; topicSet = new Set(); ffApplyValues('topicSel', []); onlyWeak = false; combo = 0; retryOrder = []; browseMode = false;
-  $('onlyWeak').textContent = '专练没记住和模糊';
+  $('onlyWeak').textContent = '专练未完全记住(1~4)';
   $('trainTitle').textContent = ALL_SUBJECTS[cur].display + ' · ' + ALL_SUBJECTS[cur].items.length + ' 条';
   const sel = $('topicSel'); sel.innerHTML = '<option value="">全部专题</option>';
   topics().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
@@ -4297,7 +4356,7 @@ function updateTqSrcBtn(){
 function openTqStatusPop(){
   const pop = $('tqStatusPop');
   if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
-  const entries = [['unt','未测'],['fail','没记住'],['half','模糊'],['pass','记住了']];
+  const entries = [['unt','未测'],['lv1','完全不记得'],['lv2','勉强记得一点'],['lv3','记得小部分'],['lv4','记得大部分'],['lv5','完全记住']];
   renderTqCheckPop(pop, {
     items: entries.map(e => e[0]),
     selected: tqStatusSel,
@@ -4311,7 +4370,7 @@ function updateTqStatusBtn(){
   if(!btn) return;
   if(tqStatusSel.size === 0) btn.innerHTML = '全部状态<span class="tqMultiHint">▼</span>';
   else {
-    const names = {unt:'未测', fail:'没记住', half:'模糊', pass:'记住了'};
+    const names = {unt:'未测', lv1:'完全不记得', lv2:'勉强记得一点', lv3:'记得小部分', lv4:'记得大部分', lv5:'完全记住'};
     const label = [...tqStatusSel].map(v => names[v] || v).join('、');
     btn.innerHTML = escHtml(label) + '<span class="tqMultiHint">▼</span>';
   }
@@ -4371,9 +4430,7 @@ function topicQuery(){
         const isUnt = v === undefined || v === null;
         let hit = false;
         if(stSet.has('unt') && isUnt) hit = true;
-        if(stSet.has('fail') && v === 2) hit = true;
-        if(stSet.has('half') && v === 3) hit = true;
-        if(stSet.has('pass') && v === 1) hit = true;
+        for(let lvN = 1; lvN <= 5; lvN++){ if(stSet.has('lv' + lvN) && v === lvN) hit = true; }
         if(!hit) return;
       }
       const bsS = ffSetOf('tqBrowseStatus');   /* 多选集合（空 = 全部） */
@@ -4419,7 +4476,7 @@ function getBhFiltered(){
     if(deT && e.ts > deT) return false;
     if(statusS.size){
       const v = (state[e.subject] || {})[e.id];
-      if(!((statusS.has('fail') && v === 2) || (statusS.has('half') && v === 3) || (statusS.has('pass') && v === 1))) return false;
+      if(!((statusS.has('unt') && (v === undefined || v === null)) || (function(){ for(let lvN = 1; lvN <= 5; lvN++){ if(statusS.has('lv' + lvN) && v === lvN) return true; } return false; })())) return false;
     }
     if(!kws.length) return true;
     const it = itemById(e.id);
@@ -4443,13 +4500,13 @@ function renderBrowseHistory(){
     tbody.appendChild(tr);
     return;
   }
-  const stMap = {1:['记住了','stPass'], 2:['没记住','stFail'], 3:['模糊','stHalf']};
+  const stMap = {1:['完全不记得','lv1'],2:['勉强记得一点','lv2'],3:['记得小部分','lv3'],4:['记得大部分','lv4'],5:['完全记住','lv5']};
   filtered.forEach(e => {
     const it = itemById(e.id);
     const sig = it ? (it.s || '').slice(0, 36) : '(卡片已删除)';
     const conc = it ? (it.c || '').slice(0, 48) : '';
     const v = (state[e.subject] || {})[e.id];
-    const st = stMap[v] || ['未测','stUnt'];
+    const st = stMap[v] || ['未测','unt'];
     const tr = document.createElement('tr');
     tr.innerHTML = '<td class="ts">' + relTime(e.ts) + '<small>' + new Date(e.ts).toLocaleString('zh-CN', {hour12:false}) + '</small></td>'
       + '<td><span class="modeTag ' + modeClass(e.mode) + '">' + escHtml(e.mode) + '</span></td>'
@@ -4566,7 +4623,7 @@ function previewTopicList(){
   const ids = topicQuery();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
   const st = state[$('tqSubj').value] || {};
-  const names = {1:'记住了', 2:'没记住', 3:'模糊'};
+  const names = {1:'完全不记得',2:'勉强记得一点',3:'记得小部分',4:'记得大部分',5:'完全记住'};
   const lines = ids.slice(0, 12).map(id => { const it = itemById(id); return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[st[id]] || '未测') + '）'; });
   alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
 }
@@ -4575,7 +4632,7 @@ function tqExport(){
   try{
     const ids = topicQuery();
     if(!ids.length){ toast('没有匹配的卡片，无可导出'); return; }
-    const stNames = {1:'记住了', 2:'没记住', 3:'模糊'};
+    const stNames = {1:'完全不记得',2:'勉强记得一点',3:'记得小部分',4:'记得大部分',5:'完全记住'};
     const fmtTs = ts => {
       if(!ts) return '';
       const d = new Date(ts);
@@ -4630,6 +4687,7 @@ function openSettings(){
     $('fxPalette').value = fxCfg.confettiPalette || 'default';
     $('fxFirework').checked = !!fxCfg.answerFirework;
     $('fxFireworkCount').value = fxCfg.fireworkCount || 10;
+  $('fxConfettiMinLevel').value = fxCfg.confettiMinLevel || 5;
     $('fxBurst').checked = !!fxCfg.burst;
     $('fxCheckPop').checked = !!fxCfg.checkPop;
     $('fxWrongShake').checked = !!fxCfg.wrongShake;
@@ -4692,6 +4750,7 @@ function saveFxCfg(){
   fxCfg.answerFirework = $('fxFirework').checked;
   const fw = parseInt($('fxFireworkCount').value, 10); fxCfg.fireworkCount = (fw >= 3 && fw <= 40) ? fw : 10;
   fxCfg.burst = $('fxBurst').checked;
+  const cml = parseInt($('fxConfettiMinLevel').value, 10); fxCfg.confettiMinLevel = (cml === 4 || cml === 5) ? cml : 5;
   fxCfg.checkPop = $('fxCheckPop').checked;
   fxCfg.wrongShake = $('fxWrongShake').checked;
   fxCfg.comboBurst = $('fxComboBurst').checked;
@@ -4736,9 +4795,11 @@ $('backBtn').addEventListener('click', () => { if(isCrossRetry){ isCrossRetry = 
 $('crossRetryBanner').addEventListener('click', () => { if(!isCrossRetry) enterCrossRetry(); });
 $('manageBackBtn').addEventListener('click', closeManage);
 $('card').addEventListener('click', flip);
-$('btnPass').addEventListener('click', () => mark(3));
-$('btnHalf').addEventListener('click', () => mark(2));
-$('btnFail').addEventListener('click', () => mark(1));
+$('btnL5').addEventListener('click', () => mark(5));
+$('btnL4').addEventListener('click', () => mark(4));
+$('btnL3').addEventListener('click', () => mark(3));
+$('btnL2').addEventListener('click', () => mark(2));
+$('btnL1').addEventListener('click', () => mark(1));
 /* 卡片右上角编辑删除按钮（阻止冒泡到 flip；训练与审核模式均有效，删除后原地续看） */
 $('cardEditBtn').addEventListener('click', e => { e.stopPropagation(); if(pos < queue.length) openCardModal(queue[pos]); else toast('没有可编辑的卡片'); });
 $('cardDelBtn').addEventListener('click', e => {
@@ -4948,9 +5009,9 @@ $('modalClose').addEventListener('click', closeCardModal);
 $('modalCancel').addEventListener('click', closeCardModal);
 $('modalOk').addEventListener('click', submitCard);
 $('modalDel').addEventListener('click', () => { if(modalEditId && confirm('确定删除？')){ deleteCard(cur, modalEditId); closeCardModal(); removeFromQueue(modalEditId); afterCardChange(); toast('已删除'); } });
-$('topicSel').addEventListener('change', e => { topicSet = ffSetOf('topicSel'); topic = topicSet.size === 1 ? [...topicSet][0] : ''; onlyWeak = false; $('onlyWeak').textContent = '专练没记住和模糊'; buildQueue(); show(); });
+$('topicSel').addEventListener('change', e => { topicSet = ffSetOf('topicSel'); topic = topicSet.size === 1 ? [...topicSet][0] : ''; onlyWeak = false; $('onlyWeak').textContent = '专练未完全记住(1~4)'; buildQueue(); show(); });
 $('modeSel').addEventListener('change', e => { mode = e.target.value; buildQueue(); show(); });
-$('onlyWeak').addEventListener('click', () => { onlyWeak = !onlyWeak; $('onlyWeak').textContent = onlyWeak ? '显示全部' : '专练没记住和模糊'; buildQueue(); show(); });
+$('onlyWeak').addEventListener('click', () => { onlyWeak = !onlyWeak; $('onlyWeak').textContent = onlyWeak ? '显示全部' : '专练未完全记住(1~4)'; buildQueue(); show(); });
 $('importBtn').addEventListener('click', () => { importCaller = 'manage'; openImportModal(); });
 $('fileInput').addEventListener('change', e => {
   if(e.target.files[0]){
@@ -5005,6 +5066,8 @@ document.addEventListener('keydown', e => {
   else if(e.key === '1') mark(1);
   else if(e.key === '2') mark(2);
   else if(e.key === '3') mark(3);
+  else if(e.key === '4') mark(4);
+  else if(e.key === '5') mark(5);
   else if(browseMode && e.code === 'ArrowLeft'){ e.preventDefault(); browseStep(-1); }
   else if(browseMode && e.code === 'ArrowRight'){ e.preventDefault(); browseStep(1); }
   else if(e.key === 'Escape'){ if(browseMode){ toggleBrowse(); return; } if($('cardModal').classList.contains('show')) closeCardModal(); else if($('importModal').classList.contains('show')) closeImportModal(); else if($('viewManage').style.display === 'block') closeManage(); else if($('srcPopover').style.display === 'block') $('srcPopover').style.display = 'none'; else if($('topicModal').classList.contains('show')) $('topicModal').classList.remove('show'); else if($('browseHistoryModal').classList.contains('show')) $('browseHistoryModal').classList.remove('show'); else if($('settingsModal').classList.contains('show')) $('settingsModal').classList.remove('show'); }
