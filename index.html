@@ -356,6 +356,60 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .manageTable .act .del:hover{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
 .manageEmpty{padding:30px;text-align:center;color:#9ca3af;font-size:14px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js" defer></script>
+<script>
+  /* WorkBuddy Cloud 配置：记忆卡一个应用装三模块（cards/knowledge/problems）。endpoint+publishableKey 仅来自 publicConfig，可入前端源码。 */
+  const WB_CLOUD_CFG = {
+    endpoint: 'https://jikaka-memory.app.workbuddy.host',
+    publishableKey: 'wbpk_QuSSvKgXD7uP73LA5D5gNT_W0t84UkhE7UB0e9poO19fS9ZgJR6WlOP'
+  };
+  let _wbCloud = null;
+  function wbCloudReady(){ return (typeof WorkBuddyCloud !== 'undefined') && !!WB_CLOUD_CFG.publishableKey; }
+  function getWbCloud(){
+    if(_wbCloud) return _wbCloud;
+    if(typeof WorkBuddyCloud === 'undefined') throw new Error('云端 SDK 未加载（可能离线或被网络拦截）');
+    _wbCloud = WorkBuddyCloud.createWorkBuddyCloud({ endpoint: WB_CLOUD_CFG.endpoint, publishableKey: WB_CLOUD_CFG.publishableKey });
+    return _wbCloud;
+  }
+  /* 把 supabase 风格过滤串（列=op.值）翻译为 cloud.database 构造器（训练库只用这一小子集） */
+  function _wbParseSelect(table, query){
+    const db = getWbCloud().database;
+    let selectCols = '*';
+    const parts = String(query || '').split('&');
+    const filters = [];
+    for(const part of parts){
+      if(!part) continue;
+      const i = part.indexOf('=');
+      const col = part.slice(0, i), right = part.slice(i + 1);
+      if(col === 'select'){ selectCols = decodeURIComponent(right); }
+      else if(col === 'order'){ const a = right.split('.'); filters.push({t:'order', col:a[0], asc:a[1] !== 'desc'}); }
+      else if(col === 'limit'){ filters.push({t:'limit', n:parseInt(right,10) || 1}); }
+      else {
+        const m = right.match(/^(eq|ne|gt|gte|lt|lte|like|ilike|is|in|cs|cd|ov|sl|sr|nxl|nxr|adj|nft|fts|plfts|phfts|wfts)\.(.*)$/);
+        if(m){ const op=m[1]; const v=decodeURIComponent(m[2]); filters.push({t:'op', col, op, val:v}); }
+        else { filters.push({t:'op', col, op:'eq', val:decodeURIComponent(right)}); }
+      }
+    }
+    let qb = db.from(table).select(selectCols);
+    for(const f of filters){
+      if(f.t === 'order') qb = qb.order(f.col, {ascending: f.asc});
+      else if(f.t === 'limit') qb = qb.limit(f.n);
+      else if(f.op === 'in'){ let v = f.val.replace(/^\\(|\\)$/g,'').split(',').map(x=>decodeURIComponent(x)); qb = qb.in(f.col, v); }
+      else if(f.op === 'cs' || f.op === 'cd' || f.op === 'ov'){ let v = f.val; try{ v = JSON.parse(v); }catch(e){} qb = qb.contains(f.col, v); }
+      else if(f.op === 'eq') qb = qb.eq(f.col, f.val);
+      else if(f.op === 'ne') qb = qb.neq(f.col, f.val);
+      else if(f.op === 'gt') qb = qb.gt(f.col, f.val);
+      else if(f.op === 'gte') qb = qb.gte(f.col, f.val);
+      else if(f.op === 'lt') qb = qb.lt(f.col, f.val);
+      else if(f.op === 'lte') qb = qb.lte(f.col, f.val);
+      else if(f.op === 'like') qb = qb.like(f.col, f.val);
+      else if(f.op === 'ilike') qb = qb.ilike(f.col, f.val);
+      else if(f.op === 'is') qb = qb.is(f.col, f.val);
+      else qb = qb.filter(f.col, f.op, f.val);
+    }
+    return qb;
+  }
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -4472,22 +4526,29 @@ function refreshSrcFilterList(){ /* 兼容旧调用入口，不再操作 select 
 /* ===================== 📚 训练库（practice_sessions 专题练习集合，行级存储版，2026-09-20 回迁） ===================== */
 const CARDS_TABLE='cards';
 async function sbSelect(table, query){
-  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table+'?'+query;
-  const res=await fetchTimeout(url,{method:'GET',headers:sbHeaders(cloudCfg.key)},9000);
-  if(!res.ok) throw new Error('GET '+table+' '+res.status);
-  return res.json();
+  const { data, error } = await _wbParseSelect(table, query);
+  if(error) throw new Error('WB.sel '+table+': '+(error.message||error.code||error));
+  return data || [];
 }
 async function sbInsert(table, rows){
-  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table;
-  const res=await fetchTimeout(url,{method:'POST',headers:Object.assign(sbHeaders(cloudCfg.key,true),{'Prefer':'return=representation'}),body:JSON.stringify(rows)},12000);
-  if(!res.ok) throw new Error('POST '+table+' '+res.status);
-  return res.json();
+  const { data, error } = await getWbCloud().database.from(table).insert(rows).select();
+  if(error) throw new Error('WB.ins '+table+': '+(error.message||error.code||error));
+  return data || [];
 }
 async function sbUpdate(table, patch, query){
-  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table+'?'+query;
-  const res=await fetchTimeout(url,{method:'PATCH',headers:Object.assign(sbHeaders(cloudCfg.key,true),{'Prefer':'return=representation'}),body:JSON.stringify(patch)},12000);
-  if(!res.ok) throw new Error('PATCH '+table+' '+res.status);
-  return res.json();
+  const db = getWbCloud().database;
+  let qb = db.from(table).update(patch);
+  const i = query.indexOf('='); const col = query.slice(0, i), right = query.slice(i+1);
+  const m = right.match(/^(eq|ne|gt|gte|lt|lte|like|ilike|is|in|cs|cd|ov)\.(.*)$/);
+  if(m){ const op=m[1]; let v=decodeURIComponent(m[2]);
+    if(op==='eq') qb=qb.eq(col,v);
+    else if(op==='in'){ v=v.replace(/^\(|\)$/g,'').split(',').map(x=>decodeURIComponent(x)); qb=qb.in(col,v); }
+    else if(op==='cs'||op==='cd'||op==='ov'){ try{ v=JSON.parse(v); }catch(e){} qb=qb.contains(col,v); }
+    else qb=qb.filter(col,op,v);
+  } else qb=qb.eq(col, decodeURIComponent(right));
+  const { data, error } = await qb.select();
+  if(error) throw new Error('WB.upd '+table+': '+(error.message||error.code||error));
+  return data || [];
 }
 function mcEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 /* —— 内容映射（2026-09-18 原版）：本地库旧 genId vs 云端指纹 id 用 Dice 相似度桥接 —— */
@@ -4580,7 +4641,7 @@ let lastTopicTrainIds = [];
 async function renderQueuedCards(){
   const cnt = $('plQueuedCount'), list = $('plQueuedList');
   if(!cnt || !list) return;
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ cnt.textContent = '未配置云端'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
+  if(!wbCloudReady()){ cnt.textContent = '云端未就绪'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
   try{
     const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
     _plQueuedRows = (rows || []).slice();
@@ -4599,9 +4660,8 @@ async function renderQueuedCards(){
   }
 }
 async function plUpsertSession(row){
-  const url = sbBase(cloudCfg.url) + '/rest/v1/practice_sessions';
-  const res = await fetchTimeout(url, {method: 'POST', headers: Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer': 'resolution=merge-duplicates'}), body: JSON.stringify([row])}, 12000);
-  if(!res.ok) throw new Error('POST practice_sessions ' + res.status);
+  const { error } = await getWbCloud().database.from('practice_sessions').upsert(row);
+  if(error) throw new Error('WB.upsert practice_sessions: '+(error.message||error.code||error));
 }
 async function startQueuedTrain(){
   if(!_plQueuedIds.length){ toast('暂无待训练卡'); return; }
@@ -4678,7 +4738,7 @@ function plQueueTitle(n){
 }
 async function saveQueuedToLib(){
   if(!_plQueuedIds.length){ toast('暂无待训练卡可存'); return; }
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法保存记录'); return; }
+  if(!wbCloudReady()){ toast('云端未就绪，无法保存记录'); return; }
   try{
     const ids = _plQueuedIds.slice();
     const n = await retagToQueued(ids);
@@ -4695,7 +4755,7 @@ async function saveQueuedToLib(){
 }
 async function maybeRetagTrained(ids){
   if(!ids || !ids.length) return;
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  if(!wbCloudReady()) return;
   let ok = 0;
   for(const id of ids){
     try{
@@ -4715,7 +4775,7 @@ async function maybeRetagTrained(ids){
 async function saveQueueToLib(){
   const ids = topicQuery();
   if(!ids.length){ toast('当前队列没有卡片'); return; }
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法存入训练库'); return; }
+  if(!wbCloudReady()){ toast('云端未就绪，无法存入训练库'); return; }
   try{
     const n = await retagToQueued(ids);
     const dup = await findExistingSessionRid('app-topic', ids);
@@ -4734,8 +4794,8 @@ async function openPracticeLib(){
     renderQueuedCards();
     const tbody = $('practiceLibTbody');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr>';
-    if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">未配置云端，无法读取训练库</td></tr>';
+    if(!wbCloudReady()){
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">云端未就绪，无法读取训练库</td></tr>';
       return;
     }
     const rows = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at&order=browsed_at.desc&limit=200');
@@ -4820,9 +4880,8 @@ async function startPracticeSession(rid){
 async function deletePracticeSession(rid){
   if(!confirm('确定删除该次专题练习记录？此操作不可撤销。')) return;
   try{
-    const url = sbBase(cloudCfg.url) + '/rest/v1/practice_sessions?rid=eq.' + encodeURIComponent(rid);
-    const res = await fetchTimeout(url, {method: 'DELETE', headers: sbHeaders(cloudCfg.key, true)}, 12000);
-    if(!res.ok) throw new Error('DELETE practice_sessions ' + res.status);
+    const { error } = await getWbCloud().database.from('practice_sessions').delete().eq('rid', rid);
+    if(error) throw new Error('WB.del practice_sessions: '+(error.message||error.code||error));
     toast('已删除');
     openPracticeLib();
   }catch(e){
@@ -4833,7 +4892,7 @@ async function deletePracticeSession(rid){
 /* ---------- 训练库未练队列横幅（首页） ---------- */
 function renderTrainLibBanner(){
   const b = $('trainLibBanner'); if(!b) return;
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ b.style.display = 'none'; return; }
+  if(!wbCloudReady()){ b.style.display = 'none'; return; }
   (async () => {
     try{
       const rows = await sbSelect('practice_sessions', 'select=rid,title,subject&order=browsed_at.desc&limit=200');
