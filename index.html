@@ -372,6 +372,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
         <button id="dashCloudBtn" class="browse" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;min-width:80px;text-align:left">☁ 同步状态</button>
         <button id="dashBrowseBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="查看浏览历史（全部学科/全部执行人本机记录）">📋 浏览历史</button>
         <button id="dashCrossTopicBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#E6F1FB;color:#0C447C;cursor:pointer">🎯 跨科专题练</button>
+        <button id="dashPracticeLibBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #1D5C7C;background:#E8F4F8;color:#1D5C7C;cursor:pointer;font-weight:600">📚 训练库</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
         <button id="dashTplBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="下载导入模板 xlsx（含备注列，按表头填写后导入）">📄 模板</button>
       </div>
@@ -394,6 +395,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="dashStat"><span class="k">待重练</span><span class="v" id="dWeak" style="color:#A32D2D">0</span></div>
     </div>
     <div id="crossRetryBanner"></div>
+    <div id="trainLibBanner" style="display:none"></div>
     <div class="dashGrid" id="dashGrid"></div>
     <div class="foot">完全离线单文件 · 六科进度保存在本机浏览器<br>未导入科目：点卡片直接选 Excel（列：章节|信号|结论|出处）</div>
   </div>
@@ -507,6 +509,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
   <div class="topicTrainBar" id="topicTrainBar" style="display:none">
     <b>🎯 专题练</b>
     <span id="topicTrainPos" style="color:#0C447C"></span>
+    <button id="tqSaveLibBtn" style="margin-left:auto;font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #1D5C7C;background:#1D5C7C;color:#fff;cursor:pointer" title="把当前专题练筛选结果存入训练库（Supabase practice_sessions）">💾 存入训练库</button>
   </div>
   <div class="actions" id="markActions">
     <button class="btn lv1" id="btnL1">😶 完全不记得</button>
@@ -749,6 +752,32 @@ h1{font-size:21px;font-weight:500;text-align:center}
 </div>
 
 <!-- 设置弹窗（执行人 / 云端同步 / 消息推送） -->
+<!-- 训练库弹窗（专题练的集合：作业批改报告「💾 存入训练库」写 Supabase practice_sessions，这里按浏览时间倒序列出，可一键开始专题练 / 删除） -->
+<div class="modalMask" id="practiceLibModal">
+  <div class="modalBox taskBox">
+    <h2><span>📚 训练库 · 待训练卡聚合</span><span class="x" id="practiceLibClose">×</span></h2>
+    <div class="bhFoot">
+      <span class="bhInfo">聚合所有带「待训练」标签的记忆卡（作业报告点「➕ 加入训练」/「记忆卡入库」即打标）；点「💾 存入训练库」后这批卡标签改为「已入训练队列」并退出本列表；点「🎯 开始专题练」整队开练，练完自动标记「已训练」。</span>
+      <button id="practiceLibRefresh" class="ok" style="background:#1D5C7C;color:#fff;border:1px solid #1D5C7C;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer">🔄 刷新</button>
+    </div>
+    <div id="plQueuedBox" style="border:1px solid #dbe7f5;background:#F5F9FF;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <b style="font-size:13px;color:#0C447C">🏷 待训练卡</b>
+        <span id="plQueuedCount" style="font-size:12px;color:#6b7280">读取中…</span>
+        <button id="plQueuedStart" style="margin-left:auto;font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #7C3AED;background:#f5f3ff;color:#7C3AED;cursor:pointer;font-weight:600">🎯 开始专题练</button>
+        <button id="plQueuedSave" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #1D5C7C;background:#1D5C7C;color:#fff;cursor:pointer">💾 存入训练库</button>
+      </div>
+      <div id="plQueuedList" style="max-height:220px;overflow:auto;font-size:12px;line-height:1.7;color:#374151"></div>
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#374151;margin:2px 0 6px">已存的专题练习（按浏览时间倒序）</div>
+    <div class="bhTableWrap">
+      <table class="browseTable">
+        <thead><tr><th style="width:170px">浏览时间</th><th style="width:120px">练习名称</th><th style="width:64px">学科</th><th style="width:90px">命中卡</th><th style="width:90px">新卡</th><th>操作</th></tr></thead>
+        <tbody id="practiceLibTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 <div class="modalMask" id="settingsModal">
   <div class="modalBox">
     <h2><span>设置</span><span class="x" id="settingsModalClose">×</span></h2>
@@ -2040,6 +2069,7 @@ function renderDash(){
   }
   dashStats();
   renderCrossBanner();
+  renderTrainLibBanner();
   renderTimeRing();   /* 顶部：各科投入时间分布 */
   const grid = $('dashGrid');
   grid.innerHTML = '';
@@ -4439,6 +4469,386 @@ document.addEventListener('click', e => {
 });
 
 function refreshSrcFilterList(){ /* 兼容旧调用入口，不再操作 select */ }
+/* ===================== 📚 训练库（practice_sessions 专题练习集合，行级存储版，2026-09-20 回迁） ===================== */
+const CARDS_TABLE='cards';
+async function sbSelect(table, query){
+  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table+'?'+query;
+  const res=await fetchTimeout(url,{method:'GET',headers:sbHeaders(cloudCfg.key)},9000);
+  if(!res.ok) throw new Error('GET '+table+' '+res.status);
+  return res.json();
+}
+async function sbInsert(table, rows){
+  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table;
+  const res=await fetchTimeout(url,{method:'POST',headers:Object.assign(sbHeaders(cloudCfg.key,true),{'Prefer':'return=representation'}),body:JSON.stringify(rows)},12000);
+  if(!res.ok) throw new Error('POST '+table+' '+res.status);
+  return res.json();
+}
+async function sbUpdate(table, patch, query){
+  const url=sbBase(cloudCfg.url)+'/rest/v1/'+table+'?'+query;
+  const res=await fetchTimeout(url,{method:'PATCH',headers:Object.assign(sbHeaders(cloudCfg.key,true),{'Prefer':'return=representation'}),body:JSON.stringify(patch)},12000);
+  if(!res.ok) throw new Error('PATCH '+table+' '+res.status);
+  return res.json();
+}
+function mcEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+/* —— 内容映射（2026-09-18 原版）：本地库旧 genId vs 云端指纹 id 用 Dice 相似度桥接 —— */
+function _tqNorm(s){ return String(s||'').toLowerCase().replace(/[\s\$\\{}()（）【】\[\]、，,。.:：;；"'`~^_+=<>|!?！？·\-]/g,''); }
+function _tqDice(a,b){
+  a=_tqNorm(a); b=_tqNorm(b);
+  if(!a||!b) return 0;
+  if(a===b) return 1;
+  if(a.indexOf(b)>=0||b.indexOf(a)>=0) return 0.95;
+  if(a.length<2||b.length<2) return 0;
+  const A=new Set(),B=new Set();
+  for(let i=0;i<a.length-1;i++)A.add(a.slice(i,i+2));
+  for(let i=0;i<b.length-1;i++)B.add(b.slice(i,i+2));
+  let inter=0; A.forEach(x=>{if(B.has(x))inter++;});
+  return 2*inter/(A.size+B.size);
+}
+function matchLocalCard(signal, conclusion){
+  let best=null, subj=null, bestScore=0;
+  SUBJ_NAMES.forEach(name=>{
+    const sd=subjDef(name); if(!sd||!sd.items)return;
+    sd.items.forEach(it=>{
+      const sc=Math.max(_tqDice(signal,it.s), _tqDice(conclusion,it.c));
+      if(sc>bestScore){bestScore=sc;best=it.id;subj=name;}
+    });
+  });
+  return bestScore>=0.55?{id:best,subj:subj,score:bestScore}:null;
+}
+function isCardIdLike(k){
+  if(!k || typeof k !== 'string') return false;
+  return /^[A-Za-z]+\d{2,}$/.test(k) || (k.indexOf('_') >= 0 && /^[A-Za-z]+_\d/.test(k));
+}
+function ensureSubjectStore(subj){
+  if(CUSTOM[subj]) return CUSTOM[subj];
+  if(IMPORTED[subj]) return IMPORTED[subj];
+  if(SUBJECTS[subj]){
+    CUSTOM[subj] = { color: SUBJECTS[subj].color, display: SUBJECTS[subj].display || subj, items: (SUBJECTS[subj].items || []).slice() };
+    return CUSTOM[subj];
+  }
+  if(isCardIdLike(subj)){
+    console.warn('[ensureSubjectStore] 拒绝卡编号当科目:', subj, '→ 归位「化学」');
+    return ensureSubjectStore('化学');
+  }
+  IMPORTED[subj] = { color: (typeof SUBJ_COLORS!=='undefined' && SUBJ_COLORS[subj]) || PALETTE[Object.keys(ALL_SUBJECTS).length % PALETTE.length], display: subj, items: [] };
+  return IMPORTED[subj];
+}
+async function subjectForIds(ids){
+  const map = {};
+  SUBJ_NAMES.forEach(n => { const sd = subjDef(n); if(sd && sd.items) sd.items.forEach(it => { if(map[it.id] === undefined) map[it.id] = n; }); });
+  const missing = ids.filter(id => map[id] === undefined);
+  if(missing.length && cloudCfg && cloudCfg.url){
+    try{
+      const rows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,subject&limit=500');
+      (rows || []).forEach(r => { if(r.subject) map[r.card_id] = r.subject; });
+    }catch(e){ console.warn('[subjectForIds] cloud lookup failed:', e); }
+  }
+  ids.forEach(id => { if(map[id] === undefined) map[id] = (id.indexOf('_') >= 0 ? id.split('_')[0] : '化学') || '化学'; });
+  return map;
+}
+function startQueueDirect(ids, title){
+  if(!ids.length){ toast('没有可练习的卡片'); return; }
+  queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
+  browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
+  $('browseBar').style.display = 'none';
+  $('topicTrainBar').style.display = 'flex';
+  $('topicTrainPos').textContent = '本次第 1 / ' + queue.length + ' 张';
+  $('practiceLibModal').classList.remove('show');
+  showView('train');
+  show();
+  toast((title ? title + '：' : '专题练开始：') + ids.length + ' 张卡片');
+}
+/* ---------- 📚 训练库函数 ---------- */
+function practiceLibFmtDate(iso){
+  if(!iso) return '-';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function practiceLibShortDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+}
+let _plQueuedIds = [];
+let _plQueuedRows = [];
+let queuedFromLib = false;
+let lastTopicTrainIds = [];
+async function renderQueuedCards(){
+  const cnt = $('plQueuedCount'), list = $('plQueuedList');
+  if(!cnt || !list) return;
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ cnt.textContent = '未配置云端'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
+  try{
+    const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
+    _plQueuedRows = (rows || []).slice();
+    _plQueuedIds = _plQueuedRows.map(r => r.card_id);
+    cnt.textContent = _plQueuedIds.length + ' 张待训练';
+    if(!_plQueuedRows.length){ list.innerHTML = '<div style="color:#9ca3af">暂无待训练卡：去作业批改报告点「➕ 加入训练」或「记忆卡入库」即可打标</div>'; return; }
+    list.innerHTML = _plQueuedRows.map(r => {
+      const sig = mcEsc((r.signal || '').slice(0, 60));
+      const tm = r.updated_at ? new Date(r.updated_at).toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
+      const chap = r.chapter ? '<span style="color:#9ca3af">（' + mcEsc(r.chapter) + '）</span>' : '';
+      return '<div>• <b style="color:#0C447C">' + mcEsc(r.card_id) + '</b> ' + chap + ' ' + sig + ' <span style="color:#9ca3af;font-size:11px">🏷 待训练 · ' + tm + '</span></div>';
+    }).join('');
+  }catch(e){
+    cnt.textContent = '读取失败';
+    list.innerHTML = '<div style="color:#b91c1c">' + mcEsc(e.message || e) + '</div>';
+  }
+}
+async function plUpsertSession(row){
+  const url = sbBase(cloudCfg.url) + '/rest/v1/practice_sessions';
+  const res = await fetchTimeout(url, {method: 'POST', headers: Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer': 'resolution=merge-duplicates'}), body: JSON.stringify([row])}, 12000);
+  if(!res.ok) throw new Error('POST practice_sessions ' + res.status);
+}
+async function startQueuedTrain(){
+  if(!_plQueuedIds.length){ toast('暂无待训练卡'); return; }
+  const rows = _plQueuedRows.slice();
+  const byId = {}; rows.forEach(r => byId[r.card_id] = r);
+  const ids = [], subjMap = {};
+  for(const r of rows){
+    let useId = r.card_id, subj = r.subject || '化学';
+    try{ const m = matchLocalCard(r.signal, r.conclusion); if(m){ useId = m.id; subj = m.subj; } }catch(eM){}
+    ids.push(useId); subjMap[useId] = subj;
+    if(useId !== r.card_id) subjMap[r.card_id] = subj;
+  }
+  let needRebuild = false;
+  ids.forEach(id => {
+    const subj = subjMap[id] || '化学';
+    const sd = subjDef(subj);
+    if(!sd || !sd.items.some(x => x.id === id)){
+      const store = ensureSubjectStore(subj);
+      if(!store.items.some(x => x.id === id)){
+        const r = byId[id] || {};
+        store.items.push({id: id, s: r.signal || '', c: r.conclusion || '', t: r.chapter || '待训练', src: r.src || '', orig: '', link: '', no: '', note: ''});
+        needRebuild = true;
+      }
+    }
+  });
+  if(needRebuild) rebuildSubjects();
+  const ts = Date.now();
+  const seenH = new Set(browseHistory.map(e => e.id));
+  ids.forEach(id => {
+    const subj = subjMap[id] || '化学';
+    if(!seenH.has(id)){ browseHistory.unshift({ts: ts, id: id, mode: '专题练', subject: subj, src: '', t: '已入训练队列'}); seenH.add(id); }
+    const bm = browseMeta[subj] || (browseMeta[subj] = {});
+    const mm = bm[id] || {browsed: false, lastBrowse: 0};
+    if(ts > mm.lastBrowse) mm.lastBrowse = ts;
+    bm[id] = mm;
+  });
+  if(browseHistory.length > 500) browseHistory.length = 500;
+  savePerson();
+  queuedFromLib = true; lastTopicTrainIds = ids.slice();
+  startQueueDirect(ids, '待训练队列开始');
+}
+async function retagToQueued(ids){
+  let ok = 0;
+  for(const id of ids){
+    try{
+      const rr = await sbSelect(CARDS_TABLE, 'card_id=eq.' + encodeURIComponent(id) + '&select=tags');
+      if(rr && rr[0]){
+        const cur = Array.isArray(rr[0].tags) ? rr[0].tags : [];
+        const nt = [...new Set(cur.filter(t => t !== '待训练').concat(['已入训练队列']))];
+        if(nt.join('|') !== cur.join('|')){
+          await sbUpdate(CARDS_TABLE, {tags: nt, updated_at: new Date().toISOString()}, 'card_id=eq.' + encodeURIComponent(id));
+          ok++;
+        }
+      }
+    }catch(e){}
+  }
+  return ok;
+}
+async function findExistingSessionRid(source, ids){
+  try{
+    const rows = await sbSelect('practice_sessions', 'source=eq.' + encodeURIComponent(source) + '&order=created_at.desc&limit=8');
+    const key = [...ids].sort().join('|');
+    for(const r of (rows||[])){
+      const a = Array.isArray(r.card_ids) ? r.card_ids : [];
+      if([...a].sort().join('|') === key) return r.rid;
+    }
+  }catch(e){}
+  return null;
+}
+function plQueueTitle(n){
+  const d = new Date();
+  const ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return ds + ' 专题队列 ' + n + '张';
+}
+async function saveQueuedToLib(){
+  if(!_plQueuedIds.length){ toast('暂无待训练卡可存'); return; }
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法保存记录'); return; }
+  try{
+    const ids = _plQueuedIds.slice();
+    const n = await retagToQueued(ids);
+    const dup = await findExistingSessionRid('app-lib', ids);
+    if(dup){
+      toast('✅ 已存入训练库（' + ids.length + ' 张）· 该队列已存在，未重复保存；标签「待训练」→「已入训练队列」，已退出待训练明细');
+    }else{
+      const rid = 'tl-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
+      await plUpsertSession({rid: rid, title: plQueueTitle(ids.length), subject: '跨科', source: 'app-lib', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
+      toast('✅ 已存入训练库（' + ids.length + ' 张）· 标签「待训练」→「已入训练队列」，已退出待训练明细');
+    }
+    openPracticeLib();
+  }catch(e){ toast('保存失败：' + (e.message || e)); }
+}
+async function maybeRetagTrained(ids){
+  if(!ids || !ids.length) return;
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  let ok = 0;
+  for(const id of ids){
+    try{
+      const rr = await sbSelect(CARDS_TABLE, 'card_id=eq.' + encodeURIComponent(id) + '&select=tags');
+      if(rr && rr[0]){
+        const cur = Array.isArray(rr[0].tags) ? rr[0].tags : [];
+        if(cur.indexOf('已训练') >= 0) continue;
+        const nt = [...new Set(cur.filter(t => t !== '待训练' && t !== '已入训练队列').concat(['已训练']))];
+        await sbUpdate(CARDS_TABLE, {tags: nt, updated_at: new Date().toISOString()}, 'card_id=eq.' + encodeURIComponent(id));
+        ok++;
+      }
+    }catch(e){}
+  }
+  if(ok) toast('已训练 ' + ok + ' 张 → 标记「已训练」');
+  renderQueuedCards();
+}
+async function saveQueueToLib(){
+  const ids = topicQuery();
+  if(!ids.length){ toast('当前队列没有卡片'); return; }
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法存入训练库'); return; }
+  try{
+    const n = await retagToQueued(ids);
+    const dup = await findExistingSessionRid('app-topic', ids);
+    if(dup){
+      toast('✅ 已存入训练库（' + ids.length + ' 张）· 该队列已存在，未重复保存；标签「待训练」→「已入训练队列」');
+    }else{
+      const rid = 'tq-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
+      await plUpsertSession({rid: rid, title: plQueueTitle(ids.length), subject: '跨科', source: 'app-topic', card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()});
+      toast('✅ 已存入训练库（' + ids.length + ' 张）· 标签「待训练」→「已入训练队列」');
+    }
+  }catch(e){ toast('存入失败：' + (e.message || e)); }
+}
+async function openPracticeLib(){
+  try{
+    $('practiceLibModal').classList.add('show');
+    renderQueuedCards();
+    const tbody = $('practiceLibTbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr>';
+    if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">未配置云端，无法读取训练库</td></tr>';
+      return;
+    }
+    const rows = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at&order=browsed_at.desc&limit=200');
+    if(!rows || !rows.length){
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">训练库暂无记录（在上方「待训练」明细中勾选卡片，点「💾 存入训练库」即可生成）</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    rows.forEach(s => {
+      const hitN = Array.isArray(s.card_ids) ? s.card_ids.length : 0;
+      const newN = Array.isArray(s.new_card_ids) ? s.new_card_ids.length : 0;
+      const rid = escHtml(s.rid || '');
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td class="ts">' + practiceLibFmtDate(s.browsed_at) + '</td>'
+        + '<td>' + escHtml(s.title || '(未命名)') + '</td>'
+        + '<td>' + escHtml(s.subject || '化学') + '</td>'
+        + '<td>' + hitN + ' 张</td>'
+        + '<td>' + newN + ' 张</td>'
+        + '<td><button class="actBtn plStart" data-rid="' + rid + '">🎯 开始专题练</button>'
+        + '<button class="actBtn plDel" data-rid="' + rid + '" style="margin-left:6px;color:#b91c1c">🗑 删除</button></td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('button.plStart').forEach(b => b.addEventListener('click', () => startPracticeSession(b.getAttribute('data-rid'))));
+    tbody.querySelectorAll('button.plDel').forEach(b => b.addEventListener('click', () => deletePracticeSession(b.getAttribute('data-rid'))));
+  }catch(e){
+    console.error('openPracticeLib failed:', e);
+    const tbody = $('practiceLibTbody');
+    if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">读取失败：' + escHtml(e.message) + '</td></tr>';
+  }
+}
+async function startPracticeSession(rid){
+  try{
+    const rows = await sbSelect('practice_sessions', 'rid=eq.' + encodeURIComponent(rid) + '&select=card_ids,new_card_ids,browsed_at,title,subject');
+    const s = rows && rows[0];
+    if(!s){ toast('未找到该次练习记录'); return; }
+    const ids = (s.card_ids || []).concat(s.new_card_ids || []);
+    if(!ids.length){ toast('该次练习没有卡片'); return; }
+    const ts = s.browsed_at ? (new Date(s.browsed_at).getTime() || Date.now()) : Date.now();
+    const subjMap = await subjectForIds(ids);
+    const missing = ids.filter(id => { const sd = subjDef(subjMap[id]); return !sd || !sd.items.some(x => x.id === id); });
+    const contentMap = {};
+    if(missing.length && cloudCfg && cloudCfg.url){
+      try{
+        const crows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,signal,conclusion,chapter,src&limit=500');
+        (crows || []).forEach(r => contentMap[r.card_id] = r);
+      }catch(eC){ console.warn('[startPracticeSession] content lookup failed:', eC); }
+    }
+    let needRebuild = false;
+    ids.forEach(id => {
+      const subj = subjMap[id] || '化学';
+      const sd = subjDef(subj);
+      if(!sd || !sd.items.some(x => x.id === id)){
+        const store = ensureSubjectStore(subj);
+        if(!store.items.some(x => x.id === id)){
+          const r = contentMap[id] || {};
+          store.items.push({id: id, s: r.signal || '', c: r.conclusion || '', t: r.chapter || '专题练', src: r.src || '', orig: '', link: '', no: '', note: ''});
+          needRebuild = true;
+        }
+      }
+    });
+    if(needRebuild) rebuildSubjects();
+    const seenH = new Set(browseHistory.map(e => e.id));
+    ids.forEach(id => {
+      const subj = subjMap[id] || '化学';
+      if(!seenH.has(id)){
+        browseHistory.unshift({ts: ts, id: id, mode: '专题练', subject: subj, src: s.rid || '', t: s.title || '专题练'});
+        seenH.add(id);
+      }
+      const bm = browseMeta[subj] || (browseMeta[subj] = {});
+      const mm = bm[id] || {browsed: false, lastBrowse: 0};
+      if(ts > mm.lastBrowse) mm.lastBrowse = ts;
+      bm[id] = mm;
+    });
+    if(browseHistory.length > 500) browseHistory.length = 500;
+    savePerson();
+    startQueueDirect(ids, '已载入「' + (s.title || '专题练') + '」');
+  }catch(e){
+    console.error('startPracticeSession failed:', e);
+    toast('载入练习失败：' + e.message);
+  }
+}
+async function deletePracticeSession(rid){
+  if(!confirm('确定删除该次专题练习记录？此操作不可撤销。')) return;
+  try{
+    const url = sbBase(cloudCfg.url) + '/rest/v1/practice_sessions?rid=eq.' + encodeURIComponent(rid);
+    const res = await fetchTimeout(url, {method: 'DELETE', headers: sbHeaders(cloudCfg.key, true)}, 12000);
+    if(!res.ok) throw new Error('DELETE practice_sessions ' + res.status);
+    toast('已删除');
+    openPracticeLib();
+  }catch(e){
+    console.error('deletePracticeSession failed:', e);
+    toast('删除失败：' + e.message);
+  }
+}
+/* ---------- 训练库未练队列横幅（首页） ---------- */
+function renderTrainLibBanner(){
+  const b = $('trainLibBanner'); if(!b) return;
+  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ b.style.display = 'none'; return; }
+  (async () => {
+    try{
+      const rows = await sbSelect('practice_sessions', 'select=rid,title,subject&order=browsed_at.desc&limit=200');
+      const qs = (rows || []).filter(s => s.subject === '跨科' || String(s.title || '').indexOf('专题队列') >= 0 || String(s.title || '').indexOf('已入训练队列') === 0);
+      if(!qs.length){ b.style.display = 'none'; return; }
+      const names = qs.map(s => s.title || '(未命名)');
+      const shown = names.slice(0, 3).join('、');
+      const more = names.length > 3 ? (' 等' + names.length + '个') : '';
+      b.className = 'crossBanner';
+      b.innerHTML = '<span>📚 训练库 · <b style="font-size:16px">' + qs.length + '</b> 个队列待训练：' + escHtml(shown) + more + '</span><span class="bannerArrow">›</span>';
+      b.style.display = 'flex';
+      b.onclick = () => { if(b.className.indexOf('done') < 0) openPracticeLib(); };
+    }catch(e){ b.style.display = 'none'; }
+  })();
+}
 function topicQuery(){
   /* 跨科：tqSubjSel 空=全部科目；非空=仅选中科目（去重汇总）。同一 ID 在不同科目也不会重复。 */
   const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
@@ -4940,6 +5350,13 @@ $('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(
 $('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('fileInput').click(); });
 $('dashTplBtn').addEventListener('click', downloadImpTemplate);
 $('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
+$('dashPracticeLibBtn').addEventListener('click', openPracticeLib);
+$('practiceLibClose').addEventListener('click', () => $('practiceLibModal').classList.remove('show'));
+$('practiceLibRefresh').addEventListener('click', openPracticeLib);
+$('practiceLibModal').addEventListener('click', e => { if(e.target === $('practiceLibModal')) $('practiceLibModal').classList.remove('show'); });
+$('plQueuedStart').addEventListener('click', startQueuedTrain);
+$('plQueuedSave').addEventListener('click', saveQueuedToLib);
+$('tqSaveLibBtn').addEventListener('click', saveQueueToLib);
 $('settingsModalClose').addEventListener('click', () => { $('settingsModal').classList.remove('show'); renderDash(); });
 $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('fxSaveBtn').addEventListener('click', saveFxCfg);
