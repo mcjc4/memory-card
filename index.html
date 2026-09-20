@@ -364,7 +364,13 @@ h1{font-size:21px;font-weight:500;text-align:center}
     publishableKey: 'wbpk_QuSSvKgXD7uP73LA5D5gNT_W0t84UkhE7UB0e9poO19fS9ZgJR6WlOP'
   };
   let _wbCloud = null;
-  function wbCloudReady(){ return (typeof WorkBuddyCloud !== 'undefined') && !!WB_CLOUD_CFG.publishableKey; }
+  let cloudSyncEnabled = loadCloudSyncEnabled();
+  function loadCloudSyncEnabled(){
+    try{ const v = localStorage.getItem('wulun_cloud_sync'); if(v === null) return true; return v !== '0'; }catch(e){ return true; }
+  }
+  function saveCloudSyncEnabled(v){ try{ localStorage.setItem('wulun_cloud_sync', v ? '1' : '0'); }catch(e){} }
+
+  function wbCloudReady(){ return cloudSyncEnabled && (typeof WorkBuddyCloud !== 'undefined') && !!WB_CLOUD_CFG.publishableKey; }
   function getWbCloud(){
     if(_wbCloud) return _wbCloud;
     if(typeof WorkBuddyCloud === 'undefined') throw new Error('云端 SDK 未加载（可能离线或被网络拦截）');
@@ -841,6 +847,10 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div class="modalHint">训练数据、题库、打卡进度按执行人完全分开，切换后互不影响</div>
 
     <div style="font-size:14px;font-weight:500;margin:16px 0 8px">云端同步</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 8px;cursor:pointer">
+      <input type="checkbox" id="cloudSyncEnabled" style="width:16px;height:16px"> 启用云端同步（关闭后纯本地运行，训练库/进度只存本机）
+    </label>
+
     <div style="background:#F1EFE8;border-radius:10px;padding:12px 14px;margin-bottom:10px">
       <div style="font-size:13px;color:#6b7280">当前状态（<span id="cloudPerson">-</span>）</div>
       <div style="font-size:16px;font-weight:500;margin-top:2px" id="cloudStatusTxt">未连接</div>
@@ -3355,7 +3365,7 @@ function fetchTimeout(url, opts, ms){
   });
 }
 async function pushCloud(force){
-  if(!cloudReady || !cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  if(!cloudSyncEnabled || !cloudReady || !cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
   try{
     /* 防覆盖：云端比基准版本新 → 本地是旧数据 → 拒绝上传，改为拉取（云端优先） */
     if(!force){
@@ -3379,7 +3389,7 @@ async function pushCloud(force){
   }catch(e){ console.warn('push failed:', e); }
 }
 async function pullCloud(silent, force){
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  if(!cloudSyncEnabled || !cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
   try{
     /* ⚡ egress 优化（2026-09-04）：非 force 轮询先查轻量 updated_at（≈150B），
        云端无新版本（meta <= 本地已同步版本）直接跳过全量下载，避免每次轮询都白下载整份 2MB 文档；
@@ -3431,8 +3441,8 @@ function schedulePush(){
   cloudPushTimer = setTimeout(() => pushCloud(), 1500);
 }
 function startSyncLoop(){
-  setInterval(() => { if(!document.hidden) pullCloud(true); }, 60000);   /* egress 优化：60s 轮询（配合 updated_at 探针，仅云端有更新才全量下载） */
-  document.addEventListener('visibilitychange', () => { if(!document.hidden) pullCloud(true); });
+  setInterval(() => { if(!document.hidden) pullCloud(true).catch(()=>{}); }, 60000);   /* egress 优化：60s 轮询（配合 updated_at 探针，仅云端有更新才全量下载） */
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) pullCloud(true).catch(()=>{}); });
 }
 
 /* ===================== 🛟 备份与恢复（本地多版本快照 + JSON 文件 + 云端每日） ===================== */
@@ -3608,7 +3618,7 @@ function restoreCloudByTs(ts){
 /* 自动触发：每天首次云端同步成功后自动上传一份今日快照 */
 function maybeAutoCloudBackup(){
   try{
-    if(!cloudCfg || !cloudCfg.disabled && cloudReady){
+    if(!cloudCfg || !cloudCfg.disabled && cloudReady && cloudSyncEnabled){
       const last = localStorage.getItem(BAK_CLOUD_DAY_KEY) || '';
       if(last !== bakDayStr()) uploadCloudBak(false).catch(()=>{});
     }
@@ -3785,6 +3795,7 @@ bindBakUI();
 async function initCloud(){
   cloudCfg = loadCloudCfg();
   if(!cloudCfg.url || !cloudCfg.key || cloudCfg.disabled){ cloudStatus = 'off'; renderCloudBadge(); return; }
+  if(!cloudSyncEnabled){ cloudStatus = 'off'; renderCloudBadge(); return; }
   if(!localStorage.getItem(CLOUD_CFG_KEY)) saveCloudCfg(cloudCfg);
   cloudStatus = 'connecting'; renderCloudBadge();
   /* 整体超时保护：15s 内未完成视为失败，不再卡「连接中…」 */
@@ -5186,6 +5197,7 @@ function tqExport(){
 }
 function openSettings(){
   try {
+    $('cloudSyncEnabled').checked = cloudSyncEnabled;
     $('pushEnabled').checked = !!pushCfg.enabled;
     $('pushWechatOn').checked = !!pushCfg.wechatOn;
     $('pushDingOn').checked = !!pushCfg.dingOn;
@@ -5309,6 +5321,13 @@ async function testPush(){
 }
 
 /* ---------- 事件绑定 ---------- */
+  $('cloudSyncEnabled').addEventListener('change', () => {
+    cloudSyncEnabled = $('cloudSyncEnabled').checked;
+    saveCloudSyncEnabled(cloudSyncEnabled);
+    if(cloudSyncEnabled){ toast('云端同步已开启'); initCloud(); }
+    else { cloudReady = false; cloudStatus = 'off'; renderCloudBadge(); toast('云端同步已关闭（纯本地运行）'); }
+  });
+
 $('backBtn').addEventListener('click', () => { if(isCrossRetry){ isCrossRetry = false; restoreTrainUI(); } showView('dash'); });
 $('crossRetryBanner').addEventListener('click', () => { if(!isCrossRetry) enterCrossRetry(); });
 $('manageBackBtn').addEventListener('click', closeManage);
