@@ -859,6 +859,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div class="row2" style="grid-template-columns:1fr 1fr 1fr">
       <button id="cloudPullBtn">从云端同步到本地</button>
       <button id="cloudPushBtn">从本地同步到云端</button>
+      <button id="cloudPushCardsBtn">☁️ 批量推卡库到云端</button>
       <button id="cloudDisconnectBtn" class="del">断开云端</button>
     </div>
     <div class="row2" style="grid-template-columns:1fr;margin-top:8px">
@@ -4545,6 +4546,55 @@ async function sbUpdate(table, patch, query){
   if(error) throw new Error('WB.upd '+table+': '+(error.message||error.code||error));
   return data || [];
 }
+/* 批量把本地卡库（IMPORTED+CUSTOM）推到 WB Cloud `cards` 表（一次性回填/镜像用）。
+ * 仅在 CloudStudio 源（*.app.workbuddy.host）可真写；其它域名 wbCloudReady()=false 会被拦。
+ * 幂等：先查已有 card_id，跳过已存在行；分批 insert 避免单次 payload 过大。 */
+async function pushAllCardsToCloud(){
+  if(!wbCloudReady()) throw new Error('云端未就绪（需 CloudStudio 源且已开启同步）');
+  let exSet = new Set();
+  try{ const ex = await sbSelect('cards', 'select=card_id'); if(Array.isArray(ex)) ex.forEach(r => { if(r && r.card_id) exSet.add(r.card_id); }); }catch(e){}
+  let total = 0, ok = 0, fail = 0, skip = 0;
+  const CHUNK = 200;
+  const decks = [['imp', IMPORTED], ['cus', CUSTOM]];
+  for(const [deck, deckmap] of decks){
+    if(!deckmap || typeof deckmap !== 'object') continue;
+    for(const subj of Object.keys(deckmap)){
+      const lib = deckmap[subj];
+      const items = (lib && Array.isArray(lib.items)) ? lib.items : [];
+      let buf = [];
+      for(let i = 0; i < items.length; i++){
+        const it = items[i];
+        if(!it || !it.s || !it.c) continue;
+        const cid = deck + ':' + subj + ':' + (it.id != null ? it.id : i);
+        if(exSet.has(cid)){ skip++; continue; }
+        buf.push({
+          card_id: cid,
+          subject: subj,
+          signal: String(it.s || ''),
+          conclusion: String(it.c || ''),
+          chapter: String(it.t || ''),
+          src: String(it.src || ''),
+          tags: [],
+          updated_at: new Date().toISOString()
+        });
+        total++;
+        if(buf.length >= CHUNK){
+          try{ await sbInsert('cards', buf); ok += buf.length; }
+          catch(e){ fail += buf.length; console.error('pushCards chunk fail', e); }
+          buf = [];
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+      if(buf.length){
+        try{ await sbInsert('cards', buf); ok += buf.length; }
+        catch(e){ fail += buf.length; console.error('pushCards final chunk fail', e); }
+        buf = [];
+      }
+    }
+  }
+  console.log('pushAllCardsToCloud done total=' + total + ' ok=' + ok + ' fail=' + fail + ' skip=' + skip);
+  return {ok: ok, fail: fail, total: total, skip: skip};
+}
 function mcEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 /* —— 内容映射（2026-09-18 原版）：本地库旧 genId vs 云端指纹 id 用 Dice 相似度桥接 —— */
 function _tqNorm(s){ return String(s||'').toLowerCase().replace(/[\s\$\\{}()（）【】\[\]、，,。.:：;；"'`~^_+=<>|!?！？·\-]/g,''); }
@@ -5366,6 +5416,16 @@ $('cloudPushBtn').addEventListener('click', async () => {
   try{ await pushCloud(true); toast('✅ 已从本地同步到云端'); }
   catch(e){ toast('❌ 上传失败：' + e.message); }
   finally{ $('cloudPushBtn').textContent = '从本地同步到云端'; $('cloudPushBtn').disabled = false; }
+});
+$('cloudPushCardsBtn').addEventListener('click', async () => {
+  if(!wbCloudReady()){ toast('云端未就绪（需 CloudStudio 源 *.app.workbuddy.host 且已开启同步）'); return; }
+  $('cloudPushCardsBtn').disabled = true;
+  $('cloudPushCardsBtn').textContent = '推送中…';
+  try{
+    const r = await pushAllCardsToCloud();
+    toast('✅ 已推 ' + r.ok + ' 张到云端（跳过 ' + r.skip + ' 已存在，失败 ' + r.fail + '）');
+  }catch(e){ toast('❌ 推送失败：' + (e.message || e)); }
+  finally{ $('cloudPushCardsBtn').disabled = false; $('cloudPushCardsBtn').textContent = '☁️ 批量推卡库到云端'; }
 });
 $('cloudRestoreBtn').addEventListener('click', () => {
   const raw = localStorage.getItem(PERSON_KEY + '_prepull_backup');
