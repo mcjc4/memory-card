@@ -3168,10 +3168,12 @@ const noTip = (impParsed.noFilled || extraFilled) ? '（自动补编号 ' + ((im
   }catch(e){ $('impErr').textContent = e.message || String(e); }
 }
 
-/* ===================== 云端同步（Supabase REST · 参考学习工作台） =====================
- * 复用学习工作台已建好的 Supabase 项目：表 gaokao_state（id text PK / data jsonb / updated_at timestamptz，RLS 关闭）
- * 记忆卡使用独立文档 id 'jikaka'，与学习工作台的 'main' 互不干扰。
- * 本地 localStorage 作为缓存与离线兜底；每 60 秒探针轮询（云端有更新才全量拉）+ 切回页面立即拉取；本地变更节流推送。
+/* ===================== 云端同步（WorkBuddy Cloud · 本地优先） =====================
+ * 后端：WorkBuddy Cloud 集合 gaokao_state（id text PK / data jsonb / updated_at timestamptz，RLS 关闭，anon 可读写）
+ * 记忆卡使用独立文档 id 'jikaka-<person>'，与学习工作台/家长看板互不干扰（家长看板从本集合读 jikaka-* 文档）。
+ * 本地 localStorage 为唯一权威；云端为可开关异步镜像（cloudSyncEnabled 默认开）：关=纯本地、云端读写全跳过。
+ * 每 60 秒探针轮询（云端有更新才全量拉）+ 切回页面立即拉取；本地变更节流推送。WB Cloud 强制校验 Origin，
+ * 仅 *.app.workbuddy.host 能真正读写，其它域名自动降级为纯本地（不报错）。
  */
 const CLOUD_CFG_KEY='wulun_cloud_cfg';
 const CLOUD_TABLE='gaokao_state';
@@ -3202,12 +3204,11 @@ function setBaseUp(v){ try{ localStorage.setItem(baseUpKey(), String(v)); }catch
 function curUpdatedAt(){ const d = PERSON_STORE[personKey]; return (d && d.updatedAt) || 0; }
 /* 只查云端 updated_at（网络失败返回 null → 保护降级为直接 push，不影响可用性） */
 async function fetchCloudMeta(){
+  if(!wbCloudReady()) return null;
   try{
-    const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + cloudDocId() + '&select=updated_at';
-    const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 6000);
-    if(!res.ok) throw new Error('http ' + res.status);
-    const rows = await res.json();
-    if(Array.isArray(rows) && rows.length && rows[0] && rows[0].updated_at) return new Date(rows[0].updated_at).getTime() || 0;
+    const { data, error } = await getWbCloud().database.from('gaokao_state').select('updated_at').eq('id', cloudDocId());
+    if(error) throw new Error(error.message || error.code || String(error));
+    if(Array.isArray(data) && data.length && data[0] && data[0].updated_at) return new Date(data[0].updated_at).getTime() || 0;
     return 0;
   }catch(e){ console.warn('fetchCloudMeta failed:', e); return null; }
 }
@@ -3345,7 +3346,7 @@ function renderCloudBadge(){
   /* 同步控制按钮状态联动 */
   const dbDisc = $('cloudDisconnectBtn');
   if(dbDisc) {
-    if(cloudStatus === 'off' && cloudCfg && cloudCfg.disabled){
+    if(cloudStatus === 'off' && !cloudSyncEnabled){
       dbDisc.textContent = '重新连接云端';
       dbDisc.classList.remove('del');
     } else {
@@ -3365,7 +3366,7 @@ function fetchTimeout(url, opts, ms){
   });
 }
 async function pushCloud(force){
-  if(!cloudSyncEnabled || !cloudReady || !cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  if(!wbCloudReady()) return;
   try{
     /* 防覆盖：云端比基准版本新 → 本地是旧数据 → 拒绝上传，改为拉取（云端优先） */
     if(!force){
@@ -3378,18 +3379,16 @@ async function pushCloud(force){
         return;
       }
     }
-    const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
-    const headers = Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'});
     const up = curUpdatedAt() || Date.now();
-    const body = JSON.stringify({id: cloudDocId(), data: cloudPayload(), updated_at: new Date(up).toISOString()});
-    const res = await fetchTimeout(url, {method:'POST', headers, body}, 8000);
-    if(!res.ok) throw new Error('http ' + res.status);
+    const row = {id: cloudDocId(), data: cloudPayload(), updated_at: new Date(up).toISOString()};
+    const { error } = await getWbCloud().database.from('gaokao_state').upsert(row);
+    if(error) throw new Error(error.message || error.code || String(error));
     setCloudSyncAt(up); setBaseUp(up);
     if(cloudStatus !== 'online'){ cloudStatus = 'online'; renderCloudBadge(); }
   }catch(e){ console.warn('push failed:', e); }
 }
 async function pullCloud(silent, force){
-  if(!cloudSyncEnabled || !cloudCfg || !cloudCfg.url || !cloudCfg.key) return;
+  if(!wbCloudReady()) return;
   try{
     /* ⚡ egress 优化（2026-09-04）：非 force 轮询先查轻量 updated_at（≈150B），
        云端无新版本（meta <= 本地已同步版本）直接跳过全量下载，避免每次轮询都白下载整份 2MB 文档；
@@ -3398,10 +3397,9 @@ async function pullCloud(silent, force){
       const meta = await fetchCloudMeta();
       if(meta !== null && meta <= cloudSyncAt()) return;   /* 云端不比本地新 → 跳过全量下载 */
     }
-    const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + cloudDocId() + '&select=*';
-    const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 8000);
-    if(!res.ok) throw new Error('http ' + res.status);
-    const rows = await res.json();
+    const { data, error } = await getWbCloud().database.from('gaokao_state').select('*').eq('id', cloudDocId());
+    if(error) throw new Error(error.message || error.code || String(error));
+    const rows = data || [];
     if(Array.isArray(rows) && rows.length){
       const row = rows[0];
       const remoteUp = new Date(row.updated_at || 0).getTime() || 0;
@@ -3458,12 +3456,12 @@ function saveBakCfg(c){ try{ localStorage.setItem(BAK_CFG_KEY, JSON.stringify(c)
 function fullBackup(){
   return { app:'memory-card-backup', kind:'full', v:2, exportedAt: Date.now(),
            personStore: PERSON_STORE, imported: IMPORTED, custom: CUSTOM,
-           cloudCfg: loadCloudCfg(), active: personKey };
+           cloudCfg: {backend:'wbcloud'}, active: personKey };
 }
 /* 瘦身快照：不含卡库（卡库已有独立 key，避免整份卡库在环形快照里被复制 N 遍撑爆 5MB 配额） */
 function fullBackupLite(){
   return { app:'memory-card-backup', kind:'slim', v:2, exportedAt: Date.now(),
-           personStore: PERSON_STORE, cloudCfg: loadCloudCfg(), active: personKey };
+           personStore: PERSON_STORE, cloudCfg: {backend:'wbcloud'}, active: personKey };
 }
 /* 旧版胖快照迁移：剥掉内嵌卡库立即释放被重复占用的配额；写不进去则整块清空（云端每日快照兜底） */
 function migrateBakLocalSlim(){
@@ -3534,11 +3532,10 @@ function restoreLocalByTs(ts){
 function cloudBakDocId(){ return cloudDocId() + '-bak'; }
 function bakMetaId(){ return cloudBakDocId() + '-meta'; }   /* 轻量索引行：只存 {ts,day,at} 骨架，列表渲染用，避免全量下载 10MB+ 备份文档 */
 async function fetchCloudBak(){
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return null;
-  const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + encodeURIComponent(cloudBakDocId()) + '&select=*';
-  const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 8000);
-  if(!res.ok) throw new Error('http ' + res.status);
-  const rows = await res.json();
+  if(!wbCloudReady()) return null;
+  const { data, error } = await getWbCloud().database.from('gaokao_state').select('*').eq('id', cloudBakDocId());
+  if(error) throw new Error(error.message || error.code || String(error));
+  const rows = data || [];
   if(Array.isArray(rows) && rows.length){
     const row = rows[0];
     return typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
@@ -3547,41 +3544,33 @@ async function fetchCloudBak(){
 }
 /* ⚡ egress 优化：云端快照列表只读轻量索引行（几 KB）；无索引行（旧数据）→ 降级全量读并顺带补建索引 */
 async function fetchCloudBakMeta(){
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key) return [];
-  const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE + '?id=eq.' + encodeURIComponent(bakMetaId()) + '&select=*';
+  if(!wbCloudReady()) return [];
   try{
-    const res = await fetchTimeout(url, {method:'GET', headers: sbHeaders(cloudCfg.key)}, 6000);
-    if(res.ok){
-      const rows = await res.json();
-      if(Array.isArray(rows) && rows.length){
-        const row = rows[0];
-        const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
-        if(d && Array.isArray(d.list)) return d.list;
-      }
+    const { data, error } = await getWbCloud().database.from('gaokao_state').select('*').eq('id', bakMetaId());
+    if(!error && Array.isArray(data) && data.length){
+      const row = data[0];
+      const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+      if(d && Array.isArray(d.list)) return d.list;
     }
   }catch(e){ console.warn('fetchCloudBakMeta failed:', e); }
   try{
     const doc = await fetchCloudBak();
     const list = (doc && Array.isArray(doc.list)) ? doc.list : [];
     const skel = list.map(x => ({ts:x.ts, day:x.day, at:x.at}));
-    try{
-      const u = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
-      await fetchTimeout(u, {method:'POST', headers: Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify({id: bakMetaId(), data: {v:1, list: skel}, updated_at: new Date().toISOString()})}, 6000);
-    }catch(e){}
+    try{ await getWbCloud().database.from('gaokao_state').upsert({id: bakMetaId(), data: {v:1, list: skel}, updated_at: new Date().toISOString()}); }catch(e){}
     return skel;
   }catch(e){ return []; }
 }
 /* 上传完成后补写轻量索引行（仅骨架，不重复存全量） */
 function writeCloudBakMeta(list){
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key || !Array.isArray(list)) return;
+  if(!wbCloudReady() || !Array.isArray(list)) return;
   try{
     const skel = list.map(x => ({ts:x.ts, day:x.day, at:x.at}));
-    const u = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
-    fetchTimeout(u, {method:'POST', headers: Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify({id: bakMetaId(), data: {v:1, list: skel}, updated_at: new Date().toISOString()})}, 6000).catch(()=>{});
+    getWbCloud().database.from('gaokao_state').upsert({id: bakMetaId(), data: {v:1, list: skel}, updated_at: new Date().toISOString()}).catch(()=>{});
   }catch(e){}
 }
 async function uploadCloudBak(manual){
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key || cloudCfg.disabled){ if(manual) toast('云端未配置/已断开，无法上传快照'); return false; }
+  if(!wbCloudReady()){ if(manual) toast('云端未配置/已断开，无法上传快照'); return false; }
   try{
     const cfg = loadBakCfg();
     const days = cfg.cloudDays || 5;
@@ -3591,11 +3580,8 @@ async function uploadCloudBak(manual){
     list.unshift({ts: Date.now(), day: today, at: bakTsLabel(Date.now()), data: fullBackup()});
     /* 超长截断保险 */
     if(list.length > 60) list = list.slice(0, 60);
-    const url = sbBase(cloudCfg.url) + '/rest/v1/' + CLOUD_TABLE;
-    const headers = Object.assign(sbHeaders(cloudCfg.key, true), {'Prefer':'resolution=merge-duplicates'});
-    const body = JSON.stringify({id: cloudBakDocId(), data: {v:1, list}, updated_at: new Date().toISOString()});
-    const res = await fetchTimeout(url, {method:'POST', headers, body}, 9000);
-    if(!res.ok) throw new Error('http ' + res.status);
+    const { error } = await getWbCloud().database.from('gaokao_state').upsert({id: cloudBakDocId(), data: {v:1, list}, updated_at: new Date().toISOString()});
+    if(error) throw new Error(error.message || error.code || String(error));
     localStorage.setItem(BAK_CLOUD_DAY_KEY, today);
     writeCloudBakMeta(list);   /* 补写轻量索引行（列表渲染免全量下载） */
     if(manual) toast('✅ 今日云端快照已上传（保留 ' + days + ' 天）');
@@ -3618,7 +3604,7 @@ function restoreCloudByTs(ts){
 /* 自动触发：每天首次云端同步成功后自动上传一份今日快照 */
 function maybeAutoCloudBackup(){
   try{
-    if(!cloudCfg || !cloudCfg.disabled && cloudReady && cloudSyncEnabled){
+    if(cloudReady && cloudSyncEnabled){
       const last = localStorage.getItem(BAK_CLOUD_DAY_KEY) || '';
       if(last !== bakDayStr()) uploadCloudBak(false).catch(()=>{});
     }
@@ -3793,14 +3779,12 @@ function bindBakUI(){
 }
 bindBakUI();
 async function initCloud(){
-  cloudCfg = loadCloudCfg();
-  if(!cloudCfg.url || !cloudCfg.key || cloudCfg.disabled){ cloudStatus = 'off'; renderCloudBadge(); return; }
   if(!cloudSyncEnabled){ cloudStatus = 'off'; renderCloudBadge(); return; }
-  if(!localStorage.getItem(CLOUD_CFG_KEY)) saveCloudCfg(cloudCfg);
+  if(!wbCloudReady()){ cloudStatus = 'off'; renderCloudBadge(); return; }   /* WB Cloud SDK 未加载（离线/被墙）→ 纯本地 */
   cloudStatus = 'connecting'; renderCloudBadge();
   /* 整体超时保护：15s 内未完成视为失败，不再卡「连接中…」 */
   let timed = false;
-  const timer = setTimeout(() => { timed = true; cloudReady = false; cloudStatus = 'error'; renderCloudBadge(); toast('云端连接超时（国内网络可能受限）'); }, 10000);
+  const timer = setTimeout(() => { timed = true; cloudReady = false; cloudStatus = 'error'; renderCloudBadge(); toast('云端连接超时（国内网络可能受限或 Origin 不符）'); }, 10000);
   try{
     await pullCloud(false, true);   /* 首次强制：云端有数据则拉取，无则推送本地 */
     if(timed) return;
@@ -4609,7 +4593,7 @@ async function subjectForIds(ids){
   const map = {};
   SUBJ_NAMES.forEach(n => { const sd = subjDef(n); if(sd && sd.items) sd.items.forEach(it => { if(map[it.id] === undefined) map[it.id] = n; }); });
   const missing = ids.filter(id => map[id] === undefined);
-  if(missing.length && cloudCfg && cloudCfg.url){
+  if(missing.length && wbCloudReady()){
     try{
       const rows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,subject&limit=500');
       (rows || []).forEach(r => { if(r.subject) map[r.card_id] = r.subject; });
@@ -4848,7 +4832,7 @@ async function startPracticeSession(rid){
     const subjMap = await subjectForIds(ids);
     const missing = ids.filter(id => { const sd = subjDef(subjMap[id]); return !sd || !sd.items.some(x => x.id === id); });
     const contentMap = {};
-    if(missing.length && cloudCfg && cloudCfg.url){
+    if(missing.length && wbCloudReady()){
       try{
         const crows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,signal,conclusion,chapter,src&limit=500');
         (crows || []).forEach(r => contentMap[r.card_id] = r);
@@ -5368,7 +5352,7 @@ $('cloudBtn').addEventListener('click', () => {
 });
 /* 云端同步控制 */
 $('cloudPullBtn').addEventListener('click', async () => {
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法同步'); return; }
+  if(!wbCloudReady()){ toast('云端未就绪（SDK 未加载或已关闭同步）'); return; }
   $('cloudPullBtn').textContent = '同步中…';
   $('cloudPullBtn').disabled = true;
   try{ await pullCloud(false, true); toast('✅ 已从云端同步到本地'); }
@@ -5376,7 +5360,7 @@ $('cloudPullBtn').addEventListener('click', async () => {
   finally{ $('cloudPullBtn').textContent = '从云端同步到本地'; $('cloudPullBtn').disabled = false; }
 });
 $('cloudPushBtn').addEventListener('click', async () => {
-  if(!cloudCfg || !cloudCfg.url || !cloudCfg.key){ toast('未配置云端，无法同步'); return; }
+  if(!wbCloudReady()){ toast('云端未就绪（SDK 未加载或已关闭同步）'); return; }
   $('cloudPushBtn').textContent = '上传中…';
   $('cloudPushBtn').disabled = true;
   try{ await pushCloud(true); toast('✅ 已从本地同步到云端'); }
@@ -5404,17 +5388,17 @@ $('cloudRestoreBtn').addEventListener('click', () => {
   }catch(e){ toast('备份数据损坏，无法恢复'); }
 });
 $('cloudDisconnectBtn').addEventListener('click', async () => {
-  if(cloudStatus === 'off' && cloudCfg && cloudCfg.disabled){
+  if(!cloudSyncEnabled){
     /* 重新连接 */
-    cloudCfg.disabled = false;
-    saveCloudCfg(cloudCfg);
+    cloudSyncEnabled = true; saveCloudSyncEnabled(true);
+    $('cloudSyncEnabled').checked = true;
     toast('正在重新连接云端…');
     await initCloud();
     return;
   }
   if(!confirm('确定断开云端同步？\n\n断开后数据仅保存在本机浏览器本地存储（localStorage），不会上传也不会拉取。\n\n之后可以点击「重新连接云端」恢复。')) return;
-  cloudCfg.disabled = true;
-  saveCloudCfg(cloudCfg);
+  cloudSyncEnabled = false; saveCloudSyncEnabled(false);
+  $('cloudSyncEnabled').checked = false;
   cloudReady = false;
   cloudStatus = 'off';
   renderCloudBadge();

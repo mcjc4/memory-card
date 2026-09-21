@@ -65,6 +65,7 @@
   .cstat .st-none{background:#f1f4f8;color:#8a9bb0;border:1px solid #dbe4ee}
   #fltUncover{padding:6px 8px;border:1px solid #d7e3ef;border-radius:999px;font-size:13px;font-family:inherit}
 </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -639,12 +640,21 @@
     applyFilter();
   }
 
-  /* ---- 4. 训练统计（2026-09-11）：同源 localStorage(kstat:*) 即时 + Supabase tape_stats 跨设备，缓存兜底 ---- */
+  /* ---- 4. 训练统计：本地优先 localStorage(kstat:*) 即时 · WorkBuddy Cloud knowledge 跨设备（可关闭）· 缓存兜底 ---- */
   var STAT_CACHE = 'nav_stats_cache';
-  var CLOUD_DEFAULT = {
-    url: 'https://mixuqjognbdrafrrlivc.supabase.co',
-    key: 'sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX'
+  var WB_CLOUD_CFG = {
+    endpoint: 'https://jikaka-memory.app.workbuddy.host',
+    publishableKey: 'wbpk_QuSSvKgXD7uP73LA5D5gNT_W0t84UkhE7UB0e9poO19fS9ZgJR6WlOP'
   };
+  var _wbCloud = null;
+  function loadCloudSyncEnabled(){ try{ var v = localStorage.getItem('wulun_cloud_sync'); if(v === null) return true; return v !== '0'; }catch(e){ return true; } }
+  function wbCloudReady(){ return loadCloudSyncEnabled() && (typeof WorkBuddyCloud !== 'undefined') && !!WB_CLOUD_CFG.publishableKey; }
+  function getWbCloud(){
+    if(_wbCloud) return _wbCloud;
+    if(typeof WorkBuddyCloud === 'undefined') throw new Error('云端 SDK 未加载（可能离线或被网络拦截）');
+    _wbCloud = WorkBuddyCloud.createWorkBuddyCloud({ endpoint: WB_CLOUD_CFG.endpoint, publishableKey: WB_CLOUD_CFG.publishableKey });
+    return _wbCloud;
+  }
   var statMap = {};
   var statMetaEl = document.getElementById('statMeta');
   function readLS(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
@@ -716,40 +726,44 @@
     var m0 = document.getElementById('sortSel').value;
     if(m0 === 'uncover-desc' || m0 === 'date-desc' || m0 === 'date-asc') applySort();
   }
-  function fetchCloud(isRetry){
-    var cfg = CLOUD_DEFAULT;
-    try{ var c = readLS('tape_cloud_cfg'); if(c && c.url && c.key && c.url.indexOf('vajgltnfpdjpnsoknoma') < 0) cfg = c; }catch(e){}
-    var ctl = ('AbortController' in window) ? new AbortController() : null;
-    var timer = ctl ? setTimeout(function(){ ctl.abort(); }, 15000) : null;
-    statMetaEl.textContent = '统计：刷新中…';
-    fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/tape_stats?select=*',
-      { headers: { 'apikey': cfg.key, 'Authorization': 'Bearer ' + cfg.key }, signal: ctl ? ctl.signal : undefined })
-      .then(function(r){ if(timer) clearTimeout(timer); if(!r.ok) throw new Error('http ' + r.status); return r.json(); })
-      .then(function(rows){
-        var out = collectLocal(); // 云优先，但比本机 kstat 旧的不回退
-        (rows || []).forEach(function(r){
-          if(!r || !r.fig_id) return;
-          var ts = r.updated_at ? (new Date(r.updated_at).getTime() || 0) : 0;
-          if(!out[r.fig_id] || (out[r.fig_id].ts || 0) < ts){
-            out[r.fig_id] = { total: r.total || 0, covered: r.covered || 0, peeled: r.peeled || 0, ts: ts, visit: r.last_visit ? (new Date(r.last_visit).getTime() || 0) : 0 };
-          }
-        });
-        try{ localStorage.setItem(STAT_CACHE, JSON.stringify({ ts: Date.now(), rows: out })); }catch(e){}
-        statMetaEl.textContent = '统计：云端 ' + (rows ? rows.length : 0) + ' 张已上报 · ' + fmtTs(Date.now());
-        applyStats(out);
-      })
-      .catch(function(){
-        if(timer) clearTimeout(timer);
-        if(!isRetry){ setTimeout(function(){ fetchCloud(true); }, 2500); return; } // 国内网络慢，自动重试一次
-        var cached = readLS(STAT_CACHE);
-        if(cached && cached.rows){
-          statMetaEl.textContent = '统计：缓存 截至 ' + fmtTs(cached.ts);
-          applyStats(cached.rows);
-        } else {
-          statMetaEl.textContent = '统计：本机数据（离线/未同步）';
-          applyStats(collectLocal());
+  async function fetchCloud(isRetry){
+    /* SDK 走 defer，文档解析完才就绪；未就绪时挂 load 事件再拉一次 */
+    if(typeof WorkBuddyCloud === 'undefined'){
+      if(!window.__kcLoadBound){ window.__kcLoadBound = true; window.addEventListener('load', function(){ fetchCloud(true); }); }
+      return;
+    }
+    if(!wbCloudReady()){ // 已关闭云端同步 -> 纯本机
+      var cm = readLS(STAT_CACHE);
+      statMetaEl.textContent = (cm && cm.rows) ? ('统计：缓存 截至 ' + fmtTs(cm.ts)) : '统计：本机数据（已关闭云端同步）';
+      applyStats((cm && cm.rows) ? cm.rows : collectLocal());
+      return;
+    }
+    try{
+      statMetaEl.textContent = '统计：刷新中…';
+      const { data, error } = await getWbCloud().database.from('knowledge').select('*');
+      if(error) throw new Error(error.message || 'cloud_error');
+      var out = collectLocal(); // 本机 kstat 优先，云端只补本机没有/更新的
+      (data || []).forEach(function(r){
+        if(!r || !r.fig_id) return;
+        var ts = r.updated_at ? (new Date(r.updated_at).getTime() || 0) : 0;
+        if(!out[r.fig_id] || (out[r.fig_id].ts || 0) < ts){
+          out[r.fig_id] = { total: r.total || 0, covered: r.covered || 0, peeled: r.peeled || 0, ts: ts, visit: r.last_visit ? (new Date(r.last_visit).getTime() || 0) : 0 };
         }
       });
+      try{ localStorage.setItem(STAT_CACHE, JSON.stringify({ ts: Date.now(), rows: out })); }catch(e){}
+      statMetaEl.textContent = '统计：云端 ' + (data ? data.length : 0) + ' 张已上报 · ' + fmtTs(Date.now());
+      applyStats(out);
+    }catch(e){
+      if(!isRetry){ setTimeout(function(){ fetchCloud(true); }, 2500); return; } // 国内网络慢，自动重试一次
+      var cached = readLS(STAT_CACHE);
+      if(cached && cached.rows){
+        statMetaEl.textContent = '统计：缓存 截至 ' + fmtTs(cached.ts);
+        applyStats(cached.rows);
+      } else {
+        statMetaEl.textContent = '统计：本机数据（离线/未同步）';
+        applyStats(collectLocal());
+      }
+    }
   }
   document.getElementById('statRefresh').addEventListener('click', fetchCloud);
   /* 启动：缓存/本机即时渲染 → 云端覆盖 */
