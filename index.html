@@ -356,7 +356,27 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .manageTable .act .del:hover{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
 .manageEmpty{padding:30px;text-align:center;color:#9ca3af;font-size:14px}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js" defer></script>
+<script>
+/* WorkBuddy Cloud SDK 载入器：主 jsdelivr → 备 unpkg（国内 jsdelivr 偶发被拦）。
+   异步加载，就绪判定交给 initCloudWhenSdkReady() 轮询——不再用 defer，
+   避免与 <body> 内联 boot 抢时序（2026-09-21 修复）。 */
+(function(){
+  var srcs = [
+    'https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js',
+    'https://unpkg.com/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js'
+  ];
+  var i = 0;
+  (function next(){
+    if(typeof WorkBuddyCloud !== 'undefined'){ return; }
+    if(i >= srcs.length){ window.__WB_SDK_FAIL = true; return; }
+    var s = document.createElement('script');
+    s.src = srcs[i++];
+    s.onload = function(){ if(typeof WorkBuddyCloud === 'undefined'){ next(); } };
+    s.onerror = function(){ next(); };
+    (document.head || document.documentElement).appendChild(s);
+  })();
+})();
+</script>
 <script>
   /* WorkBuddy Cloud 配置：记忆卡一个应用装三模块（cards/knowledge/problems）。endpoint+publishableKey 仅来自 publicConfig，可入前端源码。 */
   const WB_CLOUD_CFG = {
@@ -371,6 +391,25 @@ h1{font-size:21px;font-weight:500;text-align:center}
   function saveCloudSyncEnabled(v){ try{ localStorage.setItem('wulun_cloud_sync', v ? '1' : '0'); }catch(e){} }
 
   function wbCloudReady(){ return cloudSyncEnabled && (typeof WorkBuddyCloud !== 'undefined') && !!WB_CLOUD_CFG.publishableKey; }
+  /* ⚠️ 2026-09-21 修复时序竞争 BUG：SDK 是异步/延后加载的，而 boot 内联脚本先执行。
+     若启动时直接 initCloud()，此刻 WorkBuddyCloud 仍为 undefined → 早退为 'off'，
+     且此后不再自动重试 → UI 永久停在「未启用（仅本机）」，云端同步全程失效。
+     解法：boot 一律走本函数，轮询等 SDK 就绪后再 initCloud（最长等 15s）。 */
+  function initCloudWhenSdkReady(){
+    if(!cloudSyncEnabled){ cloudStatus = 'off'; renderCloudBadge(); return; }
+    if(typeof WorkBuddyCloud !== 'undefined'){ initCloud(); return; }
+    cloudStatus = 'connecting'; renderCloudBadge();   /* 等待期显示「连接中…」而非「未启用」，避免误判 */
+    if(window.__WB_SDK_FAIL){ cloudStatus = 'off'; renderCloudBadge(); return; }
+    let n = 0, t = null;
+    t = setInterval(() => {
+      if(typeof WorkBuddyCloud !== 'undefined'){ clearInterval(t); initCloud(); return; }
+      if(window.__WB_SDK_FAIL || ++n >= 60){
+        clearInterval(t);
+        cloudStatus = 'off'; renderCloudBadge();
+        if(!window.__WB_SDK_NOTIFIED){ window.__WB_SDK_NOTIFIED = true; toast('云端 SDK 加载失败（离线或 CDN 被拦），已切换纯本地运行'); }
+      }
+    }, 250);
+  }
   function getWbCloud(){
     if(_wbCloud) return _wbCloud;
     if(typeof WorkBuddyCloud === 'undefined') throw new Error('云端 SDK 未加载（可能离线或被网络拦截）');
@@ -3174,7 +3213,10 @@ const noTip = (impParsed.noFilled || extraFilled) ? '（自动补编号 ' + ((im
  * 记忆卡使用独立文档 id 'jikaka-<person>'，与学习工作台/家长看板互不干扰（家长看板从本集合读 jikaka-* 文档）。
  * 本地 localStorage 为唯一权威；云端为可开关异步镜像（cloudSyncEnabled 默认开）：关=纯本地、云端读写全跳过。
  * 每 60 秒探针轮询（云端有更新才全量拉）+ 切回页面立即拉取；本地变更节流推送。WB Cloud 强制校验 Origin，
- * 仅 *.app.workbuddy.host 能真正读写，其它域名自动降级为纯本地（不报错）。
+ * 四源实测（2026-09-21）：仅 *.app.workbuddy.host（及 file:// 无 Origin 头）能读写；vercel.app / github.io 被 CORS 拦
+ * （TypeError: Failed to fetch）→ 由 wbCloudOriginOk() 前置判定并如实提示，不再误报「连接失败」。
+ * ⚠️ 启动必须走 initCloudWhenSdkReady()（SDK 异步加载，boot 内联脚本更早执行）——2026-09-21 修时序竞争。
+ * ⚠️ pushCloud 返回布尔并记录 lastCloudErr——避免写入失败被 catch 吞掉后仍提示"已同步"（2026-09-21 修假成功）。
  */
 const CLOUD_CFG_KEY='wulun_cloud_cfg';
 const CLOUD_TABLE='gaokao_state';
@@ -3322,6 +3364,9 @@ function applyCloudPayload(p){
   }
   savePerson();
 }
+/* 连接成功统一标记（2026-09-21 修复 BUG3）：以前只有 pushCloud 会置 online，
+   pullCloud 成功路径不置 → 只拉取不推送时徽章永久卡「连接中…」。 */
+function markCloudOnline(){ if(cloudStatus === 'online') return; cloudStatus = 'online'; renderCloudBadge(); }
 function renderCloudBadge(){
   const b = $('cloudBtn');
   if(!b) return;
@@ -3340,7 +3385,15 @@ function renderCloudBadge(){
   if(st){
     const txt = {off:'未启用（仅本机）', connecting:'连接中…', online:'已连接 · 云端同步中', error:'连接失败（网络或配置）'}[cloudStatus] || cloudStatus;
     st.textContent = txt;
-    sub.textContent = cloudStatus === 'online' ? '每 60 秒自动同步，断网时本地照常学习' : '云端数据：进度 / 打卡 / 自定义卡片 / 导入科目';
+    if(cloudStatus === 'online'){
+      sub.textContent = '每 60 秒自动同步，断网时本地照常学习';
+    } else if(window.__WB_ORIGIN_BLOCKED){
+      sub.textContent = '⚠️ 当前域名（' + location.hostname + '）不被云端服务信任，无法读写云端。请改用 CloudStudio 链接：jikaka-memory.app.workbuddy.host';
+    } else if(cloudStatus === 'error'){
+      sub.textContent = '⚠️ 连接失败：网络受限（国内需可访问云端域名）或云端服务暂不可用，本地数据不受影响';
+    } else {
+      sub.textContent = '云端数据：进度 / 打卡 / 自定义卡片 / 导入科目';
+    }
   }
   const cp = $('cloudPerson');
   if(cp) cp.textContent = personName();
@@ -3366,18 +3419,19 @@ function fetchTimeout(url, opts, ms){
       .catch(e => { clearTimeout(timer); reject(e); });
   });
 }
+let lastCloudErr = '';   /* 最近一次云端写入失败原因（供 UI 如实提示，不再"假成功"） */
 async function pushCloud(force){
-  if(!wbCloudReady()) return;
+  if(!wbCloudReady()){ lastCloudErr = '云端未就绪（SDK 未加载或已关闭同步）'; return false; }
   try{
     /* 防覆盖：云端比基准版本新 → 本地是旧数据 → 拒绝上传，改为拉取（云端优先） */
     if(!force){
       const meta = await fetchCloudMeta();
       if(meta !== null && meta > Math.max(getBaseUp(), 0)){
         console.warn('push guard: cloud newer than base, skip push');
-        if(cloudStatus !== 'online'){ cloudStatus = 'online'; renderCloudBadge(); }
+        markCloudOnline();
         toast('⚠️ 云端有更新，已自动拉取云端最新数据');
         pullCloud(false).catch(()=>{});
-        return;
+        return true;
       }
     }
     const up = curUpdatedAt() || Date.now();
@@ -3385,8 +3439,10 @@ async function pushCloud(force){
     const { error } = await getWbCloud().database.from('gaokao_state').upsert(row);
     if(error) throw new Error(error.message || error.code || String(error));
     setCloudSyncAt(up); setBaseUp(up);
-    if(cloudStatus !== 'online'){ cloudStatus = 'online'; renderCloudBadge(); }
-  }catch(e){ console.warn('push failed:', e); }
+    markCloudOnline();
+    lastCloudErr = '';
+    return true;
+  }catch(e){ lastCloudErr = String((e && e.message) || e); console.warn('push failed:', e); return false; }
 }
 async function pullCloud(silent, force){
   if(!wbCloudReady()) return;
@@ -3396,10 +3452,12 @@ async function pullCloud(silent, force){
        meta===null（探针网络失败）时降级走原全量逻辑，保证可用性不受损。 */
     if(!force){
       const meta = await fetchCloudMeta();
+      if(meta !== null) markCloudOnline();                 /* 探针成功 = 云端可达 → 置为已连接 */
       if(meta !== null && meta <= cloudSyncAt()) return;   /* 云端不比本地新 → 跳过全量下载 */
     }
     const { data, error } = await getWbCloud().database.from('gaokao_state').select('*').eq('id', cloudDocId());
     if(error) throw new Error(error.message || error.code || String(error));
+    markCloudOnline();                                   /* 全量拉取成功 → 置为已连接 */
     const rows = data || [];
     if(Array.isArray(rows) && rows.length){
       const row = rows[0];
@@ -3779,8 +3837,18 @@ function bindBakUI(){
   });
 }
 bindBakUI();
+/* 四源实测（2026-09-21）：WB Cloud 只放行本应用源 *.app.workbuddy.host（以及 file:// 这种不带 Origin 头的场景）；
+   vercel.app / github.io 等外域被 CORS 拦（TypeError: Failed to fetch）。外域直接判为不可写，
+   状态显示「仅本机」并在设置面板给出 CloudStudio 链接提示，避免误报成「连接失败」误导排查。 */
+function wbCloudOriginOk(){
+  try{
+    if(location.protocol === 'file:') return true;
+    return /(^|\.)app\.workbuddy\.host$/i.test(location.hostname);
+  }catch(e){ return false; }
+}
 async function initCloud(){
   if(!cloudSyncEnabled){ cloudStatus = 'off'; renderCloudBadge(); return; }
+  if(!wbCloudOriginOk()){ cloudStatus = 'off'; window.__WB_ORIGIN_BLOCKED = true; renderCloudBadge(); return; }
   if(!wbCloudReady()){ cloudStatus = 'off'; renderCloudBadge(); return; }   /* WB Cloud SDK 未加载（离线/被墙）→ 纯本地 */
   cloudStatus = 'connecting'; renderCloudBadge();
   /* 整体超时保护：15s 内未完成视为失败，不再卡「连接中…」 */
@@ -3790,6 +3858,7 @@ async function initCloud(){
     await pullCloud(false, true);   /* 首次强制：云端有数据则拉取，无则推送本地 */
     if(timed) return;
     cloudReady = true;
+    markCloudOnline();
     startSyncLoop();
   }catch(e){ console.warn('cloud init failed:', e); if(!timed){ cloudReady = false; cloudStatus = 'error'; renderCloudBadge(); } }
   clearTimeout(timer);
@@ -5396,7 +5465,7 @@ $('manageBtn').addEventListener('click', openManage);
 $('cloudBtn').addEventListener('click', () => {
   /* 未连接或失败时：点按钮主动触发连接（不等 20s 轮询），同时打开设置页看详情 */
   if(cloudStatus === 'off' || cloudStatus === 'error' || cloudStatus === 'connecting'){
-    if(cloudStatus !== 'connecting') initCloud();
+    if(cloudStatus !== 'connecting') initCloudWhenSdkReady();
   }
   openSettings();
 });
@@ -5413,8 +5482,10 @@ $('cloudPushBtn').addEventListener('click', async () => {
   if(!wbCloudReady()){ toast('云端未就绪（SDK 未加载或已关闭同步）'); return; }
   $('cloudPushBtn').textContent = '上传中…';
   $('cloudPushBtn').disabled = true;
-  try{ await pushCloud(true); toast('✅ 已从本地同步到云端'); }
-  catch(e){ toast('❌ 上传失败：' + e.message); }
+  try{
+    const ok = await pushCloud(true);
+    toast(ok ? '✅ 已从本地同步到云端' : '❌ 上传失败：' + (lastCloudErr || '未知原因'));
+  }catch(e){ toast('❌ 上传失败：' + e.message); }
   finally{ $('cloudPushBtn').textContent = '从本地同步到云端'; $('cloudPushBtn').disabled = false; }
 });
 $('cloudPushCardsBtn').addEventListener('click', async () => {
@@ -5444,7 +5515,8 @@ $('cloudRestoreBtn').addEventListener('click', () => {
     document.documentElement.style.setProperty('--badge-fg', c);
     refreshToday(); updateStats(); show(); renderDash();
     savePerson();
-    pushCloud(true).then(() => toast('✅ 已恢复本地备份并上传云端')).catch(() => toast('已恢复本地，云端上传失败'));
+    pushCloud(true).then(ok => toast(ok ? '✅ 已恢复本地备份并上传云端' : '已恢复本地，但云端上传失败：' + (lastCloudErr || '未知原因')))
+                   .catch(() => toast('已恢复本地，云端上传失败'));
   }catch(e){ toast('备份数据损坏，无法恢复'); }
 });
 $('cloudDisconnectBtn').addEventListener('click', async () => {
@@ -5777,7 +5849,7 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
         }
       }
     }
-    initCloud();
+    initCloudWhenSdkReady();
     ttsInitSkip = false;   /* 初始化完成，之后翻卡/展开可自动朗读 */
     snapshotLocal(false);  /* 启动时自动留档（每日一次） */
     bindBakUI();
