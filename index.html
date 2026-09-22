@@ -4754,7 +4754,7 @@ async function renderQueuedCards(){
     }catch(eCs){
       // WB Cloud SDK 的 contains() 对中文 jsonb 过滤值序列化异常（invalid input syntax for type json）
       // → 降级：拉近期 1000 张卡，前端按 tags 数组过滤「待训练」
-      const recent = await sbSelect(CARDS_TABLE, 'select=card_id,subject,signal,conclusion,chapter,src,updated_at,tags&order=updated_at.desc&limit=1000');
+      const recent = await sbSelect(CARDS_TABLE, 'select=card_id,subject,signal,conclusion,chapter,src,orig,link,note,updated_at,tags&order=updated_at.desc&limit=1000');
       rows = (recent || []).filter(r => r && Array.isArray(r.tags) && r.tags.indexOf('待训练') >= 0);
     }
     _plQueuedRows = (rows || []).slice();
@@ -4953,7 +4953,7 @@ async function startPracticeSession(rid){
     const contentMap = {};
     if(missing.length && wbCloudReady()){
       try{
-        const crows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,signal,conclusion,chapter,src&limit=500');
+        const crows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + missing.map(encodeURIComponent).join(',') + ')&select=card_id,signal,conclusion,chapter,src,orig,link,note&limit=500');
         (crows || []).forEach(r => contentMap[r.card_id] = r);
       }catch(eC){ console.warn('[startPracticeSession] content lookup failed:', eC); }
     }
@@ -4965,7 +4965,7 @@ async function startPracticeSession(rid){
         const store = ensureSubjectStore(subj);
         if(!store.items.some(x => x.id === id)){
           const r = contentMap[id] || {};
-          store.items.push({id: id, s: r.signal || '', c: r.conclusion || '', t: r.chapter || '专题练', src: r.src || '', orig: '', link: '', no: '', note: ''});
+          store.items.push({id: id, s: r.signal || '', c: r.conclusion || '', t: r.chapter || '专题练', src: r.src || '', orig: r.orig || '', link: r.link || '', no: '', note: r.note || ''});
           needRebuild = true;
         }
       }
