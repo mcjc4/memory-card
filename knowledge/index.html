@@ -785,7 +785,7 @@
     collect: function(){ applyStats(collectLocal()); return statMap; } };
 })();
 </script>
-<!-- 记忆卡家族 统一侧边栏外壳 (jikaka-memory, 单文件内联) -->
+<!-- 昕言的知识体系 统一侧边栏外壳 (jikaka-memory, 单文件内联) -->
 <style id="psStyle">
 #psSide{position:fixed;left:0;top:0;bottom:0;width:220px;background:linear-gradient(180deg,#0C447C,#0a3a68);color:#fff;display:flex;flex-direction:column;z-index:60;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
 #psSide .brand{padding:16px 16px 12px;font-size:16px;font-weight:700;letter-spacing:.5px;border-bottom:1px solid rgba(255,255,255,.15)}
@@ -802,12 +802,26 @@
 #psTags .empty{color:#9aa6b2;font-size:12px}
 #psTop .pact{display:inline-flex;gap:8px;align-items:center}
 #psTop button.psMgr{background:#0C447C;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600}
+#psTop .psLink{background:#eef3fb;color:#0C447C;border:1px solid #cfe0f5;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600}
+#psSide .brand{position:relative}
+#psSide .brand .bname{display:inline}
+#psSide .psToggle{position:absolute;right:8px;top:14px;width:26px;height:26px;border-radius:7px;border:0;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:15px;line-height:22px}
+#psSide .psToggle:hover{background:rgba(255,255,255,.28)}
+body.ps-collapsed #psSide{width:60px}
+body.ps-collapsed #psSide .bname,body.ps-collapsed #psSide .psFoot{display:none}
+body.ps-collapsed #psSide nav a span.lbl{display:none}
+body.ps-collapsed #psSide nav a{justify-content:center}
+body.ps-collapsed #psTop{left:60px}
+body.ps-collapsed{padding-left:60px}
+body.ps-collapsed #psSide .psToggle{position:static;margin:6px auto 0;display:block}
+#psToast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0C447C;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:300;opacity:0;transition:.2s;pointer-events:none}
+#psToast.psShow{opacity:1}
 body{padding-left:220px;padding-top:52px}
 .siteChips{display:none!important}
 @media(max-width:720px){#psSide{width:60px}#psSide .brand,#psSide .psFoot{display:none}#psSide nav a span.lbl{display:none}#psTop{left:60px}body{padding-left:60px}}
 </style>
 <aside id="psSide">
-  <div class="brand">📚 记忆卡家族</div>
+  <div class="brand"><span class="bname">🧠 昕言的知识体系</span><button id="psToggle" class="psToggle" title="收起/展开侧边栏">‹</button></div>
   <nav>
     <a href="/" data-m="root"><span class="lbl">📚 记忆卡</span></a>
     <a href="/knowledge/index.html" data-m="knowledge"><span class="lbl">📖 知识页</span></a>
@@ -819,9 +833,11 @@ body{padding-left:220px;padding-top:52px}
   <div class="ptitle" id="psTitle">记忆卡</div>
   <div class="pact">
     <div id="psTags"><span class="empty">（筛选/打标时显示已选标签）</span></div>
+    <button class="psLink" id="psLinkBtn" title="复制本页链接">🔗 复制链接</button>
     <button class="psMgr" id="psMgrBtn">🏷 管理标签</button>
   </div>
 </header>
+<div id="psToast"></div>
 <script>
 (function(){
   var m=location.pathname;
@@ -841,6 +857,20 @@ body{padding-left:220px;padding-top:52px}
   };
   window.psAddTag=function(t){ window.__psActiveTags.add(t); window.psRenderTags(); };
   window.psRenderTags();
+  // 侧边栏收缩
+  var COLL='ps-collapsed';
+  try{ if(localStorage.getItem('ps_collapsed')==='1') document.body.classList.add(COLL); }catch(e){}
+  function psSyncToggle(){ var b=document.getElementById('psToggle'); if(b) b.textContent=document.body.classList.contains(COLL)?'›':'‹'; }
+  psSyncToggle();
+  var tg=document.getElementById('psToggle'); if(tg) tg.addEventListener('click',function(){ document.body.classList.toggle(COLL); try{ localStorage.setItem('ps_collapsed', document.body.classList.contains(COLL)?'1':'0'); }catch(e){} psSyncToggle(); });
+  // 复制本页链接
+  var lb=document.getElementById('psLinkBtn'); if(lb) lb.addEventListener('click',function(){
+    var url=location.href;
+    function done(){ var t=document.getElementById('psToast'); if(!t) return; t.textContent='已复制本页链接 ✓'; t.classList.add('psShow'); setTimeout(function(){t.classList.remove('psShow');},1600); }
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done).catch(function(){ psFallbackCopy(url,done); }); }
+    else psFallbackCopy(url,done);
+  });
+  function psFallbackCopy(text,cb){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); if(cb) cb(); }
 })();
 </script>
 
