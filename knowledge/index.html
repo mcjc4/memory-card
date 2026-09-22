@@ -807,18 +807,17 @@
 #psSide .brand .bname{display:inline}
 #psSide .psToggle{position:absolute;right:8px;top:14px;width:26px;height:26px;border-radius:7px;border:0;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:15px;line-height:22px}
 #psSide .psToggle:hover{background:rgba(255,255,255,.28)}
-body.ps-collapsed #psSide{width:60px}
-body.ps-collapsed #psSide .bname,body.ps-collapsed #psSide .psFoot{display:none}
-body.ps-collapsed #psSide nav a span.lbl{display:none}
-body.ps-collapsed #psSide nav a{justify-content:center}
-body.ps-collapsed #psTop{left:60px}
-body.ps-collapsed{padding-left:60px}
-body.ps-collapsed #psSide .psToggle{position:static;margin:6px auto 0;display:block}
+#psSide{transition:transform .2s}
+#psFab{position:fixed;left:12px;top:12px;z-index:70;width:42px;height:42px;border-radius:12px;background:#0C447C;color:#fff;border:0;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+body.ps-collapsed #psSide{transform:translateX(-110%)}
+body.ps-collapsed #psTop{left:0;padding-left:56px}
+body.ps-collapsed{padding-left:0}
+body.ps-collapsed #psFab{display:flex}
 #psToast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0C447C;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:300;opacity:0;transition:.2s;pointer-events:none}
 #psToast.psShow{opacity:1}
 body{padding-left:220px;padding-top:52px}
 .siteChips{display:none!important}
-@media(max-width:720px){#psSide{width:60px}#psSide .brand,#psSide .psFoot{display:none}#psSide nav a span.lbl{display:none}#psTop{left:60px}body{padding-left:60px}}
+@media(max-width:720px){#psTop{padding-right:8px}}
 </style>
 <aside id="psSide">
   <div class="brand"><span class="bname">🧠 昕言的知识体系</span><button id="psToggle" class="psToggle" title="收起/展开侧边栏">‹</button></div>
@@ -838,6 +837,7 @@ body{padding-left:220px;padding-top:52px}
   </div>
 </header>
 <div id="psToast"></div>
+<button id="psFab" title="展开侧边栏">☰</button>
 <script>
 (function(){
   var m=location.pathname;
@@ -859,10 +859,15 @@ body{padding-left:220px;padding-top:52px}
   window.psRenderTags();
   // 侧边栏收缩
   var COLL='ps-collapsed';
-  try{ if(localStorage.getItem('ps_collapsed')==='1') document.body.classList.add(COLL); }catch(e){}
-  function psSyncToggle(){ var b=document.getElementById('psToggle'); if(b) b.textContent=document.body.classList.contains(COLL)?'›':'‹'; }
+  var savedColl=null; try{ savedColl=localStorage.getItem('ps_collapsed'); }catch(e){}
+  if(savedColl==='1') document.body.classList.add(COLL);
+  else if(savedColl==='0') document.body.classList.remove(COLL);
+  else if(window.matchMedia && window.matchMedia('(orientation: portrait)').matches) document.body.classList.add(COLL);
+  function psSyncToggle(){ var b=document.getElementById('psToggle'); if(b) b.textContent='‹'; }
   psSyncToggle();
-  var tg=document.getElementById('psToggle'); if(tg) tg.addEventListener('click',function(){ document.body.classList.toggle(COLL); try{ localStorage.setItem('ps_collapsed', document.body.classList.contains(COLL)?'1':'0'); }catch(e){} psSyncToggle(); });
+  function psSetColl(c){ document.body.classList.toggle(COLL,c); try{ localStorage.setItem('ps_collapsed', c?'1':'0'); }catch(e){} }
+  var tg=document.getElementById('psToggle'); if(tg) tg.addEventListener('click',function(){ psSetColl(!document.body.classList.contains(COLL)); });
+  var fab=document.getElementById('psFab'); if(fab) fab.addEventListener('click',function(){ psSetColl(false); });
   // 复制本页链接
   var lb=document.getElementById('psLinkBtn'); if(lb) lb.addEventListener('click',function(){
     var url=location.href;
