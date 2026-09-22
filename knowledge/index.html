@@ -785,5 +785,133 @@
     collect: function(){ applyStats(collectLocal()); return statMap; } };
 })();
 </script>
+<!-- 记忆卡家族 统一侧边栏外壳 (jikaka-memory, 单文件内联) -->
+<style id="psStyle">
+#psSide{position:fixed;left:0;top:0;bottom:0;width:220px;background:linear-gradient(180deg,#0C447C,#0a3a68);color:#fff;display:flex;flex-direction:column;z-index:60;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+#psSide .brand{padding:16px 16px 12px;font-size:16px;font-weight:700;letter-spacing:.5px;border-bottom:1px solid rgba(255,255,255,.15)}
+#psSide nav{display:flex;flex-direction:column;padding:10px 8px;gap:4px}
+#psSide nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;color:#dbe7f5;text-decoration:none;font-size:14px;font-weight:600;transition:.15s}
+#psSide nav a:hover{background:rgba(255,255,255,.12)}
+#psSide nav a.cur{background:#fff;color:#0C447C}
+#psSide .psFoot{margin-top:auto;padding:12px 16px;font-size:11px;color:rgba(255,255,255,.6)}
+#psTop{position:fixed;left:220px;top:0;right:0;height:52px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:55;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+#psTop .ptitle{font-size:15px;font-weight:700;color:#0C447C}
+#psTags{display:flex;gap:6px;align-items:center;flex-wrap:wrap;overflow:hidden;max-width:62%}
+#psTags .chip{display:inline-flex;align-items:center;gap:5px;background:#eef3fb;color:#0C447C;border:1px solid #cfe0f5;padding:3px 9px;border-radius:999px;font-size:12px;white-space:nowrap}
+#psTags .chip b{cursor:pointer;font-weight:700;padding:0 2px}
+#psTags .empty{color:#9aa6b2;font-size:12px}
+#psTop .pact{display:inline-flex;gap:8px;align-items:center}
+#psTop button.psMgr{background:#0C447C;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600}
+body{padding-left:220px;padding-top:52px}
+.siteChips{display:none!important}
+@media(max-width:720px){#psSide{width:60px}#psSide .brand,#psSide .psFoot{display:none}#psSide nav a span.lbl{display:none}#psTop{left:60px}body{padding-left:60px}}
+</style>
+<aside id="psSide">
+  <div class="brand">📚 记忆卡家族</div>
+  <nav>
+    <a href="/" data-m="root"><span class="lbl">📚 记忆卡</span></a>
+    <a href="/knowledge/index.html" data-m="knowledge"><span class="lbl">📖 知识页</span></a>
+    <a href="/courseware/" data-m="courseware"><span class="lbl">📝 作业报告</span></a>
+  </nav>
+  <div class="psFoot">同源 WB Cloud · jikaka-memory</div>
+</aside>
+<header id="psTop">
+  <div class="ptitle" id="psTitle">记忆卡</div>
+  <div class="pact">
+    <div id="psTags"><span class="empty">（筛选/打标时显示已选标签）</span></div>
+    <button class="psMgr" id="psMgrBtn">🏷 管理标签</button>
+  </div>
+</header>
+<script>
+(function(){
+  var m=location.pathname;
+  var cur = m.indexOf('/knowledge')>=0?'knowledge':(m.indexOf('/courseware')>=0?'courseware':'root');
+  document.querySelectorAll('#psSide nav a').forEach(function(a){ if(a.getAttribute('data-m')===cur) a.classList.add('cur'); });
+  var titles={root:'记忆卡',knowledge:'知识页',courseware:'作业报告'};
+  var t=document.getElementById('psTitle'); if(t) t.textContent=titles[cur]||'记忆卡';
+  var mb=document.getElementById('psMgrBtn'); if(mb) mb.addEventListener('click',function(){ document.dispatchEvent(new CustomEvent('ps:openTagManager')); });
+  window.__psActiveTags = window.__psActiveTags || new Set();
+  window.psRenderTags=function(){
+    var box=document.getElementById('psTags'); if(!box) return;
+    var s=window.__psActiveTags;
+    if(!s||!s.size){ box.innerHTML='<span class="empty">（筛选/打标时显示已选标签）</span>'; return; }
+    var h=''; s.forEach(function(t){ h+='<span class="chip">'+t+' <b data-t="'+t.replace(/"/g,'')+'">✕</b></span>'; });
+    box.innerHTML=h;
+    box.querySelectorAll('.chip b').forEach(function(b){ b.onclick=function(){ s.delete(b.getAttribute('data-t')); window.psRenderTags(); if(window.__psOnTagRemove) window.__psOnTagRemove(b.getAttribute('data-t')); }; });
+  };
+  window.psAddTag=function(t){ window.__psActiveTags.add(t); window.psRenderTags(); };
+  window.psRenderTags();
+})();
+</script>
+
+<!-- 统一标签库 管理器 (TagLib, 同源 WB Cloud tags 表) -->
+<style id="psTagMgrStyle">
+.psModalMask{position:fixed;inset:0;background:rgba(15,30,50,.45);z-index:200;display:flex;align-items:center;justify-content:center}
+.psModalMask.psHide{display:none}
+.psModal{background:#fff;border-radius:14px;width:min(560px,92vw);max-height:86vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.25);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+.psModal h3{margin:0;padding:16px 18px;font-size:16px;color:#0C447C;border-bottom:1px solid #eef}
+.psModal .pbody{padding:14px 18px}
+.psModal .prow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.psModal input[type=text]{flex:1;min-width:140px;padding:8px 10px;border:1px solid #cdd6e0;border-radius:8px;font-size:14px}
+.psModal input[type=color]{width:38px;height:36px;border:1px solid #cdd6e0;border-radius:8px;background:#fff;padding:2px}
+.psModal button.pbtn{background:#0C447C;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.psModal button.pbtn.g{background:#eef3fb;color:#0C447C}
+.psModal .tlist{display:flex;flex-direction:column;gap:6px}
+.psModal .titem{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #eef;border-radius:9px}
+.psModal .titem .dot{width:14px;height:14px;border-radius:50%;flex:none}
+.psModal .titem .nm{flex:1;font-size:14px}
+.psModal .titem .cat{font-size:11px;color:#7a8694;background:#f1f4f8;padding:2px 8px;border-radius:999px}
+.psModal .titem button{background:#f1f4f8;border:0;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;color:#374151}
+.psModal .titem button.del{color:#b4232a}
+.psModal .pfoot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid #eef}
+.psModal .empty{color:#9aa6b2;font-size:13px;padding:8px 0}
+.psModal .hint{font-size:12px;color:#7a8694;margin:2px 0 10px}
+</style>
+<div id="psTagMgrMask" class="psModalMask psHide">
+  <div class="psModal">
+    <h3>🏷 统一标签库</h3>
+    <div class="pbody">
+      <div class="hint">同源 WB Cloud · 三模块（记忆卡/知识页/作业报告）共用一套词表。新增时若与已有标签相似会提示合并，避免膨胀。</div>
+      <div class="prow">
+        <input type="text" id="tmName" placeholder="新标签名，如：连接体 / 易错 / 一轮">
+        <input type="color" id="tmColor" value="#0C447C">
+        <input type="text" id="tmCat" placeholder="分类(可选)">
+        <button class="pbtn" id="tmAdd">＋ 添加</button>
+      </div>
+      <div class="tlist" id="tmList"></div>
+    </div>
+    <div class="pfoot">
+      <button class="pbtn g" id="tmExport">导出 JSON</button>
+      <button class="pbtn g" id="tmImport">导入 JSON</button>
+      <button class="pbtn" id="tmClose" style="margin-left:auto">关闭</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var NM='hq_lexicon';
+  function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch(e){return d;}}
+  function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  function db(){return window.WB_DB||(window.getWbCloud&&window.getWbCloud().database);}
+  var cache=lsGet(NM,[]);
+  function uid(){return 't_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+  function sim(a,b){a=(a||'').trim().toLowerCase();b=(b||'').trim().toLowerCase();if(!a||!b)return false;return a===b||a.indexOf(b)>=0||b.indexOf(a)>=0;}
+  function saveLocal(){lsSet(NM,cache);}
+  function loadCloud(){var d=db();if(!d)return Promise.resolve(cache);return d.from('tags').select('id,name,color,category,kind').then(function(r){var rows=(r&&r.data)||[];if(rows.length){cache=rows.map(function(x){return{id:x.id,name:x.name,color:x.color||'#0C447C',category:x.category||'',kind:x.kind||'controlled'};});saveLocal();}}).catch(function(){});return Promise.resolve(cache);}
+  function push(t){var d=db();if(!d){saveLocal();return Promise.resolve(t);}return d.from('tags').upsert({id:t.id,name:t.name,color:t.color,category:t.category,kind:t.kind||'controlled'}).then(function(){return t;}).catch(function(){saveLocal();return t;});}
+  function del(id){cache=cache.filter(function(x){return x.id!==id;});saveLocal();var d=db();if(!d)return Promise.resolve();return d.from('tags').delete().eq('id',id).catch(function(){});}
+  function render(){var box=document.getElementById('tmList');if(!box)return;if(!cache.length){box.innerHTML='<div class="empty">尚无标签，先在上方添加。</div>';return;}var h='';cache.forEach(function(t){h+='<div class="titem" data-id="'+t.id+'"><span class="dot" style="background:'+(t.color||'#0C447C')+'"></span><span class="nm">'+t.name+'</span>'+(t.category?'<span class="cat">'+t.category+'</span>':'')+'<button class="rn">重命名</button><button class="del">归档</button></div>';});box.innerHTML=h;box.querySelectorAll('.titem').forEach(function(it){var id=it.getAttribute('data-id');var rec=cache.find(function(x){return x.id===id;});it.querySelector('.rn').onclick=function(){var nv=prompt('重命名为：',rec.name);if(nv&&nv.trim()){rec.name=nv.trim();saveLocal();push(rec).then(render);}};it.querySelector('.del').onclick=function(){if(confirm('归档「'+rec.name+'」？内容上的引用保留，仅从词表移除。')){del(id).then(render);}};});}
+  function open(){loadCloud().then(function(){render();document.getElementById('psTagMgrMask').classList.remove('psHide');});}
+  function close(){document.getElementById('psTagMgrMask').classList.add('psHide');}
+  document.getElementById('tmAdd').onclick=function(){var nm=document.getElementById('tmName').value,col=document.getElementById('tmColor').value,cat=document.getElementById('tmCat').value;nm=(nm||'').trim();if(!nm){alert('请输入标签名');return;}var hit=cache.find(function(x){return sim(x.name,nm);});if(hit&&hit.name!==nm){if(!confirm('发现相似标签「'+hit.name+'」，合并到它（不新建）？')){/*继续新建*/}else{document.getElementById('tmName').value='';return;}}var t={id:uid(),name:nm,color:col,category:(cat||'').trim(),kind:'controlled'};cache.push(t);saveLocal();push(t).then(function(){document.getElementById('tmName').value='';document.getElementById('tmCat').value='';render();});};
+  document.getElementById('tmClose').onclick=close;
+  document.getElementById('psTagMgrMask').addEventListener('click',function(e){if(e.target.id==='psTagMgrMask')close();});
+  document.getElementById('tmExport').onclick=function(){var data=JSON.stringify({lexicon:cache},null,2);var blob=new Blob([data],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tag_lexicon.json';a.click();};
+  document.getElementById('tmImport').onclick=function(){var f=document.createElement('input');f.type='file';f.accept='application/json';f.onchange=function(){var fr=new FileReader();fr.onload=function(){try{var o=JSON.parse(fr.result);var arr=o.lexicon||o||[];arr.forEach(function(t){if(!cache.find(function(x){return x.name===t.name;})){t.id=t.id||uid();cache.push(t);push(t);}});saveLocal();render();}catch(e){alert('JSON 解析失败');}};fr.readAsText(f.files[0]);};f.click();};
+  document.addEventListener('ps:openTagManager',open);
+  window.TagLib={load:loadCloud,list:function(){return cache.slice();},add:function(n,c,cat){var nm=(n||'').trim();if(!nm)return Promise.resolve(null);var t={id:uid(),name:nm,color:c||'#0C447C',category:cat||'',kind:'controlled'};cache.push(t);saveLocal();return push(t);},remove:del,rename:function(id,n){var t=cache.find(function(x){return x.id===id;});if(t){t.name=n;saveLocal();return push(t);}return Promise.resolve();}};
+})();
+</script>
+
 </body>
 </html>
