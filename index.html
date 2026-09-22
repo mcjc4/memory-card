@@ -4757,7 +4757,15 @@ async function renderQueuedCards(){
   if(!cnt || !list) return;
   if(!wbCloudReady()){ cnt.textContent = '云端未就绪'; list.innerHTML = ''; _plQueuedIds = []; _plQueuedRows = []; return; }
   try{
-    const rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
+    let rows = null;
+    try{
+      rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
+    }catch(eCs){
+      // WB Cloud SDK 的 contains() 对中文 jsonb 过滤值序列化异常（invalid input syntax for type json）
+      // → 降级：拉近期 1000 张卡，前端按 tags 数组过滤「待训练」
+      const recent = await sbSelect(CARDS_TABLE, 'select=card_id,subject,signal,conclusion,chapter,src,updated_at,tags&order=updated_at.desc&limit=1000');
+      rows = (recent || []).filter(r => r && Array.isArray(r.tags) && r.tags.indexOf('待训练') >= 0);
+    }
     _plQueuedRows = (rows || []).slice();
     _plQueuedIds = _plQueuedRows.map(r => r.card_id);
     cnt.textContent = _plQueuedIds.length + ' 张待训练';
