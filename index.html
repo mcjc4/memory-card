@@ -439,7 +439,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     for(const f of filters){
       if(f.t === 'order') qb = qb.order(f.col, {ascending: f.asc});
       else if(f.t === 'limit') qb = qb.limit(f.n);
-      else if(f.op === 'in'){ let v = f.val.replace(/^\\(|\\)$/g,'').split(',').map(x=>decodeURIComponent(x)); qb = qb.in(f.col, v); }
+      else if(f.op === 'in'){ let v = f.val.replace(/^\(|\)$/g,'').split(',').map(x=>decodeURIComponent(x)); qb = qb.in(f.col, v); }
       else if(f.op === 'cs' || f.op === 'cd' || f.op === 'ov'){ let v = f.val; try{ v = JSON.parse(v); }catch(e){} qb = qb.contains(f.col, v); }
       else if(f.op === 'eq') qb = qb.eq(f.col, f.val);
       else if(f.op === 'ne') qb = qb.neq(f.col, f.val);
@@ -460,9 +460,9 @@ h1{font-size:21px;font-weight:500;text-align:center}
 <div class="wrap">
   <div id="viewDash">
     <div class="siteChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <a href="https://mcjc4.github.io/memory-card/" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #0C447C;background:#0C447C;color:#fff;font-weight:600">📚 记忆卡</a>
-      <a href="https://mcjc4.github.io/memory-card/knowledge/index.html" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #d1d5db;background:#fff;color:#374151">📖 知识页</a>
-      <a href="https://mcjc4.github.io/courseware/" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #d1d5db;background:#fff;color:#374151">📝 作业报告</a>
+      <a href="https://jikaka-memory.app.workbuddy.host/" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #0C447C;background:#0C447C;color:#fff;font-weight:600">📚 记忆卡</a>
+      <a href="https://jikaka-memory.app.workbuddy.host/knowledge/index.html" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #d1d5db;background:#fff;color:#374151">📖 知识页</a>
+      <a href="https://jikaka-memory.app.workbuddy.host/courseware/" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #d1d5db;background:#fff;color:#374151">📝 作业报告</a>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px">
       <h1 style="margin:0">各科记忆卡片库</h1>
@@ -1599,13 +1599,14 @@ function levelName(v){ return v ? (LEVEL_NAME[v] || '未测') : '未测'; }
 function levelCls(v){ return v ? ('lv' + v) : 'unt'; }
 function levelColor(v){ return v ? (LEVEL_COLOR[v] || '#5F5E5A') : '#5F5E5A'; }
 function sMarkSound(level, c){
-  if(level === 1) return sWrong();
-  if(level === 2) return beep(240, .16, 'sawtooth', .07);
-  if(level === 3) return sHalf();
-  if(level === 4) return beep(560, .12, 'sine', .12);
-  const cc = c || 0; const b = 520 + Math.min(cc, 24) * 14;
-  beep(b, .1, 'sine', .14); beep(b*1.25, .12, 'sine', .12, .09);
-  if(cc > 0 && cc % 5 === 0) beep(b*1.5, .22, 'triangle', .13, .16);
+  const cc = c || 0;
+  /* 每档多音节序列，方向/音色区分：1 下行“没记住” 2 小幅上扬“勉强” 3 双音“一半” 4 上行“大部分” 5 胜利琶音 */
+  if(level === 1) return sSeq([[330,.16,'sawtooth',.08],[247,.18,'sawtooth',.08],[196,.20,'sawtooth',.07]], 0.03);
+  if(level === 2) return sSeq([[392,.14,'sine',.11],[440,.16,'sine',.10]], 0.04);
+  if(level === 3) return sSeq([[440,.14,'sine',.12],[660,.16,'sine',.11]], 0.04);
+  if(level === 4) return sSeq([[523,.13,'sine',.13],[659,.14,'sine',.12],[784,.16,'sine',.11]], 0.04);
+  sSeq([[523,.13,'triangle',.13],[659,.13,'triangle',.13],[784,.13,'triangle',.12],[1047,.20,'triangle',.13]], 0.04);
+  if(cc > 0 && cc % 5 === 0) beep(1047*1.5, .22, 'triangle', .13, .6);
 }
 function updateStats(){
   const st = state[cur] || {};
@@ -2354,10 +2355,23 @@ function switchSubject(name){
 
 /* ---------- 音效 ---------- */
 let AC = null;
+/* 浏览器自动播放策略：AudioContext 可能处于 suspended 状态，必须 resume 才会出声。
+   首次用户手势（点击/按键）即解锁并恢复，保证 5 档按钮等 beep 一定发声。 */
+function unlockAudio(){
+  try{
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if(AC.state === 'suspended') AC.resume();
+  }catch(e){}
+  if(AC && AC.state === 'running'){
+    ['pointerdown','keydown','touchstart'].forEach(ev => document.removeEventListener(ev, unlockAudio));
+  }
+}
+['pointerdown','keydown','touchstart'].forEach(ev => document.addEventListener(ev, unlockAudio, {passive:true}));
 function beep(freq, dur, type, vol, when){
   if(!SOUND) return;
   try{
     AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if(AC.state === 'suspended') AC.resume();
     const o = AC.createOscillator(), g = AC.createGain();
     o.type = type || 'sine'; o.frequency.value = freq;
     const t0 = AC.currentTime + (when || 0);
@@ -2368,8 +2382,10 @@ function beep(freq, dur, type, vol, when){
   }catch(e){}
 }
 function sCorrect(c){ const b = 520 + Math.min(c, 24) * 14; beep(b, .1, 'sine', .14); beep(b*1.25, .12, 'sine', .12, .09); if(c > 0 && c % 5 === 0) beep(b*1.5, .22, 'triangle', .13, .16); }
-function sWrong(){ beep(190, .18, 'sawtooth', .07); }
-function sHalf(){ beep(440, .14, 'sine', .12); beep(660, .14, 'sine', .10, .13); }
+function sSeq(notes, gap){ /* notes:[[freq,dur,type,vol],...] 顺序播放，gap 为间隔秒 */
+  let t = 0; const g = (gap == null) ? 0.05 : gap;
+  for(const n of notes){ beep(n[0], n[1], n[2], n[3], t); t += n[1] + g; }
+}
 function sGoal(){ [523,659,784,1047].forEach((f,i)=>beep(f,.16,'triangle',.13,i*.12)); }
 
 /* ---------- 彩带 & toast ---------- */
@@ -3218,25 +3234,9 @@ const noTip = (impParsed.noFilled || extraFilled) ? '（自动补编号 ' + ((im
  * ⚠️ 启动必须走 initCloudWhenSdkReady()（SDK 异步加载，boot 内联脚本更早执行）——2026-09-21 修时序竞争。
  * ⚠️ pushCloud 返回布尔并记录 lastCloudErr——避免写入失败被 catch 吞掉后仍提示"已同步"（2026-09-21 修假成功）。
  */
-const CLOUD_CFG_KEY='wulun_cloud_cfg';
 const CLOUD_TABLE='gaokao_state';
 function cloudDocId(){ return 'jikaka-' + personKey; }   /* 每个执行人独立云端文档 */
 const CLOUD_SYNC_KEY='wulun_cloud_sync_at';
-const DEFAULT_CLOUD_URL='https://mixuqjognbdrafrrlivc.supabase.co';
-const DEFAULT_CLOUD_KEY='sb_publishable_D0ha7g4X4LutG-3hxCguSA_pwyQLrVX';
-function defaultCloudCfg(){ return {url:DEFAULT_CLOUD_URL, key:DEFAULT_CLOUD_KEY, disabled:false}; }
-function loadCloudCfg(){
-  try{
-    const c = JSON.parse(localStorage.getItem(CLOUD_CFG_KEY)||'null');
-    /* 2026-09-04 Supabase 账号迁移：旧库 vajgltnfpdjpnsoknoma egress 超限封禁弃用 → 设备残留旧配置则丢弃，回落新默认（幂等，用户后续手动改配置不受影响） */
-    if(c && c.url && c.key){
-      if(c.url.indexOf('vajgltnfpdjpnsoknoma') >= 0){ localStorage.removeItem(CLOUD_CFG_KEY); return defaultCloudCfg(); }
-      return c;
-    }
-  }catch(e){}
-  return defaultCloudCfg();
-}
-function saveCloudCfg(c){ try{ localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(c)); }catch(e){} }
 function cloudSyncAt(){ return Number(localStorage.getItem(CLOUD_SYNC_KEY + '_' + personKey))||0; }
 function setCloudSyncAt(ts){ try{ localStorage.setItem(CLOUD_SYNC_KEY + '_' + personKey, String(ts)); }catch(e){} }
 /* ===== 云同步防覆盖 v2（参照学习工作台 SOP）===== */
@@ -3281,15 +3281,6 @@ function isPolluted(p){
     return sig !== '' && sig === coreSig(otherD);
   }catch(e){ return false; }
 }
-function sbBase(u){ return (u||'').replace(/\/rest\/v1\/?$/,'').replace(/\/+$/,''); }
-function sbHeaders(key, contentType){
-  const h = {'apikey': key};
-    /* 修复：新旧 Supabase key 都需 Authorization Bearer（老 anon JWT 以 eyJ 开头，新 publishable key 以 sb_publishable_ 开头；缺头则 PostgREST 401，请求被 catch 静默吞掉导致 0 活动） */
-  if(typeof key === 'string' && key) h['Authorization'] = 'Bearer ' + key;
-  if(contentType) h['Content-Type'] = 'application/json';
-  return h;
-}
-let cloudCfg = loadCloudCfg();
 let cloudReady = false, cloudStatus = 'off', cloudPushTimer = null;
 function cloudPayload(){
   return { v:1, custom:CUSTOM, imported:IMPORTED, state:state, today:todayD, goal:goal, best:best, streak:streakD,
@@ -3741,7 +3732,7 @@ const LS_LABEL = {
   'wulun_bak_local': '本地多版本快照（💾 环形 N 份）',
   'wulun_bak_cfg': '备份设置',
   'wulun_bak_cloud_day': '云端快照日期标记',
-  'wulun_cloud_cfg': '云端连接配置（Supabase）',
+  'wulun_cloud_cfg': '云端连接配置（WB Cloud）',
   'wulun_cloud_sync_at': '云端同步时间戳',
   'wulun_syncbase_v1': '同步基线（云端最后接受时间）',
   'wulun_tts_cfg': '朗读/发音设置',
@@ -4957,7 +4948,8 @@ async function startPracticeSession(rid){
     if(!ids.length){ toast('该次练习没有卡片'); return; }
     const ts = s.browsed_at ? (new Date(s.browsed_at).getTime() || Date.now()) : Date.now();
     const subjMap = await subjectForIds(ids);
-    const missing = ids.filter(id => { const sd = subjDef(subjMap[id]); return !sd || !sd.items.some(x => x.id === id); });
+    // 缺失卡 或 本地已有但正反面全空（历史 bug 污染）的卡，都要从云端拉内容回填
+    const missing = ids.filter(id => { const sd = subjDef(subjMap[id]); const it = sd && sd.items ? sd.items.find(x => x.id === id) : null; return !it || (!it.s && !it.c); });
     const contentMap = {};
     if(missing.length && wbCloudReady()){
       try{
@@ -4976,6 +4968,19 @@ async function startPracticeSession(rid){
           store.items.push({id: id, s: r.signal || '', c: r.conclusion || '', t: r.chapter || '专题练', src: r.src || '', orig: '', link: '', no: '', note: ''});
           needRebuild = true;
         }
+      }
+    });
+    // 修复历史空卡：本地已有但 s/c 全空、且云端拉到了内容 → 回填
+    ids.forEach(id => {
+      const r = contentMap[id];
+      if(!r || (!r.signal && !r.conclusion)) return;
+      const sd = subjDef(subjMap[id]);
+      const it = sd && sd.items ? sd.items.find(x => x.id === id) : null;
+      if(it && !it.s && !it.c){
+        it.s = r.signal || ''; it.c = r.conclusion || '';
+        it.t = it.t && it.t !== '专题练' ? it.t : (r.chapter || it.t || '');
+        if(r.src && !it.src) it.src = r.src;
+        needRebuild = true;
       }
     });
     if(needRebuild) rebuildSubjects();
