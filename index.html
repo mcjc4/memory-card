@@ -493,7 +493,6 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="dashStat"><span class="k">总掌握率</span><span class="v" id="dRate">0%</span></div>
       <div class="dashStat"><span class="k">待重练</span><span class="v" id="dWeak" style="color:#A32D2D">0</span></div>
     </div>
-    <div id="crossRetryBanner"></div>
     <div id="trainLibBanner" style="display:none"></div>
     <div class="dashGrid" id="dashGrid"></div>
     <div class="foot">完全离线单文件 · 六科进度保存在本机浏览器<br>未导入科目：点卡片直接选 Excel（列：章节|信号|结论|出处）</div>
@@ -844,7 +843,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <div class="row2">
         <button id="tqPreview">预览清单</button>
         <button id="tqExportXlsx" title="把当前筛选条件下匹配的全部卡片导出为 Excel（xlsx）：科目 / 章节 / 题干 / 结论 / 出处 / 原题 / 链接 + 训练状态、最近答题、最近浏览、审核标记">📥 导出查询结果</button>
-        <button id="tqStart" class="ok">开始训练</button>
+        <button id="tqStart" class="ok">💾 存入训练库队列</button>
       </div>
     </div>
   </div>
@@ -859,6 +858,13 @@ h1{font-size:21px;font-weight:500;text-align:center}
       <span class="bhInfo">聚合所有带「待训练」标签的记忆卡（作业报告点「➕ 加入训练」/「记忆卡入库」即打标）；点「💾 存入训练库」后这批卡标签改为「已入训练队列」并退出本列表；点「🎯 开始专题练」整队开练，练完自动标记「已训练」。</span>
       <button id="practiceLibRefresh" class="ok" style="background:#1D5C7C;color:#fff;border:1px solid #1D5C7C;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer">🔄 刷新</button>
     </div>
+    <div id="plCrossBox" style="border:1px solid #f3d9d3;background:#FFF7F5;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <b style="font-size:13px;color:#B4232A">🔁 跨科重练</b>
+        <span id="plCrossCount" style="font-size:12px;color:#6b7280">读取中…</span>
+        <button id="plCrossStart" style="margin-left:auto;font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #B4232A;background:#fff;color:#B4232A;cursor:pointer;font-weight:600">▶ 开始跨科重练</button>
+      </div>
+    </div>
     <div id="plQueuedBox" style="border:1px solid #dbe7f5;background:#F5F9FF;border-radius:10px;padding:10px 12px;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <b style="font-size:13px;color:#0C447C">🏷 待训练卡</b>
@@ -871,7 +877,7 @@ h1{font-size:21px;font-weight:500;text-align:center}
     <div style="font-size:13px;font-weight:600;color:#374151;margin:2px 0 6px">已存的专题练习（按浏览时间倒序）</div>
     <div class="bhTableWrap">
       <table class="browseTable">
-        <thead><tr><th style="width:170px">浏览时间</th><th style="width:120px">练习名称</th><th style="width:64px">学科</th><th style="width:90px">命中卡</th><th style="width:90px">新卡</th><th>操作</th></tr></thead>
+        <thead><tr><th style="width:170px">浏览时间</th><th style="width:120px">练习名称</th><th style="width:64px">学科</th><th style="width:90px">命中卡</th><th style="width:90px">新卡</th><th style="width:150px">完成度</th><th>操作</th></tr></thead>
         <tbody id="practiceLibTbody"></tbody>
       </table>
     </div>
@@ -1298,6 +1304,12 @@ function personName(){ const p = PERSONS.find(x => x.key === personKey); return 
 function subjDef(name){ return CUSTOM[name] || IMPORTED[name] || SUBJECTS[name]; }
 let ALL_SUBJECTS = {};   /* 由 rebuildSubjects 合并填充 */
 let SUBJ_NAMES = [];
+/* 方案B 云端查询状态（提前声明：itemById/subjectOfId 兜底会引用，避免初始化早期 TDZ） */
+let _tqCloudCards = new Map();   /* card_id -> {id,s,c,t,src,orig,link,no,note,subj,cloud:true} */
+let _tqCloudSrcs = null;         /* 云端 distinct 出处缓存（null=未拉） */
+let _tqCloudErr = '';
+let _tqCountTimer = null;
+let _tqLastFull = [];            /* 最近一次本地+云端合并结果 */
 let cur = null;
 /* 进入科目模式弹窗 / 会话统计 / 停留超时 相关状态 */
 /* pendingSubject/sessionMode/idleTimer 等已在 994 行批量声明；此处仅赋默认值 */
@@ -1505,6 +1517,8 @@ function itemById(id){
     const def = subjDef(name);
     if(def){ const f = def.items.find(x => x.id === id); if(f) return f; }
   }
+  /* 方案B：云端查询结果的卡兜底（训练/预览/导出在入池前也能读到内容） */
+  if(typeof _tqCloudCards !== 'undefined' && _tqCloudCards && _tqCloudCards.has(id)) return _tqCloudCards.get(id);
   return null;
 }
 /* 根据卡片 id 反查其所属学科（用于跨学科训练时按卡片实际学科读写状态） */
@@ -1513,6 +1527,7 @@ function subjectOfId(id){
     const def = subjDef(name);
     if(def && def.items.some(x => x.id === id)) return name;
   }
+  if(typeof _tqCloudCards !== 'undefined' && _tqCloudCards && _tqCloudCards.has(id)){ const it = _tqCloudCards.get(id); if(it && it.subj) return it.subj; }
   return null;
 }
 function N(){ return items().length; }
@@ -4475,7 +4490,7 @@ function openTqSubjPop(){
     items: names,
     selected: tqSubjSel,
     labelOf: n => ALL_SUBJECTS[n] ? ALL_SUBJECTS[n].display : n,
-    onChange: () => { updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); }
+    onChange: () => { updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCountAsync(); }
   });
   positionTqPop('tqSubjPop', 'tqSubjBtn');
 }
@@ -4507,7 +4522,7 @@ function openTqTopicPop(){
   renderTqCheckPop(pop, {
     items: topics,
     selected: tqTopicSel,
-    onChange: () => { updateTqTopicBtn(); refreshTqCount(); }
+    onChange: () => { updateTqTopicBtn(); refreshTqCountAsync(); }
   });
   positionTqPop('tqTopicPop', 'tqTopicBtn');
 }
@@ -4518,22 +4533,34 @@ function updateTqTopicBtn(){
   else btn.innerHTML = '已选 ' + tqTopicSel.size + ' 个专题<span class="tqMultiHint">▼</span>';
 }
 
-/* 打开/关闭专题练的出处勾选弹窗（跨多科目去重，支持搜索） */
+/* 打开/关闭专题练的出处勾选弹窗（跨多科目去重，支持搜索；合并云端 cards 表出处） */
+function renderTqSrcPop(srcs){
+  const pop = $('tqSrcPop');
+  if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无出处字段</div>'; pop.style.display = 'block'; return; }
+  renderTqCheckPop(pop, {
+    items: srcs,
+    selected: tqSrcSel,
+    hint: '不选 = 全部出处（显示所有卡片）',
+    onChange: () => { updateTqSrcBtn(); refreshTqCountAsync(); }
+  });
+}
 function openTqSrcPop(){
   const pop = $('tqSrcPop');
   if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
   const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
   const seen = new Set();
   subjNames.forEach(n => { const def = subjDef(n); if(def) def.items.forEach(it => { if(it.src) seen.add(it.src); }); });
-  const srcs = [...seen].sort();
-  if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无出处字段</div>'; pop.style.display = 'block'; return; }
-  renderTqCheckPop(pop, {
-    items: srcs,
-    selected: tqSrcSel,
-    hint: '不选 = 全部出处（显示所有卡片）',
-    onChange: () => { updateTqSrcBtn(); refreshTqCount(); }
-  });
+  const local = [...seen].sort();
+  renderTqSrcPop(local);
   positionTqPop('tqSrcPop', 'tqSrcBtn');
+  /* 云端出处异步合并（缓存一次；含 jump:/cw: 等云端专属出处） */
+  if(wbCloudReady()){
+    ensureCloudSrcs().then(cloud => {
+      if(pop.style.display !== 'block') return;
+      const merged = [...new Set(local.concat(cloud || []))].sort();
+      if(merged.length > local.length) renderTqSrcPop(merged);
+    });
+  }
 }
 function updateTqSrcBtn(){
   const btn = $('tqSrcBtn');
@@ -4551,7 +4578,7 @@ function openTqStatusPop(){
     items: entries.map(e => e[0]),
     selected: tqStatusSel,
     labelOf: v => { const it = entries.find(e => e[0] === v); return it ? it[1] : v; },
-    onChange: () => { updateTqStatusBtn(); refreshTqCount(); }
+    onChange: () => { updateTqStatusBtn(); refreshTqCountAsync(); }
   });
   positionTqPop('tqStatusPop', 'tqStatusBtn');
 }
@@ -4885,10 +4912,16 @@ async function maybeRetagTrained(ids){
   if(ok) toast('已训练 ' + ok + ' 张 → 标记「已训练」');
   renderQueuedCards();
 }
+/* 综合查询「💾 存入训练库队列」：保存后跳转到训练库队列页面 */
+async function saveQueryToLibAndOpen(){
+  $('topicModal').classList.remove('show');
+  await saveQueueToLib();
+}
 async function saveQueueToLib(){
-  const ids = topicQuery();
+  const ids = topicQueryResult();
   if(!ids.length){ toast('当前队列没有卡片'); return; }
   if(!wbCloudReady()){ toast('云端未就绪，无法存入训练库'); return; }
+  ensureCloudCardsLocal(ids);   /* 方案B：云端卡先入池，保证状态随档同步、训练页可直开 */
   try{
     const n = await retagToQueued(ids);
     const dup = await findExistingSessionRid('app-topic', ids);
@@ -4901,42 +4934,89 @@ async function saveQueueToLib(){
     }
   }catch(e){ toast('存入失败：' + (e.message || e)); }
 }
+function renderPlCrossBox(){
+  const box = $('plCrossBox'); if(!box) return;
+  const n = crossRetryCount();
+  const cnt = $('plCrossCount'), btn = $('plCrossStart');
+  if(n > 0){
+    cnt.innerHTML = '<b style="font-size:16px;color:#B4232A">' + n + '</b> 张待重练（1~4 未完全）';
+    btn.style.display = '';
+  }else{
+    cnt.textContent = '✅ 暂无待重练，全部已掌握';
+    btn.style.display = 'none';
+  }
+}
+async function renamePracticeSession(rid, curTitle){
+  const t = prompt('修改练习名称：', curTitle || '');
+  if(t === null) return;
+  const nt = t.trim();
+  if(!nt){ toast('名称不能为空'); return; }
+  if(nt === curTitle) return;
+  try{
+    await sbUpdate('practice_sessions', {title: nt}, 'rid=eq.' + encodeURIComponent(rid));
+    toast('✅ 已改名为「' + nt + '」');
+    openPracticeLib();
+    renderTrainLibBanner();
+  }catch(e){
+    console.error('renamePracticeSession failed:', e);
+    toast('改名失败：' + (e.message || e));
+  }
+}
+/* 练习队列完成度：已看 = 该卡在本地有训练状态(1~5)；熟练 = 状态 5（完全记住） */
+function practiceSessionStats(ids){
+  let seenN = 0, okN = 0;
+  (ids || []).forEach(id => {
+    const sn = subjectOfId(id);
+    const v = sn && state[sn] ? state[sn][id] : undefined;
+    if(v !== undefined && v !== null){ seenN++; if(v >= 5) okN++; }
+  });
+  return {seenN: seenN, total: (ids || []).length, pct: seenN ? Math.round(okN / seenN * 100) + '%' : '—'};
+}
 async function openPracticeLib(){
   try{
     $('practiceLibModal').classList.add('show');
     renderQueuedCards();
+    renderPlCrossBox();
     const tbody = $('practiceLibTbody');
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr>';
     if(!wbCloudReady()){
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">云端未就绪，无法读取训练库</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#b91c1c;padding:24px">云端未就绪，无法读取训练库</td></tr>';
       return;
     }
     const rows = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at&order=browsed_at.desc&limit=200');
     if(!rows || !rows.length){
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:24px">训练库暂无记录（在上方「待训练」明细中勾选卡片，点「💾 存入训练库」即可生成）</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:24px">训练库暂无记录（在上方「待训练」明细中勾选卡片，点「💾 存入训练库」即可生成）</td></tr>';
       return;
     }
     tbody.innerHTML = '';
     rows.forEach(s => {
       const hitN = Array.isArray(s.card_ids) ? s.card_ids.length : 0;
       const newN = Array.isArray(s.new_card_ids) ? s.new_card_ids.length : 0;
+      const allIds = (Array.isArray(s.card_ids) ? s.card_ids : []).concat(Array.isArray(s.new_card_ids) ? s.new_card_ids : []);
+      const st = practiceSessionStats(allIds);
+      const statTxt = '已看 ' + st.seenN + '/' + st.total + ' 张 · 熟练 ' + st.pct;
       const rid = escHtml(s.rid || '');
+      const titleEsc = escHtml(s.title || '');
       const tr = document.createElement('tr');
       tr.innerHTML = '<td class="ts">' + practiceLibFmtDate(s.browsed_at) + '</td>'
-        + '<td>' + escHtml(s.title || '(未命名)') + '</td>'
+        + '<td><span class="plTitleText" data-rid="' + rid + '" style="cursor:pointer;border-bottom:1px dashed #9ca3af" title="点击改名">' + titleEsc + '</span></td>'
         + '<td>' + escHtml(s.subject || '化学') + '</td>'
         + '<td>' + hitN + ' 张</td>'
         + '<td>' + newN + ' 张</td>'
+        + '<td style="font-size:12px;color:#374151">' + escHtml(statTxt) + '</td>'
         + '<td><button class="actBtn plStart" data-rid="' + rid + '">🎯 开始专题练</button>'
+        + '<button class="actBtn plRename" data-rid="' + rid + '" data-title="' + titleEsc + '" style="margin-left:6px">✎ 改名</button>'
         + '<button class="actBtn plDel" data-rid="' + rid + '" style="margin-left:6px;color:#b91c1c">🗑 删除</button></td>';
       tbody.appendChild(tr);
     });
     tbody.querySelectorAll('button.plStart').forEach(b => b.addEventListener('click', () => startPracticeSession(b.getAttribute('data-rid'))));
+    tbody.querySelectorAll('button.plRename').forEach(b => b.addEventListener('click', () => renamePracticeSession(b.getAttribute('data-rid'), b.getAttribute('data-title') || '')));
+    tbody.querySelectorAll('span.plTitleText').forEach(sp => sp.addEventListener('click', () => renamePracticeSession(sp.getAttribute('data-rid'), sp.textContent || '')));
     tbody.querySelectorAll('button.plDel').forEach(b => b.addEventListener('click', () => deletePracticeSession(b.getAttribute('data-rid'))));
   }catch(e){
     console.error('openPracticeLib failed:', e);
     const tbody = $('practiceLibTbody');
-    if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#b91c1c;padding:24px">读取失败：' + escHtml(e.message) + '</td></tr>';
+    if(tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#b91c1c;padding:24px">读取失败：' + escHtml(e.message) + '</td></tr>';
   }
 }
 async function startPracticeSession(rid){
@@ -5024,12 +5104,16 @@ function renderTrainLibBanner(){
     try{
       const rows = await sbSelect('practice_sessions', 'select=rid,title,subject&order=browsed_at.desc&limit=200');
       const qs = (rows || []).filter(s => s.subject === '跨科' || String(s.title || '').indexOf('专题队列') >= 0 || String(s.title || '').indexOf('已入训练队列') === 0);
-      if(!qs.length){ b.style.display = 'none'; return; }
+      const crossN = crossRetryCount();
+      if(!qs.length && !crossN){ b.style.display = 'none'; return; }
       const names = qs.map(s => s.title || '(未命名)');
       const shown = names.slice(0, 3).join('、');
       const more = names.length > 3 ? (' 等' + names.length + '个') : '';
       b.className = 'crossBanner';
-      b.innerHTML = '<span>📚 训练库 · <b style="font-size:16px">' + qs.length + '</b> 个队列待训练：' + escHtml(shown) + more + '</span><span class="bannerArrow">›</span>';
+      let html = '<span>📚 训练库 · <b style="font-size:16px">' + qs.length + '</b> 个队列待训练' + (qs.length ? '：' + escHtml(shown) + more : '');
+      if(crossN) html += (qs.length ? ' ｜ ' : '：') + '🔁 跨科重练 <b style="font-size:16px">' + crossN + '</b> 张（1~4 未完全）';
+      html += '</span><span class="bannerArrow">›</span>';
+      b.innerHTML = html;
       b.style.display = 'flex';
       b.onclick = () => { if(b.className.indexOf('done') < 0) openPracticeLib(); };
     }catch(e){ b.style.display = 'none'; }
@@ -5093,6 +5177,120 @@ function topicQuery(){
   return res;
 }
 function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
+/* ===== 方案B（2026-09-26）：综合查询云端直连 =====
+ * 卡池主源切 WB Cloud cards 表：查询时拉全量行缓存（TTL 5 分钟）前端过滤，
+ * 与本地命中合并（内容指纹去重）；训练状态仍读本地 state（云端卡训练后以 card_id 入本地池，状态随档云同步）。
+ * 失败自动降级纯本地查询。变量声明在 SUBJ_NAMES 附近（TDZ 前置）。 */
+
+/* 云端行缓存（一次拉全量，前端过滤；TTL 5 分钟。3780 行 gzip 后约 0.6MB，会话内零重复开销） */
+let _tqCloudRows = null, _tqCloudRowsAt = 0;
+async function ensureCloudRows(force){
+  if(_tqCloudRows && !force && Date.now() - _tqCloudRowsAt < 5*60*1000) return _tqCloudRows;
+  const rows = await sbSelect(CARDS_TABLE, 'select=card_id,subject,chapter,signal,conclusion,src,orig,link,note&order=card_id&limit=5000');
+  _tqCloudRows = rows || [];
+  _tqCloudRowsAt = Date.now();
+  return _tqCloudRows;
+}
+/* 本地 + 云端合并查询（云端卡的状态/日期筛选在本地 state 以 card_id 为键读取——训练后即有值，未训练=未测） */
+async function topicQueryFull(){
+  const localIds = topicQuery();
+  _tqCloudErr = '';
+  if(!wbCloudReady()){ return { ids: localIds, cloudN: 0 }; }
+  try{
+    const rows = await ensureCloudRows();
+    /* 云端筛选条件（与弹窗控件一一对应，前端过滤） */
+    const kw = $('tqKeyword') ? $('tqKeyword').value.trim() : '';
+    const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()) : [];
+    const fp = new Set();
+    localIds.forEach(id => { const it = itemById(id); if(it) fp.add(_tqNorm((it.s||'') + '|' + (it.c||''))); });
+    const stSet = tqStatusSel;
+    const ds = $('tqDateStart').value, de = $('tqDateEnd').value;
+    const dsT = ds ? new Date(ds).getTime() : null, deT = de ? new Date(de).getTime() + 86399999 : null;
+    const bsSel = ffSetOf('tqBrowseStatus');
+    const cloudIds = [];
+    rows.forEach(r => {
+      if(!r || !r.card_id) return;
+      if(tqSubjSel.size && !tqSubjSel.has(r.subject || '')) return;
+      if(tqSrcSel.size && !tqSrcSel.has(r.src || '')) return;
+      if(tqTopicSel.size && !tqTopicSel.has(r.chapter || '')) return;
+      const it = { id: r.card_id, s: r.signal||'', c: r.conclusion||'', t: r.chapter||'', src: r.src||'', orig: r.orig||'', link: r.link||'', no: '', note: r.note||'', subj: r.subject||'物理', cloud: true };
+      if(kws.length){
+        const hay = (it.s + ' ' + it.c + ' ' + it.src + ' ' + it.t + ' ' + it.orig + ' ' + it.note).toLowerCase();
+        if(!kws.some(k => hay.includes(k))) return;
+      }
+      if(fp.has(_tqNorm(it.s + '|' + it.c))) return;   /* 与本地内容重复（历史镜像卡） */
+      if(stSet.size){
+        const st = state[it.subj] || {};
+        const v = st[it.id];
+        const isUnt = v === undefined || v === null;
+        let hit = stSet.has('unt') && isUnt;
+        for(let lv = 1; lv <= 5; lv++){ if(stSet.has('lv' + lv) && v === lv) hit = true; }
+        if(!hit) return;
+      }
+      if(dsT || deT){
+        const lrI = (lastRes[it.subj] || {})[it.id], bmI = (browseMeta[it.subj] || {})[it.id];
+        const ts = Math.max((lrI && lrI.ts) || 0, (bmI && bmI.lastBrowse) || 0);
+        if(!ts) return;
+        if(dsT && ts < dsT) return;
+        if(deT && ts > deT) return;
+      }
+      if(bsSel.size){
+        const bmI = (browseMeta[it.subj] || {})[it.id];
+        const isBrowsed = bmI ? !!bmI.browsed : false;
+        if(!((bsSel.has('browsed') && isBrowsed) || (bsSel.has('unbrowsed') && !isBrowsed))) return;
+      }
+      fp.add(_tqNorm(it.s + '|' + it.c));   /* 云端结果内部去重 */
+      _tqCloudCards.set(it.id, it);
+      cloudIds.push(it.id);
+    });
+    return { ids: localIds.concat(cloudIds), cloudN: cloudIds.length };
+  }catch(e){
+    _tqCloudErr = (e && e.message) || String(e);
+    console.warn('tqCloud 查询失败，降级本地:', e);
+    return { ids: localIds, cloudN: 0 };
+  }
+}
+/* 异步防抖刷新匹配数（本地结果立即占位，云端到货后补差） */
+function refreshTqCountAsync(){
+  $('tqCount').textContent = topicQuery().length + ' 张（云端查询中…）';
+  if(_tqCountTimer) clearTimeout(_tqCountTimer);
+  _tqCountTimer = setTimeout(async () => {
+    const r = await topicQueryFull();
+    _tqLastFull = r.ids;
+    let txt = r.ids.length + ' 张卡片';
+    if(r.cloudN) txt += '（含云端 ' + r.cloudN + ' 张）';
+    if(_tqCloudErr) txt += ' · ⚠️云端失败已降级本地';
+    $('tqCount').textContent = txt;
+  }, 350);
+}
+/* 弹窗按钮消费的最终结果：优先最近一次合并结果（保证与显示的匹配数一致） */
+function topicQueryResult(){ return (_tqLastFull && _tqLastFull.length) ? _tqLastFull : topicQuery(); }
+/* 云端查到的卡在训练/存库前落入本地内存池（状态随档云同步；量小可控） */
+function ensureCloudCardsLocal(ids){
+  let need = false;
+  (ids||[]).forEach(id => {
+    const it = _tqCloudCards.get(id);
+    if(!it || subjectOfId(id)) return;
+    const store = ensureSubjectStore(it.subj);
+    if(!store.items.some(x => x.id === id)){
+      store.items.push({id: id, s: it.s, c: it.c, t: it.t, src: it.src, orig: it.orig, link: it.link, no: '', note: it.note});
+      need = true;
+    }
+  });
+  if(need){ rebuildSubjects(); savePerson(); }
+  return need;
+}
+/* 云端 distinct 出处（复用 _tqCloudRows 缓存，无额外请求） */
+async function ensureCloudSrcs(){
+  if(_tqCloudSrcs) return _tqCloudSrcs;
+  try{
+    const rows = await ensureCloudRows();
+    const set = new Set();
+    (rows||[]).forEach(r => { if(r && r.src) set.add(r.src); });
+    _tqCloudSrcs = [...set].sort();
+  }catch(e){ console.warn('云端出处拉取失败:', e); _tqCloudSrcs = null; }   /* 失败不缓存，下次打开重试（行缓存有 TTL） */
+  return _tqCloudSrcs || [];
+}
 /* ---------- 浏览历史（今日已学点击） ---------- */
 function relTime(ts){
   const diff = Date.now() - ts;
@@ -5231,7 +5429,7 @@ function openTopicTrain(){
   updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn(); updateTqStatusBtn();
   refreshTqTopic();
   refreshSrcFilterList();
-  refreshTqCount();
+  refreshTqCountAsync();
   const h2 = document.querySelector('#topicModal h2 span:first-child');
   if(h2) h2.textContent = '🎯 专题练 · 综合查询';
   $('topicModal').classList.add('show');
@@ -5245,14 +5443,15 @@ function openCrossTopicTrain(){
   updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn(); updateTqStatusBtn();
   refreshTqTopic();
   refreshSrcFilterList();
-  refreshTqCount();
+  refreshTqCountAsync();
   const h2 = document.querySelector('#topicModal h2 span:first-child');
   if(h2) h2.textContent = '🎯 跨科专题练 · 综合查询（默认全选）';
   $('topicModal').classList.add('show');
 }
 function startTopicTrain(){
-  const ids = topicQuery();
+  const ids = topicQueryResult();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
+  ensureCloudCardsLocal(ids);   /* 方案B：云端卡先入本地池（状态随档云同步），训练渲染照常 */
   queue = ids.slice();
   pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
   browseMode = false;
@@ -5266,16 +5465,16 @@ function startTopicTrain(){
   toast('专题练开始：' + ids.length + ' 张卡片');
 }
 function previewTopicList(){
-  const ids = topicQuery();
+  const ids = topicQueryResult();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
   const names = {1:'完全不记得',2:'勉强记得一点',3:'记得一半左右',4:'记得大部分',5:'完全记住'};
   const lines = ids.slice(0, 12).map(id => { const it = itemById(id); const sn = subjectOfId(id) || cur; const stx = state[sn] || {}; return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[stx[id]] || '未测') + '）'; });
-  alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「开始训练」按此清单练习');
+  alert('匹配 ' + ids.length + ' 张卡片：\n\n' + lines.join('\n') + (ids.length > 12 ? '\n…' : '') + '\n\n点「💾 存入训练库队列」将此清单存入训练库');
 }
 /* 专题练查询结果导出 xlsx（含卡片全部字段 + 训练状态/最近答题/最近浏览/审核标记） */
 function tqExport(){
   try{
-    const ids = topicQuery();
+    const ids = topicQueryResult();
     if(!ids.length){ toast('没有匹配的卡片，无可导出'); return; }
     const stNames = {1:'完全不记得',2:'勉强记得一点',3:'记得一半左右',4:'记得大部分',5:'完全记住'};
     const fmtTs = ts => {
@@ -5445,7 +5644,7 @@ async function testPush(){
   });
 
 $('backBtn').addEventListener('click', () => { if(isCrossRetry){ isCrossRetry = false; restoreTrainUI(); } showView('dash'); });
-$('crossRetryBanner').addEventListener('click', () => { if(!isCrossRetry) enterCrossRetry(); });
+$('plCrossStart').addEventListener('click', () => { $('practiceLibModal').classList.remove('show'); if(!isCrossRetry) enterCrossRetry(); });
 $('manageBackBtn').addEventListener('click', closeManage);
 $('card').addEventListener('click', flip);
 $('btnL5').addEventListener('click', () => mark(5));
@@ -5596,10 +5795,10 @@ $('tqSubjBtn').addEventListener('click', e => { e.stopPropagation(); openTqSubjP
 $('tqTopicBtn').addEventListener('click', e => { e.stopPropagation(); openTqTopicPop(); });
 $('tqSrcBtn').addEventListener('click', e => { e.stopPropagation(); openTqSrcPop(); });
 $('tqStatusBtn').addEventListener('click', e => { e.stopPropagation(); openTqStatusPop(); });
-['tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
-$('tqKeyword').addEventListener('input', refreshTqCount);
-$('tqBrowseStatus').addEventListener('change', refreshTqCount);
-  $('tqStart').addEventListener('click', startTopicTrain);
+['tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCountAsync));
+$('tqKeyword').addEventListener('input', refreshTqCountAsync);
+$('tqBrowseStatus').addEventListener('change', refreshTqCountAsync);
+  $('tqStart').addEventListener('click', saveQueryToLibAndOpen);
   $('tqPreview').addEventListener('click', previewTopicList);
   $('tqExportXlsx').addEventListener('click', tqExport);
   $('tqExportXlsx').addEventListener('touchstart', e => { e.preventDefault(); tqExport(); }, {passive:false});
@@ -6043,5 +6242,168 @@ function ffRefresh(id){ const sel = $(id); if(sel && sel._ffSync) sel._ffSync();
   FF_LIST.forEach(pair => { try{ ffEnhance($(pair[0]), pair[1]); }catch(e){ console.error('ffEnhance ' + pair[0] + ' failed:', e); } });
 })();
 </script>
+<!-- 昕言的知识体系 统一侧边栏外壳 (jikaka-memory, 单文件内联) -->
+<style id="psStyle">
+#psSide{position:fixed;left:0;top:0;bottom:0;width:220px;background:linear-gradient(180deg,#0C447C,#0a3a68);color:#fff;display:flex;flex-direction:column;z-index:60;font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+#psSide .brand{padding:16px 16px 12px;font-size:16px;font-weight:700;letter-spacing:.5px;border-bottom:1px solid rgba(255,255,255,.15)}
+#psSide nav{display:flex;flex-direction:column;padding:10px 8px;gap:4px}
+#psSide nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;color:#dbe7f5;text-decoration:none;font-size:14px;font-weight:600;transition:.15s}
+#psSide nav a:hover{background:rgba(255,255,255,.12)}
+#psSide nav a.cur{background:#fff;color:#0C447C}
+#psSide .psFoot{margin-top:auto;padding:12px 16px;font-size:11px;color:rgba(255,255,255,.6)}
+#psTop{position:fixed;left:220px;top:0;right:0;height:52px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:55;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+#psTop .ptitle{font-size:15px;font-weight:700;color:#0C447C}
+#psTags{display:flex;gap:6px;align-items:center;flex-wrap:wrap;overflow:hidden;max-width:62%}
+#psTags .chip{display:inline-flex;align-items:center;gap:5px;background:#eef3fb;color:#0C447C;border:1px solid #cfe0f5;padding:3px 9px;border-radius:999px;font-size:12px;white-space:nowrap}
+#psTags .chip b{cursor:pointer;font-weight:700;padding:0 2px}
+#psTags .empty{color:#9aa6b2;font-size:12px}
+#psTop .pact{display:inline-flex;gap:8px;align-items:center}
+#psTop button.psMgr{background:#0C447C;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600}
+#psTop .psLink{background:#eef3fb;color:#0C447C;border:1px solid #cfe0f5;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:600}
+#psSide .brand{position:relative}
+#psSide .brand .bname{display:inline}
+#psSide .psToggle{position:absolute;right:8px;top:14px;width:26px;height:26px;border-radius:7px;border:0;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:15px;line-height:22px}
+#psSide .psToggle:hover{background:rgba(255,255,255,.28)}
+#psSide{transition:transform .2s}
+#psFab{position:fixed;left:12px;top:12px;z-index:70;width:42px;height:42px;border-radius:12px;background:#0C447C;color:#fff;border:0;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+body.ps-collapsed #psSide{transform:translateX(-110%)}
+body.ps-collapsed #psTop{left:0;padding-left:56px}
+body.ps-collapsed{padding-left:0}
+body.ps-collapsed #psFab{display:flex}
+#psToast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0C447C;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:300;opacity:0;transition:.2s;pointer-events:none}
+#psToast.psShow{opacity:1}
+body{padding-left:220px;padding-top:52px}
+.siteChips{display:none!important}
+@media(max-width:720px){#psTop{padding-right:8px}}
+</style>
+<aside id="psSide">
+  <div class="brand"><span class="bname">🧠 昕言的知识体系</span><button id="psToggle" class="psToggle" title="收起/展开侧边栏">‹</button></div>
+  <nav>
+    <a href="/" data-m="root"><span class="lbl">📚 记忆卡</span></a>
+    <a href="/knowledge/index.html" data-m="knowledge"><span class="lbl">📖 知识页</span></a>
+    <a href="/courseware/" data-m="courseware"><span class="lbl">📝 作业报告</span></a>
+  </nav>
+  <div class="psFoot">同源 WB Cloud · jikaka-memory</div>
+</aside>
+<header id="psTop">
+  <div class="ptitle" id="psTitle">记忆卡</div>
+  <div class="pact">
+    <div id="psTags"><span class="empty">（筛选/打标时显示已选标签）</span></div>
+    <button class="psLink" id="psLinkBtn" title="复制本页链接">🔗 复制链接</button>
+    <button class="psMgr" id="psMgrBtn">🏷 管理标签</button>
+  </div>
+</header>
+<div id="psToast"></div>
+<button id="psFab" title="展开侧边栏">☰</button>
+<script>
+(function(){
+  var m=location.pathname;
+  var cur = m.indexOf('/knowledge')>=0?'knowledge':(m.indexOf('/courseware')>=0?'courseware':'root');
+  document.querySelectorAll('#psSide nav a').forEach(function(a){ if(a.getAttribute('data-m')===cur) a.classList.add('cur'); });
+  var titles={root:'记忆卡',knowledge:'知识页',courseware:'作业报告'};
+  var t=document.getElementById('psTitle'); if(t) t.textContent=titles[cur]||'记忆卡';
+  var mb=document.getElementById('psMgrBtn'); if(mb) mb.addEventListener('click',function(){ document.dispatchEvent(new CustomEvent('ps:openTagManager')); });
+  window.__psActiveTags = window.__psActiveTags || new Set();
+  window.psRenderTags=function(){
+    var box=document.getElementById('psTags'); if(!box) return;
+    var s=window.__psActiveTags;
+    if(!s||!s.size){ box.innerHTML='<span class="empty">（筛选/打标时显示已选标签）</span>'; return; }
+    var h=''; s.forEach(function(t){ h+='<span class="chip">'+t+' <b data-t="'+t.replace(/"/g,'')+'">✕</b></span>'; });
+    box.innerHTML=h;
+    box.querySelectorAll('.chip b').forEach(function(b){ b.onclick=function(){ s.delete(b.getAttribute('data-t')); window.psRenderTags(); if(window.__psOnTagRemove) window.__psOnTagRemove(b.getAttribute('data-t')); }; });
+  };
+  window.psAddTag=function(t){ window.__psActiveTags.add(t); window.psRenderTags(); };
+  window.psRenderTags();
+  // 侧边栏收缩
+  var COLL='ps-collapsed';
+  var savedColl=null; try{ savedColl=localStorage.getItem('ps_collapsed'); }catch(e){}
+  if(savedColl==='1') document.body.classList.add(COLL);
+  else if(savedColl==='0') document.body.classList.remove(COLL);
+  else if(window.matchMedia && window.matchMedia('(orientation: portrait)').matches) document.body.classList.add(COLL);
+  function psSyncToggle(){ var b=document.getElementById('psToggle'); if(b) b.textContent='‹'; }
+  psSyncToggle();
+  function psSetColl(c){ document.body.classList.toggle(COLL,c); try{ localStorage.setItem('ps_collapsed', c?'1':'0'); }catch(e){} }
+  var tg=document.getElementById('psToggle'); if(tg) tg.addEventListener('click',function(){ psSetColl(!document.body.classList.contains(COLL)); });
+  var fab=document.getElementById('psFab'); if(fab) fab.addEventListener('click',function(){ psSetColl(false); });
+  // 复制本页链接
+  var lb=document.getElementById('psLinkBtn'); if(lb) lb.addEventListener('click',function(){
+    var url=location.href;
+    function done(){ var t=document.getElementById('psToast'); if(!t) return; t.textContent='已复制本页链接 ✓'; t.classList.add('psShow'); setTimeout(function(){t.classList.remove('psShow');},1600); }
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done).catch(function(){ psFallbackCopy(url,done); }); }
+    else psFallbackCopy(url,done);
+  });
+  function psFallbackCopy(text,cb){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); if(cb) cb(); }
+})();
+</script>
+
+<!-- 统一标签库 管理器 (TagLib, 同源 WB Cloud tags 表) -->
+<style id="psTagMgrStyle">
+.psModalMask{position:fixed;inset:0;background:rgba(15,30,50,.45);z-index:200;display:flex;align-items:center;justify-content:center}
+.psModalMask.psHide{display:none}
+.psModal{background:#fff;border-radius:14px;width:min(560px,92vw);max-height:86vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.25);font-family:system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+.psModal h3{margin:0;padding:16px 18px;font-size:16px;color:#0C447C;border-bottom:1px solid #eef}
+.psModal .pbody{padding:14px 18px}
+.psModal .prow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.psModal input[type=text]{flex:1;min-width:140px;padding:8px 10px;border:1px solid #cdd6e0;border-radius:8px;font-size:14px}
+.psModal input[type=color]{width:38px;height:36px;border:1px solid #cdd6e0;border-radius:8px;background:#fff;padding:2px}
+.psModal button.pbtn{background:#0C447C;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.psModal button.pbtn.g{background:#eef3fb;color:#0C447C}
+.psModal .tlist{display:flex;flex-direction:column;gap:6px}
+.psModal .titem{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #eef;border-radius:9px}
+.psModal .titem .dot{width:14px;height:14px;border-radius:50%;flex:none}
+.psModal .titem .nm{flex:1;font-size:14px}
+.psModal .titem .cat{font-size:11px;color:#7a8694;background:#f1f4f8;padding:2px 8px;border-radius:999px}
+.psModal .titem button{background:#f1f4f8;border:0;border-radius:7px;padding:5px 9px;font-size:12px;cursor:pointer;color:#374151}
+.psModal .titem button.del{color:#b4232a}
+.psModal .pfoot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid #eef}
+.psModal .empty{color:#9aa6b2;font-size:13px;padding:8px 0}
+.psModal .hint{font-size:12px;color:#7a8694;margin:2px 0 10px}
+</style>
+<div id="psTagMgrMask" class="psModalMask psHide">
+  <div class="psModal">
+    <h3>🏷 统一标签库</h3>
+    <div class="pbody">
+      <div class="hint">同源 WB Cloud · 三模块（记忆卡/知识页/作业报告）共用一套词表。新增时若与已有标签相似会提示合并，避免膨胀。</div>
+      <div class="prow">
+        <input type="text" id="tmName" placeholder="新标签名，如：连接体 / 易错 / 一轮">
+        <input type="color" id="tmColor" value="#0C447C">
+        <input type="text" id="tmCat" placeholder="分类(可选)">
+        <button class="pbtn" id="tmAdd">＋ 添加</button>
+      </div>
+      <div class="tlist" id="tmList"></div>
+    </div>
+    <div class="pfoot">
+      <button class="pbtn g" id="tmExport">导出 JSON</button>
+      <button class="pbtn g" id="tmImport">导入 JSON</button>
+      <button class="pbtn" id="tmClose" style="margin-left:auto">关闭</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var NM='hq_lexicon';
+  function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch(e){return d;}}
+  function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  function db(){return window.WB_DB||(window.getWbCloud&&window.getWbCloud().database);}
+  var cache=lsGet(NM,[]);
+  function uid(){return 't_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+  function sim(a,b){a=(a||'').trim().toLowerCase();b=(b||'').trim().toLowerCase();if(!a||!b)return false;return a===b||a.indexOf(b)>=0||b.indexOf(a)>=0;}
+  function saveLocal(){lsSet(NM,cache);}
+  function loadCloud(){var d=db();if(!d)return Promise.resolve(cache);return d.from('tags').select('id,name,color,category,kind').then(function(r){var rows=(r&&r.data)||[];if(rows.length){cache=rows.map(function(x){return{id:x.id,name:x.name,color:x.color||'#0C447C',category:x.category||'',kind:x.kind||'controlled'};});saveLocal();}}).catch(function(){});return Promise.resolve(cache);}
+  function push(t){var d=db();if(!d){saveLocal();return Promise.resolve(t);}return d.from('tags').upsert({id:t.id,name:t.name,color:t.color,category:t.category,kind:t.kind||'controlled'}).then(function(){return t;}).catch(function(){saveLocal();return t;});}
+  function del(id){cache=cache.filter(function(x){return x.id!==id;});saveLocal();var d=db();if(!d)return Promise.resolve();return d.from('tags').delete().eq('id',id).catch(function(){});}
+  function render(){var box=document.getElementById('tmList');if(!box)return;if(!cache.length){box.innerHTML='<div class="empty">尚无标签，先在上方添加。</div>';return;}var h='';cache.forEach(function(t){h+='<div class="titem" data-id="'+t.id+'"><span class="dot" style="background:'+(t.color||'#0C447C')+'"></span><span class="nm">'+t.name+'</span>'+(t.category?'<span class="cat">'+t.category+'</span>':'')+'<button class="rn">重命名</button><button class="del">归档</button></div>';});box.innerHTML=h;box.querySelectorAll('.titem').forEach(function(it){var id=it.getAttribute('data-id');var rec=cache.find(function(x){return x.id===id;});it.querySelector('.rn').onclick=function(){var nv=prompt('重命名为：',rec.name);if(nv&&nv.trim()){rec.name=nv.trim();saveLocal();push(rec).then(render);}};it.querySelector('.del').onclick=function(){if(confirm('归档「'+rec.name+'」？内容上的引用保留，仅从词表移除。')){del(id).then(render);}};});}
+  function open(){loadCloud().then(function(){render();document.getElementById('psTagMgrMask').classList.remove('psHide');});}
+  function close(){document.getElementById('psTagMgrMask').classList.add('psHide');}
+  document.getElementById('tmAdd').onclick=function(){var nm=document.getElementById('tmName').value,col=document.getElementById('tmColor').value,cat=document.getElementById('tmCat').value;nm=(nm||'').trim();if(!nm){alert('请输入标签名');return;}var hit=cache.find(function(x){return sim(x.name,nm);});if(hit&&hit.name!==nm){if(!confirm('发现相似标签「'+hit.name+'」，合并到它（不新建）？')){/*继续新建*/}else{document.getElementById('tmName').value='';return;}}var t={id:uid(),name:nm,color:col,category:(cat||'').trim(),kind:'controlled'};cache.push(t);saveLocal();push(t).then(function(){document.getElementById('tmName').value='';document.getElementById('tmCat').value='';render();});};
+  document.getElementById('tmClose').onclick=close;
+  document.getElementById('psTagMgrMask').addEventListener('click',function(e){if(e.target.id==='psTagMgrMask')close();});
+  document.getElementById('tmExport').onclick=function(){var data=JSON.stringify({lexicon:cache},null,2);var blob=new Blob([data],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tag_lexicon.json';a.click();};
+  document.getElementById('tmImport').onclick=function(){var f=document.createElement('input');f.type='file';f.accept='application/json';f.onchange=function(){var fr=new FileReader();fr.onload=function(){try{var o=JSON.parse(fr.result);var arr=o.lexicon||o||[];arr.forEach(function(t){if(!cache.find(function(x){return x.name===t.name;})){t.id=t.id||uid();cache.push(t);push(t);}});saveLocal();render();}catch(e){alert('JSON 解析失败');}};fr.readAsText(f.files[0]);};f.click();};
+  document.addEventListener('ps:openTagManager',open);
+  window.TagLib={load:loadCloud,list:function(){return cache.slice();},add:function(n,c,cat){var nm=(n||'').trim();if(!nm)return Promise.resolve(null);var t={id:uid(),name:nm,color:c||'#0C447C',category:cat||'',kind:'controlled'};cache.push(t);saveLocal();return push(t);},remove:del,rename:function(id,n){var t=cache.find(function(x){return x.id===id;});if(t){t.name=n;saveLocal();return push(t);}return Promise.resolve();}};
+})();
+</script>
+
 </body>
 </html>
