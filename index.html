@@ -1304,12 +1304,6 @@ function personName(){ const p = PERSONS.find(x => x.key === personKey); return 
 function subjDef(name){ return CUSTOM[name] || IMPORTED[name] || SUBJECTS[name]; }
 let ALL_SUBJECTS = {};   /* 由 rebuildSubjects 合并填充 */
 let SUBJ_NAMES = [];
-/* 方案B 云端查询状态（提前声明：itemById/subjectOfId 兜底会引用，避免初始化早期 TDZ） */
-let _tqCloudCards = new Map();   /* card_id -> {id,s,c,t,src,orig,link,no,note,subj,cloud:true} */
-let _tqCloudSrcs = null;         /* 云端 distinct 出处缓存（null=未拉） */
-let _tqCloudErr = '';
-let _tqCountTimer = null;
-let _tqLastFull = [];            /* 最近一次本地+云端合并结果 */
 let cur = null;
 /* 进入科目模式弹窗 / 会话统计 / 停留超时 相关状态 */
 /* pendingSubject/sessionMode/idleTimer 等已在 994 行批量声明；此处仅赋默认值 */
@@ -1517,8 +1511,6 @@ function itemById(id){
     const def = subjDef(name);
     if(def){ const f = def.items.find(x => x.id === id); if(f) return f; }
   }
-  /* 方案B：云端查询结果的卡兜底（训练/预览/导出在入池前也能读到内容） */
-  if(typeof _tqCloudCards !== 'undefined' && _tqCloudCards && _tqCloudCards.has(id)) return _tqCloudCards.get(id);
   return null;
 }
 /* 根据卡片 id 反查其所属学科（用于跨学科训练时按卡片实际学科读写状态） */
@@ -1527,7 +1519,6 @@ function subjectOfId(id){
     const def = subjDef(name);
     if(def && def.items.some(x => x.id === id)) return name;
   }
-  if(typeof _tqCloudCards !== 'undefined' && _tqCloudCards && _tqCloudCards.has(id)){ const it = _tqCloudCards.get(id); if(it && it.subj) return it.subj; }
   return null;
 }
 function N(){ return items().length; }
@@ -4490,7 +4481,7 @@ function openTqSubjPop(){
     items: names,
     selected: tqSubjSel,
     labelOf: n => ALL_SUBJECTS[n] ? ALL_SUBJECTS[n].display : n,
-    onChange: () => { updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCountAsync(); }
+    onChange: () => { updateTqSubjBtn(); refreshTqTopic(); refreshSrcFilterList(); refreshTqCount(); }
   });
   positionTqPop('tqSubjPop', 'tqSubjBtn');
 }
@@ -4522,7 +4513,7 @@ function openTqTopicPop(){
   renderTqCheckPop(pop, {
     items: topics,
     selected: tqTopicSel,
-    onChange: () => { updateTqTopicBtn(); refreshTqCountAsync(); }
+    onChange: () => { updateTqTopicBtn(); refreshTqCount(); }
   });
   positionTqPop('tqTopicPop', 'tqTopicBtn');
 }
@@ -4533,34 +4524,22 @@ function updateTqTopicBtn(){
   else btn.innerHTML = '已选 ' + tqTopicSel.size + ' 个专题<span class="tqMultiHint">▼</span>';
 }
 
-/* 打开/关闭专题练的出处勾选弹窗（跨多科目去重，支持搜索；合并云端 cards 表出处） */
-function renderTqSrcPop(srcs){
-  const pop = $('tqSrcPop');
-  if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无出处字段</div>'; pop.style.display = 'block'; return; }
-  renderTqCheckPop(pop, {
-    items: srcs,
-    selected: tqSrcSel,
-    hint: '不选 = 全部出处（显示所有卡片）',
-    onChange: () => { updateTqSrcBtn(); refreshTqCountAsync(); }
-  });
-}
+/* 打开/关闭专题练的出处勾选弹窗（跨多科目去重，支持搜索） */
 function openTqSrcPop(){
   const pop = $('tqSrcPop');
   if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
   const subjNames = tqSubjSel.size ? [...tqSubjSel] : SUBJ_NAMES.slice();
   const seen = new Set();
   subjNames.forEach(n => { const def = subjDef(n); if(def) def.items.forEach(it => { if(it.src) seen.add(it.src); }); });
-  const local = [...seen].sort();
-  renderTqSrcPop(local);
+  const srcs = [...seen].sort();
+  if(!srcs.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">所选科目暂无出处字段</div>'; pop.style.display = 'block'; return; }
+  renderTqCheckPop(pop, {
+    items: srcs,
+    selected: tqSrcSel,
+    hint: '不选 = 全部出处（显示所有卡片）',
+    onChange: () => { updateTqSrcBtn(); refreshTqCount(); }
+  });
   positionTqPop('tqSrcPop', 'tqSrcBtn');
-  /* 云端出处异步合并（缓存一次；含 jump:/cw: 等云端专属出处） */
-  if(wbCloudReady()){
-    ensureCloudSrcs().then(cloud => {
-      if(pop.style.display !== 'block') return;
-      const merged = [...new Set(local.concat(cloud || []))].sort();
-      if(merged.length > local.length) renderTqSrcPop(merged);
-    });
-  }
 }
 function updateTqSrcBtn(){
   const btn = $('tqSrcBtn');
@@ -4578,7 +4557,7 @@ function openTqStatusPop(){
     items: entries.map(e => e[0]),
     selected: tqStatusSel,
     labelOf: v => { const it = entries.find(e => e[0] === v); return it ? it[1] : v; },
-    onChange: () => { updateTqStatusBtn(); refreshTqCountAsync(); }
+    onChange: () => { updateTqStatusBtn(); refreshTqCount(); }
   });
   positionTqPop('tqStatusPop', 'tqStatusBtn');
 }
@@ -4918,10 +4897,9 @@ async function saveQueryToLibAndOpen(){
   await saveQueueToLib();
 }
 async function saveQueueToLib(){
-  const ids = topicQueryResult();
+  const ids = topicQuery();
   if(!ids.length){ toast('当前队列没有卡片'); return; }
   if(!wbCloudReady()){ toast('云端未就绪，无法存入训练库'); return; }
-  ensureCloudCardsLocal(ids);   /* 方案B：云端卡先入池，保证状态随档同步、训练页可直开 */
   try{
     const n = await retagToQueued(ids);
     const dup = await findExistingSessionRid('app-topic', ids);
@@ -5177,120 +5155,6 @@ function topicQuery(){
   return res;
 }
 function refreshTqCount(){ $('tqCount').textContent = topicQuery().length; }
-/* ===== 方案B（2026-09-26）：综合查询云端直连 =====
- * 卡池主源切 WB Cloud cards 表：查询时拉全量行缓存（TTL 5 分钟）前端过滤，
- * 与本地命中合并（内容指纹去重）；训练状态仍读本地 state（云端卡训练后以 card_id 入本地池，状态随档云同步）。
- * 失败自动降级纯本地查询。变量声明在 SUBJ_NAMES 附近（TDZ 前置）。 */
-
-/* 云端行缓存（一次拉全量，前端过滤；TTL 5 分钟。3780 行 gzip 后约 0.6MB，会话内零重复开销） */
-let _tqCloudRows = null, _tqCloudRowsAt = 0;
-async function ensureCloudRows(force){
-  if(_tqCloudRows && !force && Date.now() - _tqCloudRowsAt < 5*60*1000) return _tqCloudRows;
-  const rows = await sbSelect(CARDS_TABLE, 'select=card_id,subject,chapter,signal,conclusion,src,orig,link,note&order=card_id&limit=5000');
-  _tqCloudRows = rows || [];
-  _tqCloudRowsAt = Date.now();
-  return _tqCloudRows;
-}
-/* 本地 + 云端合并查询（云端卡的状态/日期筛选在本地 state 以 card_id 为键读取——训练后即有值，未训练=未测） */
-async function topicQueryFull(){
-  const localIds = topicQuery();
-  _tqCloudErr = '';
-  if(!wbCloudReady()){ return { ids: localIds, cloudN: 0 }; }
-  try{
-    const rows = await ensureCloudRows();
-    /* 云端筛选条件（与弹窗控件一一对应，前端过滤） */
-    const kw = $('tqKeyword') ? $('tqKeyword').value.trim() : '';
-    const kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean).map(s => s.toLowerCase()) : [];
-    const fp = new Set();
-    localIds.forEach(id => { const it = itemById(id); if(it) fp.add(_tqNorm((it.s||'') + '|' + (it.c||''))); });
-    const stSet = tqStatusSel;
-    const ds = $('tqDateStart').value, de = $('tqDateEnd').value;
-    const dsT = ds ? new Date(ds).getTime() : null, deT = de ? new Date(de).getTime() + 86399999 : null;
-    const bsSel = ffSetOf('tqBrowseStatus');
-    const cloudIds = [];
-    rows.forEach(r => {
-      if(!r || !r.card_id) return;
-      if(tqSubjSel.size && !tqSubjSel.has(r.subject || '')) return;
-      if(tqSrcSel.size && !tqSrcSel.has(r.src || '')) return;
-      if(tqTopicSel.size && !tqTopicSel.has(r.chapter || '')) return;
-      const it = { id: r.card_id, s: r.signal||'', c: r.conclusion||'', t: r.chapter||'', src: r.src||'', orig: r.orig||'', link: r.link||'', no: '', note: r.note||'', subj: r.subject||'物理', cloud: true };
-      if(kws.length){
-        const hay = (it.s + ' ' + it.c + ' ' + it.src + ' ' + it.t + ' ' + it.orig + ' ' + it.note).toLowerCase();
-        if(!kws.some(k => hay.includes(k))) return;
-      }
-      if(fp.has(_tqNorm(it.s + '|' + it.c))) return;   /* 与本地内容重复（历史镜像卡） */
-      if(stSet.size){
-        const st = state[it.subj] || {};
-        const v = st[it.id];
-        const isUnt = v === undefined || v === null;
-        let hit = stSet.has('unt') && isUnt;
-        for(let lv = 1; lv <= 5; lv++){ if(stSet.has('lv' + lv) && v === lv) hit = true; }
-        if(!hit) return;
-      }
-      if(dsT || deT){
-        const lrI = (lastRes[it.subj] || {})[it.id], bmI = (browseMeta[it.subj] || {})[it.id];
-        const ts = Math.max((lrI && lrI.ts) || 0, (bmI && bmI.lastBrowse) || 0);
-        if(!ts) return;
-        if(dsT && ts < dsT) return;
-        if(deT && ts > deT) return;
-      }
-      if(bsSel.size){
-        const bmI = (browseMeta[it.subj] || {})[it.id];
-        const isBrowsed = bmI ? !!bmI.browsed : false;
-        if(!((bsSel.has('browsed') && isBrowsed) || (bsSel.has('unbrowsed') && !isBrowsed))) return;
-      }
-      fp.add(_tqNorm(it.s + '|' + it.c));   /* 云端结果内部去重 */
-      _tqCloudCards.set(it.id, it);
-      cloudIds.push(it.id);
-    });
-    return { ids: localIds.concat(cloudIds), cloudN: cloudIds.length };
-  }catch(e){
-    _tqCloudErr = (e && e.message) || String(e);
-    console.warn('tqCloud 查询失败，降级本地:', e);
-    return { ids: localIds, cloudN: 0 };
-  }
-}
-/* 异步防抖刷新匹配数（本地结果立即占位，云端到货后补差） */
-function refreshTqCountAsync(){
-  $('tqCount').textContent = topicQuery().length + ' 张（云端查询中…）';
-  if(_tqCountTimer) clearTimeout(_tqCountTimer);
-  _tqCountTimer = setTimeout(async () => {
-    const r = await topicQueryFull();
-    _tqLastFull = r.ids;
-    let txt = r.ids.length + ' 张卡片';
-    if(r.cloudN) txt += '（含云端 ' + r.cloudN + ' 张）';
-    if(_tqCloudErr) txt += ' · ⚠️云端失败已降级本地';
-    $('tqCount').textContent = txt;
-  }, 350);
-}
-/* 弹窗按钮消费的最终结果：优先最近一次合并结果（保证与显示的匹配数一致） */
-function topicQueryResult(){ return (_tqLastFull && _tqLastFull.length) ? _tqLastFull : topicQuery(); }
-/* 云端查到的卡在训练/存库前落入本地内存池（状态随档云同步；量小可控） */
-function ensureCloudCardsLocal(ids){
-  let need = false;
-  (ids||[]).forEach(id => {
-    const it = _tqCloudCards.get(id);
-    if(!it || subjectOfId(id)) return;
-    const store = ensureSubjectStore(it.subj);
-    if(!store.items.some(x => x.id === id)){
-      store.items.push({id: id, s: it.s, c: it.c, t: it.t, src: it.src, orig: it.orig, link: it.link, no: '', note: it.note});
-      need = true;
-    }
-  });
-  if(need){ rebuildSubjects(); savePerson(); }
-  return need;
-}
-/* 云端 distinct 出处（复用 _tqCloudRows 缓存，无额外请求） */
-async function ensureCloudSrcs(){
-  if(_tqCloudSrcs) return _tqCloudSrcs;
-  try{
-    const rows = await ensureCloudRows();
-    const set = new Set();
-    (rows||[]).forEach(r => { if(r && r.src) set.add(r.src); });
-    _tqCloudSrcs = [...set].sort();
-  }catch(e){ console.warn('云端出处拉取失败:', e); _tqCloudSrcs = null; }   /* 失败不缓存，下次打开重试（行缓存有 TTL） */
-  return _tqCloudSrcs || [];
-}
 /* ---------- 浏览历史（今日已学点击） ---------- */
 function relTime(ts){
   const diff = Date.now() - ts;
@@ -5429,7 +5293,7 @@ function openTopicTrain(){
   updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn(); updateTqStatusBtn();
   refreshTqTopic();
   refreshSrcFilterList();
-  refreshTqCountAsync();
+  refreshTqCount();
   const h2 = document.querySelector('#topicModal h2 span:first-child');
   if(h2) h2.textContent = '🎯 专题练 · 综合查询';
   $('topicModal').classList.add('show');
@@ -5443,15 +5307,14 @@ function openCrossTopicTrain(){
   updateTqSubjBtn(); updateTqTopicBtn(); updateTqSrcBtn(); updateTqStatusBtn();
   refreshTqTopic();
   refreshSrcFilterList();
-  refreshTqCountAsync();
+  refreshTqCount();
   const h2 = document.querySelector('#topicModal h2 span:first-child');
   if(h2) h2.textContent = '🎯 跨科专题练 · 综合查询（默认全选）';
   $('topicModal').classList.add('show');
 }
 function startTopicTrain(){
-  const ids = topicQueryResult();
+  const ids = topicQuery();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
-  ensureCloudCardsLocal(ids);   /* 方案B：云端卡先入本地池（状态随档云同步），训练渲染照常 */
   queue = ids.slice();
   pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
   browseMode = false;
@@ -5465,7 +5328,7 @@ function startTopicTrain(){
   toast('专题练开始：' + ids.length + ' 张卡片');
 }
 function previewTopicList(){
-  const ids = topicQueryResult();
+  const ids = topicQuery();
   if(!ids.length){ toast('没有匹配的卡片'); return; }
   const names = {1:'完全不记得',2:'勉强记得一点',3:'记得一半左右',4:'记得大部分',5:'完全记住'};
   const lines = ids.slice(0, 12).map(id => { const it = itemById(id); const sn = subjectOfId(id) || cur; const stx = state[sn] || {}; return (it ? (it.t||'未分类') + '｜' + (it.s||'').slice(0, 24) + '…' : id) + '（' + (names[stx[id]] || '未测') + '）'; });
@@ -5474,7 +5337,7 @@ function previewTopicList(){
 /* 专题练查询结果导出 xlsx（含卡片全部字段 + 训练状态/最近答题/最近浏览/审核标记） */
 function tqExport(){
   try{
-    const ids = topicQueryResult();
+    const ids = topicQuery();
     if(!ids.length){ toast('没有匹配的卡片，无可导出'); return; }
     const stNames = {1:'完全不记得',2:'勉强记得一点',3:'记得一半左右',4:'记得大部分',5:'完全记住'};
     const fmtTs = ts => {
@@ -5795,9 +5658,9 @@ $('tqSubjBtn').addEventListener('click', e => { e.stopPropagation(); openTqSubjP
 $('tqTopicBtn').addEventListener('click', e => { e.stopPropagation(); openTqTopicPop(); });
 $('tqSrcBtn').addEventListener('click', e => { e.stopPropagation(); openTqSrcPop(); });
 $('tqStatusBtn').addEventListener('click', e => { e.stopPropagation(); openTqStatusPop(); });
-['tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCountAsync));
-$('tqKeyword').addEventListener('input', refreshTqCountAsync);
-$('tqBrowseStatus').addEventListener('change', refreshTqCountAsync);
+['tqDateStart','tqDateEnd'].forEach(id => $(id).addEventListener('change', refreshTqCount));
+$('tqKeyword').addEventListener('input', refreshTqCount);
+$('tqBrowseStatus').addEventListener('change', refreshTqCount);
   $('tqStart').addEventListener('click', saveQueryToLibAndOpen);
   $('tqPreview').addEventListener('click', previewTopicList);
   $('tqExportXlsx').addEventListener('click', tqExport);
