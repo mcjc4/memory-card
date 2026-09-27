@@ -1430,10 +1430,19 @@ function loadPhySeed(cb){
 function applyCloudSubjectsFromCacheOrSeed(){
   const rerender = () => { rebuildSubjects(); refreshToday(); updateStats(); renderTrainLibBanner(); };
   const useSeed = () => {
-    if(window.__PHY_SEED__ && cloudDataUnavailable()){
-      Object.keys(window.__PHY_SEED__).forEach(k => { CLOUD_SUBJ[k] = window.__PHY_SEED__[k]; });
-      rerender(); clearCloudSubjBanner();
-    }
+    if(!window.__PHY_SEED__ || !cloudDataUnavailable()) return;
+    const rows = [];
+    Object.keys(window.__PHY_SEED__).forEach(k => {
+      const def = window.__PHY_SEED__[k];
+      CLOUD_SUBJ[k] = def;
+      (def.items || []).forEach(it => rows.push({ card_id: it.id, subject: k, chapter: it.t || '', signal: it.s || '',
+        conclusion: it.c || '', src: it.src || '', orig: it.orig || '', link: it.link || '', note: it.note || '' }));
+    });
+    /* 骨料同样落本地缓存：让 Vercel / GitHub Pages 这类拿不到云端的源第二次打开秒开，不再重下 2MB。
+       它只是缓存 —— 云端一旦可达，就会被真实数据整表覆盖。 */
+    try{ localStorage.setItem(CLOUD_SUBJ_CACHE_KEY, JSON.stringify({ v: 2, at: Date.now(), rows: rows })); }catch(e){}
+    CLOUD_SUBJ_ROWS = null;   /* 只含物理，别当全量复用 */
+    rerender(); clearCloudSubjBanner();
   };
   if(loadCloudSubjectsFromCache()){ rerender(); clearCloudSubjBanner(); return; }
   if(window.__PHY_SEED_DONE__){ useSeed(); return; }
