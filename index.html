@@ -1427,34 +1427,38 @@ function loadPhySeed(cb){
   };
   document.head.appendChild(s);
 }
+/* 把骨料合入 CLOUD_SUBJ，并落本地缓存 —— 只在真的拿不到云端时才调用 */
+function usePhySeed(){
+  if(!window.__PHY_SEED__ || !cloudDataUnavailable()) return false;
+  const rows = [];
+  Object.keys(window.__PHY_SEED__).forEach(k => {
+    const def = window.__PHY_SEED__[k];
+    CLOUD_SUBJ[k] = def;
+    (def.items || []).forEach(it => rows.push({ card_id: it.id, subject: k, chapter: it.t || '', signal: it.s || '',
+      conclusion: it.c || '', src: it.src || '', orig: it.orig || '', link: it.link || '', note: it.note || '' }));
+  });
+  /* 骨料同样落本地缓存：让 Vercel / GitHub Pages 这类拿不到云端的源第二次打开秒开，不再重下 2MB。
+     它只是缓存 —— 云端一旦可达，就会被真实数据整表覆盖。 */
+  try{ localStorage.setItem(CLOUD_SUBJ_CACHE_KEY, JSON.stringify({ v: 2, at: Date.now(), rows: rows })); }catch(e){}
+  CLOUD_SUBJ_ROWS = null;   /* 只含物理，别当全量复用 */
+  return true;
+}
+function cardLibRerender(){ rebuildSubjects(); refreshToday(); updateStats(); renderTrainLibBanner(); }
+/* 无缓存时的启动路径：源本来就不在白名单 → 立刻落骨料；
+   源在可用名单 → 不下骨料，交给 bootstrapCloudSubjects 的结果决定（失败才兜底）。 */
 function applyCloudSubjectsFromCacheOrSeed(){
-  const rerender = () => { rebuildSubjects(); refreshToday(); updateStats(); renderTrainLibBanner(); };
-  const useSeed = () => {
-    if(!window.__PHY_SEED__ || !cloudDataUnavailable()) return;
-    const rows = [];
-    Object.keys(window.__PHY_SEED__).forEach(k => {
-      const def = window.__PHY_SEED__[k];
-      CLOUD_SUBJ[k] = def;
-      (def.items || []).forEach(it => rows.push({ card_id: it.id, subject: k, chapter: it.t || '', signal: it.s || '',
-        conclusion: it.c || '', src: it.src || '', orig: it.orig || '', link: it.link || '', note: it.note || '' }));
-    });
-    /* 骨料同样落本地缓存：让 Vercel / GitHub Pages 这类拿不到云端的源第二次打开秒开，不再重下 2MB。
-       它只是缓存 —— 云端一旦可达，就会被真实数据整表覆盖。 */
-    try{ localStorage.setItem(CLOUD_SUBJ_CACHE_KEY, JSON.stringify({ v: 2, at: Date.now(), rows: rows })); }catch(e){}
-    CLOUD_SUBJ_ROWS = null;   /* 只含物理，别当全量复用 */
-    rerender(); clearCloudSubjBanner();
-  };
-  if(loadCloudSubjectsFromCache()){ rerender(); clearCloudSubjBanner(); return; }
-  if(window.__PHY_SEED_DONE__){ useSeed(); return; }
-  /* 该源本就不在云端白名单（如 GitHub Pages 的 github.io）→ 立刻落骨料，不用白等 */
-  if(!wbCloudUsable()){ loadPhySeed(useSeed); markCloudSubjOffline(); return; }
-  /* 云端可用但还没到货：给 4s 窗口（正常 1~2s），超时才落骨料 —— 避免正常路径白下 2MB */
-  if(window.__PHY_SEED_TIMER__) clearTimeout(window.__PHY_SEED_TIMER__);
-  window.__PHY_SEED_TIMER__ = setTimeout(() => {
-    window.__PHY_SEED_TIMER__ = null;
-    if(!cloudDataUnavailable()) return;
-    loadPhySeed(useSeed);
-  }, 4000);
+  if(loadCloudSubjectsFromCache()){ cardLibRerender(); clearCloudSubjBanner(); return; }
+  if(window.__PHY_SEED_DONE__){ if(usePhySeed()){ cardLibRerender(); clearCloudSubjBanner(); } return; }
+  if(!wbCloudUsable()){
+    loadPhySeed(() => { if(usePhySeed()){ cardLibRerender(); clearCloudSubjBanner(); } });
+    markCloudSubjOffline();
+  }
+}
+/* 云端的两种失败（SDK 不可用 / 抓取报错、返回空）统一走这里：有缓存或骨料就只清告警，都没有才真报警 */
+function handleCardLibFailure(){
+  if(!cloudDataUnavailable()){ clearCloudSubjBanner(); return; }
+  loadPhySeed(() => { if(usePhySeed()) cardLibRerender(); });
+  markCloudSubjOffline();
 }
 /* 云端物化主干：先吃缓存（秒开）→ 云端到货重建并回写缓存 → 都拿不到才落骨料 */
 function waitWbCloudReady(ms){
@@ -1469,18 +1473,18 @@ function waitWbCloudReady(ms){
 }
 async function bootstrapCloudSubjects(){
   applyCloudSubjectsFromCacheOrSeed();
-  if(!wbCloudReady() || !wbCloudUsable()){ if(!wbCloudUsable() || !await waitWbCloudReady(12000)){ markCloudSubjOffline(); return; } }
+  if(!wbCloudUsable()) return;                                  /* 源不在白名单：已走骨料路径 */
+  if(!wbCloudReady() && !await waitWbCloudReady(12000)){ handleCardLibFailure(); return; }
   try{
     const rows = await sbSelectPaged(CARDS_TABLE,
       'select=card_id,subject,chapter,signal,conclusion,src,orig,link,note&order=card_id', 'card_id');
     if(rows && rows.length){
-      if(window.__PHY_SEED_TIMER__){ clearTimeout(window.__PHY_SEED_TIMER__); window.__PHY_SEED_TIMER__ = null; }
       applyCloudSubjects(rows, true);
-      rebuildSubjects(); refreshToday(); updateStats(); renderTrainLibBanner();
+      cardLibRerender();
       try{ refreshTqCountAsync(); }catch(e){}
       clearCloudSubjBanner();
-    } else { markCloudSubjOffline(); }
-  }catch(e){ console.warn('云端卡库抓取失败，沿用缓存/骨料:', e); markCloudSubjOffline(); }
+    } else { handleCardLibFailure(); }
+  }catch(e){ console.warn('云端卡库抓取失败，沿用缓存/骨料:', e); handleCardLibFailure(); }
 }
 let ALL_SUBJECTS = {};   /* 由 rebuildSubjects 合并填充 */
 let SUBJ_NAMES = [];
