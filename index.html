@@ -1408,30 +1408,43 @@ function loadCloudSubjectsFromCache(){
 }
 /* 骨料兜底：仅当云端不可达/抓取失败 且 本地无缓存时，异步加载外置 phy-seed.js
    （2MB，落在单文件 HTML 之外，不进首屏关键路径；GitHub Pages 等无代理源靠它保底） */
+function cloudDataUnavailable(){ return !(CLOUD_SUBJ['物理'] && CLOUD_SUBJ['物理'].items.length); }
 function loadPhySeed(cb){
-  if(window.__PHY_SEED__){ cb && cb(); return; }
+  if(window.__PHY_SEED__){ window.__PHY_SEED_DONE__ = true; cb && cb(); return; }
   if(window.__PHY_SEED_PENDING__){ window.__PHY_SEED_PENDING__.push(cb); return; }
   window.__PHY_SEED_PENDING__ = cb ? [cb] : [];
   const s = document.createElement('script');
   s.src = 'phy-seed.js';
-  s.onload = () => { const q = window.__PHY_SEED_PENDING__ || []; window.__PHY_SEED_PENDING__ = null; q.forEach(f => { try{ f(); }catch(e){} }); };
-  s.onerror = () => { window.__PHY_SEED_PENDING__ = null; console.warn('phy-seed.js 未加载（单文件分发场景可忽略）'); };
+  s.onload = () => {
+    window.__PHY_SEED_DONE__ = true;
+    const q = window.__PHY_SEED_PENDING__ || []; window.__PHY_SEED_PENDING__ = null;
+    q.forEach(f => { try{ f(); }catch(e){} });
+  };
+  s.onerror = () => {
+    window.__PHY_SEED_PENDING__ = null;
+    console.warn('phy-seed.js 未加载（单文件分发场景可忽略）');
+    markCloudSubjOffline();   /* 骨料也没了 → 此时才该报警 */
+  };
   document.head.appendChild(s);
 }
 function applyCloudSubjectsFromCacheOrSeed(){
   const rerender = () => { rebuildSubjects(); refreshToday(); updateStats(); renderTrainLibBanner(); };
-  if(loadCloudSubjectsFromCache()){ rerender(); return; }
-  /* 无缓存：先给云端一个窗口（正常 1~2s 到货），超时仍未到货才落骨料 —— 避免正常路径白下 2MB */
+  const useSeed = () => {
+    if(window.__PHY_SEED__ && cloudDataUnavailable()){
+      Object.keys(window.__PHY_SEED__).forEach(k => { CLOUD_SUBJ[k] = window.__PHY_SEED__[k]; });
+      rerender(); clearCloudSubjBanner();
+    }
+  };
+  if(loadCloudSubjectsFromCache()){ rerender(); clearCloudSubjBanner(); return; }
+  if(window.__PHY_SEED_DONE__){ useSeed(); return; }
+  /* 该源本就不在云端白名单（如 GitHub Pages 的 github.io）→ 立刻落骨料，不用白等 */
+  if(!wbCloudUsable()){ loadPhySeed(useSeed); markCloudSubjOffline(); return; }
+  /* 云端可用但还没到货：给 4s 窗口（正常 1~2s），超时才落骨料 —— 避免正常路径白下 2MB */
   if(window.__PHY_SEED_TIMER__) clearTimeout(window.__PHY_SEED_TIMER__);
   window.__PHY_SEED_TIMER__ = setTimeout(() => {
     window.__PHY_SEED_TIMER__ = null;
-    if(CLOUD_SUBJ['物理'] && CLOUD_SUBJ['物理'].items.length) return;
-    loadPhySeed(() => {
-      if(window.__PHY_SEED__ && !(CLOUD_SUBJ['物理'] && CLOUD_SUBJ['物理'].items.length)){
-        Object.keys(window.__PHY_SEED__).forEach(k => { CLOUD_SUBJ[k] = window.__PHY_SEED__[k]; });
-        rerender(); clearCloudSubjBanner();
-      }
-    });
+    if(!cloudDataUnavailable()) return;
+    loadPhySeed(useSeed);
   }, 4000);
 }
 /* 云端物化主干：先吃缓存（秒开）→ 云端到货重建并回写缓存 → 都拿不到才落骨料 */
@@ -1447,7 +1460,7 @@ function waitWbCloudReady(ms){
 }
 async function bootstrapCloudSubjects(){
   applyCloudSubjectsFromCacheOrSeed();
-  if(!wbCloudReady()){ if(!await waitWbCloudReady(12000)){ markCloudSubjOffline(); return; } }
+  if(!wbCloudReady() || !wbCloudUsable()){ if(!wbCloudUsable() || !await waitWbCloudReady(12000)){ markCloudSubjOffline(); return; } }
   try{
     const rows = await sbSelectPaged(CARDS_TABLE,
       'select=card_id,subject,chapter,signal,conclusion,src,orig,link,note&order=card_id', 'card_id');
@@ -5286,8 +5299,8 @@ async function deletePracticeSession(rid){
 function markCloudSubjOffline(){
   renderTrainLibBanner();
   const b = $('cloudSrcBanner'); if(!b) return;
-  const have = (CLOUD_SUBJ['物理'] && CLOUD_SUBJ['物理'].items.length) || 0;
-  if(have){ clearCloudSubjBanner(); return; }
+  if(!cloudDataUnavailable()){ clearCloudSubjBanner(); return; }
+  if(window.__PHY_SEED_PENDING__) return;   /* 骨料在途，先别报警，等 onerror 再说 */
   b.className = 'crossBanner';
   b.innerHTML = '<span>⚠️ 卡库未取到云端数据（无网络 / 该域名未被云端放行）。当前物理库为空。</span>'
     + '<span class="bannerArrow">重试</span>';
