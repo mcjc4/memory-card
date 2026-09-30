@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>📚 训练库 · 记忆卡</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --accent:#1D5C7C; --accent-soft:#EAF2F7;
+  --lv1:#ef4444; --lv2:#f97316; --lv3:#f59e0b; --lv4:#0ea5e9; --lv5:#22c3a6; --unt:#d1d5db;
+}
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f3f4f6;color:#1f2329;min-height:100vh}
+/* ── 侧栏 ── */
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:#fff;border-right:1px solid #e5e7eb;padding:16px 12px;overflow:auto;z-index:10}
+#sidebar .logo{font-size:16px;font-weight:700;color:var(--accent);padding:4px 8px 14px;letter-spacing:.5px}
+.navGroup{margin-bottom:14px}
+.navGroupTitle{font-size:11px;color:#9ca3af;padding:6px 8px;letter-spacing:1px}
+.navItem{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;font-size:13.5px;color:#374151;cursor:pointer;user-select:none}
+.navItem:hover{background:#f3f4f6}
+.navItem.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.navItem .n{margin-left:auto;font-size:11px;background:#eef0f2;color:#6b7280;border-radius:9px;padding:1px 7px;min-width:22px;text-align:center}
+.navItem.active .n{background:var(--accent);color:#fff}
+.navFoot{position:absolute;left:12px;right:12px;bottom:14px}
+.navFoot a{display:block;text-align:center;font-size:12.5px;color:var(--accent);text-decoration:none;border:1px solid #cfe0ea;background:var(--accent-soft);border-radius:9px;padding:8px 6px}
+/* ── 主区 ── */
+#main{margin-left:220px;padding:20px 24px 70px;max-width:1200px}
+#head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+#head h1{font-size:20px;font-weight:700}
+#head .sp{flex:1}
+.sel{font-size:13px;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151}
+.btn{font-size:12.5px;padding:7px 13px;border-radius:9px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;font-weight:600;font-family:inherit}
+.btn:hover{background:#f9fafb}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#174a63}
+.btn.danger{color:#b91c1c;border-color:#fecaca}
+.btn.danger:hover{background:#fef2f2}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+/* 统计卡 */
+.statsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat b{display:block;font-size:27px;line-height:1.25;font-weight:700}
+.stat span{font-size:12px;color:#6b7280}
+/* 区块 */
+.card{background:#fff;border-radius:14px;padding:15px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px}
+.card > h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.card > h2 .cnt{font-size:12px;font-weight:600;color:#6b7280}
+.card > h2 .sp{flex:1}
+.hint{font-size:12px;color:#9ca3af;line-height:1.7;margin:2px 0 10px}
+/* 跨科横幅 */
+.crossBox{border:1px solid #f3d9d3;background:#FFF7F5;border-radius:11px;padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.crossBox b{font-size:13.5px;color:#B4232A}
+.crossBox .num{font-size:17px;font-weight:700;color:#B4232A}
+.crossBox .txt{font-size:12.5px;color:#6b7280}
+.crossBox .sp{flex:1}
+/* 待训练 chips */
+.chips{display:flex;flex-wrap:wrap;gap:7px;max-height:260px;overflow:auto}
+.chip{font-size:12px;background:#F5F9FF;border:1px solid #dbe7f5;border-radius:8px;padding:5px 8px;color:#0C447C;display:flex;align-items:center;gap:6px;max-width:100%}
+.chip .sig{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+.chip .ch{color:#9ca3af}
+.chip .x{cursor:pointer;color:#b91c1c;font-weight:700;padding:0 2px}
+.empty{color:#9ca3af;font-size:12.5px;padding:10px 0}
+/* 队列行 */
+.qrow{display:flex;gap:11px;padding:12px 0;border-top:1px solid #f1f3f5;align-items:flex-start}
+.qrow:first-child{border-top:none}
+.qcb{margin-top:3px;width:15px;height:15px;cursor:pointer;flex:0 0 auto}
+.qmain{flex:1;min-width:0}
+.qtitle{font-size:14.5px;font-weight:600;color:#1f2329;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:8px;padding:2px 8px}
+.badge.gray{background:#eef0f2;color:#6b7280}
+.qmeta{font-size:12px;color:#6b7280;margin-top:5px;display:flex;gap:12px;flex-wrap:wrap}
+.qbar{display:flex;height:8px;border-radius:5px;overflow:hidden;background:#eef0f2;margin-top:9px;max-width:460px}
+.qbar i{display:block;height:100%}
+.qdist{font-size:11.5px;color:#6b7280;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.qdist .dot{width:8px;height:8px;border-radius:3px;display:inline-block;margin-right:3px;vertical-align:middle}
+.qacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+/* toast */
+#toast{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(17,24,39,.93);color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:82vw;text-align:center}
+#toast.show{opacity:1}
+@media(max-width:860px){
+  #sidebar{position:static;width:auto;border-right:none;border-bottom:1px solid #e5e7eb}
+  #main{margin-left:0;padding:14px 14px 60px}
+  .navFoot{display:none}
+}
+</style>
+</head>
+<body>
+<aside id="sidebar">
+  <div class="logo">📚 训练库</div>
+  <div class="navGroup">
+    <div class="navGroupTitle">训练库</div>
+    <div class="navItem active" data-sec="secCross">🔁 跨科重练<span class="n" id="nvCross">–</span></div>
+    <div class="navItem" data-sec="secQueued">🏷 待训练卡<span class="n" id="nvQueued">–</span></div>
+    <div class="navItem" data-sec="secCw">📖 课件队列<span class="n" id="nvCw">–</span></div>
+    <div class="navItem" data-sec="secLib">🗂 记忆卡队列<span class="n" id="nvLib">–</span></div>
+  </div>
+  <div class="navFoot"><a href="index.html">← 返回记忆卡</a></div>
+</aside>
+
+<main id="main">
+  <div id="originWarn" style="display:none;background:#FEF3C7;border:1px solid #fde68a;color:#B45309;border-radius:11px;padding:10px 14px;font-size:12.5px;line-height:1.7;margin-bottom:14px"></div>
+  <div id="head">
+    <h1>📚 训练库 · 待训练卡聚合</h1>
+    <div class="sp"></div>
+    <select id="personSel" class="sel" title="切换执行人"></select>
+    <button class="btn" id="btnRefresh">⟳ 刷新</button>
+  </div>
+
+  <div class="statsGrid">
+    <div class="stat"><b id="stQueue">–</b><span>专题队列总数</span></div>
+    <div class="stat"><b id="stQueued" style="color:#0C447C">–</b><span>🏷 待训练卡</span></div>
+    <div class="stat"><b id="stCross" style="color:#B4232A">–</b><span>🔁 跨科待重练</span></div>
+    <div class="stat"><b id="stCards">–</b><span>队列卡片总张数</span></div>
+  </div>
+
+  <section class="card" id="secCross">
+    <h2>🔁 跨科重练<span class="cnt" id="crossCnt"></span><span class="sp"></span></h2>
+    <div class="hint">汇总所有科目里记忆程度 1~4（未完全掌握）的卡片，按最早标记优先出队。</div>
+    <div class="crossBox">
+      <b>🔁 待重练</b><span class="num" id="crossNum">–</span><span class="txt" id="crossTxt">读取中…</span>
+      <span class="sp"></span>
+      <button class="btn primary" id="btnCross">▶ 开始跨科重练</button>
+    </div>
+  </section>
+
+  <section class="card" id="secQueued">
+    <h2>🏷 待训练卡<span class="cnt" id="queuedCnt"></span><span class="sp"></span>
+      <button class="btn primary" id="btnQueuedStart" style="background:#7C3AED;border-color:#7C3AED">🎯 开始待训练</button>
+      <button class="btn" id="btnQueuedSave">💾 存入训练库</button>
+    </h2>
+    <div class="hint">聚合所有带「待训练」标签的云端记忆卡（作业批改报告点「➕ 加入训练」即打标）。✕ 可移除打标；「💾 存入训练库」把这批卡标签改为「已入训练队列」并生成一个队列。</div>
+    <div class="chips" id="queuedList"><div class="empty">读取中…</div></div>
+  </section>
+
+  <section class="card" id="secCw">
+    <h2>📖 课件队列<span class="cnt" id="cwCnt"></span><span class="sp"></span>
+      <button class="btn" id="btnMergeCw">🔗 融合选中</button>
+    </h2>
+    <div class="hint">来自解题课件门户「加入训练库」的队列（courseware-portal）。开始训练会跳回记忆卡并直接打开第一个课件，由课件页底部导航串联。</div>
+    <div id="cwList"><div class="empty">读取中…</div></div>
+  </section>
+
+  <section class="card" id="secLib">
+    <h2>🗂 记忆卡队列<span class="cnt" id="libCnt"></span><span class="sp"></span>
+      <button class="btn" id="btnMergeLib">🔗 融合选中</button>
+    </h2>
+    <div class="hint">记忆卡自身产生的队列（专题练 / 作业批改 / 跨科融合）。勾选多个后「🔗 融合选中」会把其中<strong>未完全掌握</strong>的卡去重合成一个新队列。</div>
+    <div id="libList"><div class="empty">读取中…</div></div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ===================== WorkBuddy Cloud SDK 加载（本地副本优先，CDN 兜底） ===================== */
+(function(){
+  var srcs = ['vendor/wbcloud-sdk.js',
+              'https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js',
+              'https://unpkg.com/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js'];
+  var i = 0;
+  (function next(){
+    if(typeof WorkBuddyCloud !== 'undefined'){ window.__WB_SDK_OK = true; return; }
+    if(i >= srcs.length){ window.__WB_SDK_FAIL = true; return; }
+    var s = document.createElement('script');
+    s.src = srcs[i++];
+    s.onload = function(){ if(typeof WorkBuddyCloud === 'undefined'){ next(); } else { window.__WB_SDK_OK = true; } };
+    s.onerror = function(){ next(); };
+    (document.head || document.documentElement).appendChild(s);
+  })();
+})();
+</script>
+
+<script>
+/* ===================== 基础工具 ===================== */
+function $(id){ return document.getElementById(id); }
+function loadJ(k, d){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function saveJ(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]; }); }
+var toastT = null;
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('show'); }, 2600); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtDate(iso){
+  if(!iso) return '-';
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return String(iso);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function fmtDay(ts){
+  if(!ts) return '';
+  var d = new Date(ts);
+  if(isNaN(d.getTime())) return '';
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+
+/* ===================== 云端（WB Cloud） ===================== */
+var CARDS_TABLE = 'cards';
+var WB_CLOUD_CFG = {
+  endpoint: 'https://jikaka-memory.app.workbuddy.host',
+  publishableKey: 'wbpk_QuSSvKgXD7uP73LA5D5gNT_W0t84UkhE7UB0e9poO19fS9ZgJR6WlOP'
+};
+var cloudSyncEnabled = (function(){ try{ var v = localStorage.getItem('wulun_cloud_sync'); return v === null ? true : v !== '0'; }catch(e){ return true; } })();
+var _wbCloud = null, _wbCloudEp = '';
+function wbCloudViaProxy(){ try{ return /(^|\.)vercel\.app$/i.test(location.hostname); }catch(e){ return false; } }
+function wbCloudEndpoint(){ if(wbCloudViaProxy()){ try{ return location.origin + '/wbproxy'; }catch(e){} } return WB_CLOUD_CFG.endpoint; }
+function getWbCloud(){
+  var ep = wbCloudEndpoint();
+  if(_wbCloud && _wbCloudEp === ep) return _wbCloud;
+  if(typeof WorkBuddyCloud === 'undefined') throw new Error('云端 SDK 未加载（离线或被拦截）');
+  _wbCloud = WorkBuddyCloud.createWorkBuddyCloud({ endpoint: ep, publishableKey: WB_CLOUD_CFG.publishableKey });
+  _wbCloudEp = ep;
+  return _wbCloud;
+}
+function wbCloudReady(){ return cloudSyncEnabled && (typeof WorkBuddyCloud !== 'undefined') && !!WB_CLOUD_CFG.publishableKey; }
+/* supabase 风格过滤串 → cloud.database 构造器（本页只用这一小子集，与 app 内实现同源） */
+function _wbParseSelect(table, query){
+  var db = getWbCloud().database;
+  var selectCols = '*';
+  var parts = String(query || '').split('&');
+  var filters = [];
+  for(var p = 0; p < parts.length; p++){
+    var part = parts[p];
+    if(!part) continue;
+    var i = part.indexOf('=');
+    var col = part.slice(0, i), right = part.slice(i + 1);
+    if(col === 'select'){ selectCols = decodeURIComponent(right); }
+    else if(col === 'order'){ var a = right.split('.'); filters.push({t:'order', col:a[0], asc:a[1] !== 'desc'}); }
+    else if(col === 'limit'){ filters.push({t:'limit', n:parseInt(right, 10) || 1}); }
+    else {
+      var m = right.match(/^(eq|ne|gt|gte|lt|lte|like|ilike|is|in|cs|cd|ov|sl|sr|nxl|nxr|adj|nft|fts|plfts|phfts|wfts)\.(.*)$/);
+      if(m){ filters.push({t:'op', col:col, op:m[1], val:decodeURIComponent(m[2])}); }
+      else { filters.push({t:'op', col:col, op:'eq', val:decodeURIComponent(right)}); }
+    }
+  }
+  var qb = db.from(table).select(selectCols);
+  for(var k = 0; k < filters.length; k++){
+    var f = filters[k];
+    if(f.t === 'order') qb = qb.order(f.col, {ascending: f.asc});
+    else if(f.t === 'limit') qb = qb.limit(f.n);
+    else if(f.op === 'in'){ var vi = f.val.replace(/^\(|\)$/g,'').split(',').map(function(x){ return decodeURIComponent(x); }); qb = qb.in(f.col, vi); }
+    else if(f.op === 'cs' || f.op === 'cd' || f.op === 'ov'){ var vc = f.val; try{ vc = JSON.parse(vc); }catch(e){} qb = qb.contains(f.col, vc); }
+    else if(f.op === 'eq') qb = qb.eq(f.col, f.val);
+    else if(f.op === 'ne') qb = qb.neq(f.col, f.val);
+    else if(f.op === 'gt') qb = qb.gt(f.col, f.val);
+    else if(f.op === 'gte') qb = qb.gte(f.col, f.val);
+    else if(f.op === 'lt') qb = qb.lt(f.col, f.val);
+    else if(f.op === 'lte') qb = qb.lte(f.col, f.val);
+    else if(f.op === 'like') qb = qb.like(f.col, f.val);
+    else if(f.op === 'ilike') qb = qb.ilike(f.col, f.val);
+    else if(f.op === 'is') qb = qb.is(f.col, f.val);
+    else qb = qb.filter(f.col, f.op, f.val);
+  }
+  return qb;
+}
+async function sbSelect(table, query){
+  var r = await _wbParseSelect(table, query);
+  if(r.error) throw new Error('WB.sel ' + table + ': ' + (r.error.message || r.error.code || r.error));
+  return r.data || [];
+}
+async function sbSelectPaged(table, baseQuery, pkCol){
+  var out = [], cursor = null;
+  for(var page = 0; page < 80; page++){
+    var q = baseQuery + '&limit=1000';
+    if(cursor != null) q += '&' + pkCol + '=gt.' + encodeURIComponent(cursor);
+    var rows = await sbSelect(table, q);
+    if(!Array.isArray(rows) || !rows.length) break;
+    out = out.concat(rows);
+    if(rows.length < 1000) break;
+    var last = rows[rows.length - 1] || {};
+    cursor = last[pkCol];
+    if(cursor === undefined || cursor === null || cursor === '') break;
+  }
+  return out;
+}
+async function sbInsert(table, rows){
+  var r = await getWbCloud().database.from(table).insert(rows).select();
+  if(r.error) throw new Error('WB.ins ' + table + ': ' + (r.error.message || r.error.code || r.error));
+  return r.data || [];
+}
+async function sbUpdate(table, patch, query){
+  var db = getWbCloud().database;
+  var qb = db.from(table).update(patch);
+  var i = query.indexOf('='), col = query.slice(0, i), right = query.slice(i + 1);
+  var m = right.match(/^(eq|ne|gt|gte|lt|lte|like|ilike|is|in|cs|cd|ov)\.(.*)$/);
+  if(m){
+    var op = m[1], v = decodeURIComponent(m[2]);
+    if(op === 'eq') qb = qb.eq(col, v);
+    else if(op === 'in'){ v = v.replace(/^\(|\)$/g,'').split(',').map(function(x){ return decodeURIComponent(x); }); qb = qb.in(col, v); }
+    else if(op === 'cs' || op === 'cd' || op === 'ov'){ try{ v = JSON.parse(v); }catch(e){} qb = qb.contains(col, v); }
+    else qb = qb.filter(col, op, v);
+  } else qb = qb.eq(col, decodeURIComponent(right));
+  var r = await qb.select();
+  if(r.error) throw new Error('WB.upd ' + table + ': ' + (r.error.message || r.error.code || r.error));
+  return r.data || [];
+}
+async function sbDelete(table, col, val){
+  var r = await getWbCloud().database.from(table).delete().eq(col, val);
+  if(r.error) throw new Error('WB.del ' + table + ': ' + (r.error.message || r.error.code || r.error));
+}
+/* 与 app 内 wbCloudOriginOk 同源：WB Cloud 有 Origin 白名单，非白名单域（如 github.io）直连会被拒。
+   本页仍在这些域上打开时给出明确提示，而不是只报「读取失败」。 */
+function originWhitelisted(){
+  try{
+    if(location.protocol === 'file:') return true;
+    if(/(^|\.)app\.workbuddy\.host$/i.test(location.hostname)) return true;
+    if(/(^|\.)vercel\.app$/i.test(location.hostname)) return true;   /* 走同源 /wbproxy 代理 */
+    if(/^(localhost|127\.0\.0\.1|\[::1\])$/i.test(location.hostname)) return true;
+    return false;
+  }catch(e){ return true; }
+}
+function paintOriginWarn(){
+  var el = $('originWarn'); if(!el) return;
+  if(originWhitelisted()){ el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = '⚠️ 当前域名 <b>' + esc(location.hostname) + '</b> 不在云端白名单里，队列数据读不到。'
+    + '请改用 <a href="https://jikaka-memory.app.workbuddy.host/library.html" style="color:#B45309">jikaka-memory.app.workbuddy.host/library.html</a>'
+    + '（或 Vercel 域名）访问；本机预览请用 localhost / 127.0.0.1。';
+}
+function waitCloud(){
+  /* 轮询等 SDK 就绪（与 app 内 initCloudWhenSdkReady 同思路），最长 15s */
+  return new Promise(function(resolve){
+    var n = 0;
+    var t = setInterval(function(){
+      if(wbCloudReady()){ clearInterval(t); resolve(true); return; }
+      if(window.__WB_SDK_FAIL || ++n >= 60){ clearInterval(t); resolve(false); }
+    }, 250);
+  });
+}
+
+/* ===================== 本地数据（只读，不写，避免与 app 互相覆盖） ===================== */
+var PERSON_KEY = 'wulun_person_v2', ACTIVE_KEY = 'wulun_active_person';
+var CARDS_IMPORTED_KEY = 'wulun_cards_imported', CARDS_CUSTOM_KEY = 'wulun_cards_custom';
+var PERSONS = [{name:'陈昕言', key:'chenxinyan'}, {name:'陈梓涵', key:'chenzihan'}];
+var LEVEL_COLOR = {1:'#ef4444', 2:'#f97316', 3:'#f59e0b', 4:'#0ea5e9', 5:'#22c3a6'};
+var LEVEL_NAME = {1:'完全不记得', 2:'勉强记得一点', 3:'记得一半左右', 4:'记得大部分', 5:'完全记住'};
+var UNT_COLOR = '#d1d5db';
+var WEAK_MAX = 4;
+
+var personKey = loadJ(ACTIVE_KEY, PERSONS[0].key);
+var STORE = loadJ(PERSON_KEY, {});
+var CARD_INDEX = new Map();   /* id → {subj, t, s, c} */
+var STATE_FLAT = new Map();   /* id → 1..5 */
+var META_FLAT = new Map();    /* id → {browsed, lastBrowse} */
+var HIST_COUNT = new Map();   /* id → 练习次数 */
+
+function personData(){ if(!STORE[personKey]) STORE[personKey] = {}; return STORE[personKey]; }
+function isWeak(v){ return v !== undefined && v !== null && v >= 1 && v <= WEAK_MAX; }
+
+function buildLocalIndex(){
+  CARD_INDEX.clear(); STATE_FLAT.clear(); META_FLAT.clear(); HIST_COUNT.clear();
+  var decks = [loadJ(CARDS_IMPORTED_KEY, {}), loadJ(CARDS_CUSTOM_KEY, {})];
+  decks.forEach(function(d){
+    if(!d || typeof d !== 'object') return;
+    Object.keys(d).forEach(function(subj){
+      var lib = d[subj];
+      var items = (lib && Array.isArray(lib.items)) ? lib.items : [];
+      items.forEach(function(it){
+        if(!it || it.id == null) return;
+        var id = String(it.id);
+        if(!CARD_INDEX.has(id)) CARD_INDEX.set(id, {subj: subj, t: it.t || '', s: it.s || '', c: it.c || ''});
+      });
+    });
+  });
+  var d0 = personData();
+  var st = d0.state || {};
+  Object.keys(st).forEach(function(subj){
+    var m = st[subj]; if(!m || typeof m !== 'object') return;
+    Object.keys(m).forEach(function(id){ if(STATE_FLAT.get(id) === undefined) STATE_FLAT.set(id, m[id]); });
+  });
+  var bm = d0.browseMeta || {};
+  Object.keys(bm).forEach(function(subj){
+    var m = bm[subj]; if(!m || typeof m !== 'object') return;
+    Object.keys(m).forEach(function(id){
+      var v = m[id]; if(!v) return;
+      if(META_FLAT.get(id) === undefined) META_FLAT.set(id, {browsed: !!v.browsed, lastBrowse: v.lastBrowse || 0});
+    });
+  });
+  var bh = d0.browseHistory || [];
+  bh.forEach(function(e){
+    if(!e || e.id == null) return;
+    var id = String(e.id);
+    HIST_COUNT.set(id, (HIST_COUNT.get(id) || 0) + 1);
+    var mt = META_FLAT.get(id);
+    if(!mt){ mt = {browsed:false, lastBrowse:0}; META_FLAT.set(id, mt); }
+    if(e.ts && e.ts > mt.lastBrowse) mt.lastBrowse = e.ts;
+  });
+}
+function subjectOf(id){
+  var it = CARD_INDEX.get(String(id));
+  if(it && it.subj) return it.subj;
+  var s = String(id || '');
+  if(s.indexOf('_') > 0) return s.split('_')[0];
+  return '';
+}
+function chapterOf(id){
+  var it = CARD_INDEX.get(String(id));
+  return it ? (it.t || '') : '';
+}
+function crossRetryCount(){
+  var n = 0;
+  STATE_FLAT.forEach(function(v){ if(isWeak(v)) n++; });
+  return n;
+}
+function distOf(ids){
+  var d = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0};
+  (ids || []).forEach(function(id){
+    var v = STATE_FLAT.get(String(id));
+    var k = (v == null) ? 0 : ((v >= 1 && v <= 5) ? v : 0);
+    d[k]++;
+  });
+  return d;
+}
+
+/* ===================== 页面状态 ===================== */
+var SESSIONS = [];
+var QUEUED_ROWS = [];
+var CLOUD_CARDS = new Map();   /* card_id → {subject, chapter, signal} */
+
+function queueIds(s){
+  return (Array.isArray(s.card_ids) ? s.card_ids : []).concat(Array.isArray(s.new_card_ids) ? s.new_card_ids : []);
+}
+function isCwQueue(s){
+  if(s && s.source === 'courseware-portal') return true;
+  var ids = queueIds(s);
+  return ids.length > 0 && ids.every(function(id){ return /^course_\d+_/.test(String(id)); });
+}
+function practiceCount(ids){
+  var n = 0;
+  (ids || []).forEach(function(id){ n += (HIST_COUNT.get(String(id)) || 0); });
+  return n;
+}
+function lastBrowseOf(ids){
+  var mx = 0;
+  (ids || []).forEach(function(id){
+    var m = META_FLAT.get(String(id));
+    if(m && m.lastBrowse && m.lastBrowse > mx) mx = m.lastBrowse;
+  });
+  return mx;
+}
+function chaptersOf(ids){
+  var seen = [], set = new Set();
+  (ids || []).forEach(function(id){
+    var t = chapterOf(id);
+    if(!t) return;
+    var c = CLOUD_CARDS.get(String(id));
+    if(!t && c && c.chapter) t = c.chapter;
+    if(t && !set.has(t)){ set.add(t); seen.push(t); }
+  });
+  return seen;
+}
+
+/* ===================== 渲染 ===================== */
+function barHtml(d){
+  var order = [5, 4, 3, 2, 1, 0];
+  var total = 0;
+  order.forEach(function(k){ total += d[k]; });
+  if(!total) return '';
+  var seg = '';
+  order.forEach(function(k){
+    if(!d[k]) return;
+    var w = (d[k] / total * 100).toFixed(2);
+    var c = k === 0 ? UNT_COLOR : LEVEL_COLOR[k];
+    seg += '<i style="width:' + w + '%;background:' + c + '" title="' + (k === 0 ? '未练' : LEVEL_NAME[k]) + ' ' + d[k] + ' 张"></i>';
+  });
+  return '<div class="qbar">' + seg + '</div>';
+}
+function distText(d, total){
+  var done = total - d[0];
+  var parts = ['<span>已练 <b>' + done + '</b>/' + total + '</span>'];
+  [5, 4, 3, 2, 1].forEach(function(k){
+    if(!d[k]) return;
+    parts.push('<span><i class="dot" style="background:' + LEVEL_COLOR[k] + '"></i>' + LEVEL_NAME[k] + ' ' + d[k] + '</span>');
+  });
+  if(d[0]) parts.push('<span><i class="dot" style="background:' + UNT_COLOR + '"></i>未练 ' + d[0] + '</span>');
+  return '<div class="qdist">' + parts.join('') + '</div>';
+}
+function renderQueueRows(list, box, emptyMsg){
+  if(!list.length){ box.innerHTML = '<div class="empty">' + esc(emptyMsg) + '</div>'; return; }
+  box.innerHTML = '';
+  list.forEach(function(s){
+    var ids = queueIds(s);
+    var d = distOf(ids);
+    var chs = chaptersOf(ids).slice(0, 3);
+    var lb = lastBrowseOf(ids);
+    var pc = practiceCount(ids);
+    var row = document.createElement('div');
+    row.className = 'qrow';
+    row.setAttribute('data-rid', s.rid);
+    row.innerHTML =
+      '<input type="checkbox" class="qcb" data-rid="' + esc(s.rid) + '" aria-label="勾选队列">'
+      + '<div class="qmain">'
+        + '<div class="qtitle">' + esc(s.title || '(未命名)')
+          + '<span class="badge">' + ids.length + ' 张</span>'
+          + '<span class="badge gray">' + esc(s.subject || '跨科') + '</span>'
+          + '<span class="badge gray">已练 ' + pc + ' 次</span>'
+        + '</div>'
+        + '<div class="qmeta">'
+          + '<span>' + (chs.length ? '📑 ' + esc(chs.join(' · ')) : '📑 章节未知') + '</span>'
+          + '<span>' + (lb ? '🕓 最近 ' + fmtDay(lb) : '⚪ 未训练') + '</span>'
+          + '<span>🕒 ' + fmtDate(s.browsed_at || s.created_at) + '</span>'
+        + '</div>'
+        + barHtml(d)
+        + distText(d, ids.length)
+        + '<div class="qacts">'
+          + '<button class="btn primary" data-act="start" data-rid="' + esc(s.rid) + '">▶ 开始专题练</button>'
+          + '<button class="btn" data-act="rename" data-rid="' + esc(s.rid) + '" data-title="' + esc(s.title || '') + '">✎ 改名</button>'
+          + '<button class="btn danger" data-act="del" data-rid="' + esc(s.rid) + '">🗑 删除</button>'
+        + '</div>'
+      + '</div>';
+    box.appendChild(row);
+  });
+}
+function bindQueueBox(box){
+  box.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+    if(!b) return;
+    var rid = b.getAttribute('data-rid');
+    var act = b.getAttribute('data-act');
+    if(act === 'start') goTrain(rid);
+    else if(act === 'rename') renameSession(rid, b.getAttribute('data-title') || '');
+    else if(act === 'del') deleteSession(rid);
+  });
+}
+
+/* ---- 统计与三个区块 ---- */
+function renderStats(){
+  var cw = SESSIONS.filter(isCwQueue);
+  var lib = SESSIONS.filter(function(s){ return !isCwQueue(s); });
+  var cardTotal = 0;
+  SESSIONS.forEach(function(s){ cardTotal += queueIds(s).length; });
+  var cr = crossRetryCount();
+  var qn = QUEUED_ROWS.length;
+  $('stQueue').textContent = SESSIONS.length;
+  $('stQueued').textContent = qn;
+  $('stCross').textContent = cr;
+  $('stCards').textContent = cardTotal;
+  $('nvCross').textContent = cr;
+  $('nvQueued').textContent = qn;
+  $('nvCw').textContent = cw.length;
+  $('nvLib').textContent = lib.length;
+  $('crossNum').textContent = cr;
+  $('crossTxt').textContent = cr > 0 ? '张待重练（记忆程度 1~4）· 按最早标记优先出队' : '✅ 暂无待重练，全部已掌握';
+  $('btnCross').style.display = cr > 0 ? '' : 'none';
+  $('crossCnt').textContent = cr > 0 ? (cr + ' 张') : '';
+  $('queuedCnt').textContent = qn > 0 ? (qn + ' 张') : '';
+  $('cwCnt').textContent = cw.length ? (cw.length + ' 个') : '';
+  $('libCnt').textContent = lib.length ? (lib.length + ' 个') : '';
+  renderQueueRows(lib, $('libList'), wbCloudReady() ? '暂无记忆卡队列（在上方「待训练卡」点「💾 存入训练库」，或在记忆卡里做专题练后保存）' : '云端未就绪，无法读取队列');
+  renderQueueRows(cw, $('cwList'), wbCloudReady() ? '暂无课件队列（到解题课件门户勾选课件后点「加入训练库」）' : '云端未就绪，无法读取队列');
+}
+function renderQueued(){
+  var list = $('queuedList');
+  if(!QUEUED_ROWS.length){
+    list.innerHTML = '<div class="empty">' + (wbCloudReady() ? '暂无待训练卡（到作业批改报告点「➕ 加入训练」即可打标）' : '云端未就绪，无法读取') + '</div>';
+    return;
+  }
+  list.innerHTML = '';
+  QUEUED_ROWS.forEach(function(r){
+    var cid = String(r.card_id);
+    var ch = chapterOf(cid) || (CLOUD_CARDS.get(cid) && CLOUD_CARDS.get(cid).chapter) || '';
+    var sig = (r.signal || '').slice(0, 46);
+    var el = document.createElement('div');
+    el.className = 'chip';
+    el.innerHTML = '<b>' + esc(cid) + '</b>'
+      + (ch ? '<span class="ch">（' + esc(ch) + '）</span>' : '')
+      + '<span class="sig">' + esc(sig) + '</span>'
+      + '<span class="x" data-cid="' + esc(cid) + '" title="移除「待训练」打标">✕</span>';
+    list.appendChild(el);
+  });
+}
+
+/* ===================== 数据加载 ===================== */
+async function loadQueuedCards(){
+  $('queuedCnt').textContent = '读取中…';
+  $('queuedList').innerHTML = '<div class="empty">读取中…</div>';
+  if(!wbCloudReady()){ QUEUED_ROWS = []; renderQueued(); renderStats(); return; }
+  try{
+    var rows = null;
+    try{
+      rows = await sbSelect(CARDS_TABLE, 'tags=cs.' + encodeURIComponent('["待训练"]') + '&select=card_id,subject,signal,conclusion,chapter,src,updated_at&order=updated_at.desc&limit=300');
+    }catch(eCs){
+      /* WB Cloud 的 contains() 对中文 jsonb 值序列化异常 → 降级拉近期卡片前端过滤 */
+      var recent = await sbSelect(CARDS_TABLE, 'select=card_id,subject,signal,conclusion,chapter,src,updated_at,tags&order=updated_at.desc&limit=1000');
+      rows = (recent || []).filter(function(r){ return r && Array.isArray(r.tags) && r.tags.indexOf('待训练') >= 0; });
+    }
+    QUEUED_ROWS = (rows || []).slice();
+    QUEUED_ROWS.forEach(function(r){
+      if(r && r.card_id && !CLOUD_CARDS.has(String(r.card_id))){
+        CLOUD_CARDS.set(String(r.card_id), {subject: r.subject || '', chapter: r.chapter || '', signal: r.signal || ''});
+      }
+    });
+  }catch(e){
+    QUEUED_ROWS = [];
+    $('queuedList').innerHTML = '<div class="empty" style="color:#b91c1c">读取失败：' + esc(e.message || e) + '</div>';
+  }
+  renderQueued();
+}
+async function loadSessions(){
+  var libBox = $('libList'), cwBox = $('cwList');
+  libBox.innerHTML = '<div class="empty">读取中…</div>';
+  cwBox.innerHTML = '<div class="empty">读取中…</div>';
+  if(!wbCloudReady()){
+    SESSIONS = [];
+    libBox.innerHTML = '<div class="empty" style="color:#b91c1c">云端未就绪，无法读取训练库</div>';
+    cwBox.innerHTML = '<div class="empty" style="color:#b91c1c">云端未就绪，无法读取训练库</div>';
+    renderStats();
+    return;
+  }
+  try{
+    SESSIONS = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at,source&order=browsed_at.desc&limit=200');
+    /* 队列里的卡若本地卡库没有，补拉云端章节信息 */
+    var need = [];
+    SESSIONS.forEach(function(s){
+      queueIds(s).forEach(function(id){
+        var k = String(id);
+        if(!CARD_INDEX.has(k) && !CLOUD_CARDS.has(k)) need.push(k);
+      });
+    });
+    need = need.filter(function(x){ return x && x.indexOf('course_') !== 0; });
+    need = Array.from(new Set(need)).slice(0, 400);
+    if(need.length){
+      try{
+        var crows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + need.map(encodeURIComponent).join(',') + ')&select=card_id,subject,chapter,signal&limit=500');
+        (crows || []).forEach(function(r){ if(r && r.card_id) CLOUD_CARDS.set(String(r.card_id), {subject: r.subject || '', chapter: r.chapter || '', signal: r.signal || ''}); });
+      }catch(e){}
+    }
+  }catch(e){
+    SESSIONS = [];
+    libBox.innerHTML = '<div class="empty" style="color:#b91c1c">读取失败：' + esc(e.message || e) + '</div>';
+    cwBox.innerHTML = '<div class="empty" style="color:#b91c1c">读取失败：' + esc(e.message || e) + '</div>';
+  }
+  renderStats();
+}
+async function refreshAll(){
+  buildLocalIndex();
+  await waitCloud();
+  renderStats();
+  await Promise.all([loadSessions(), loadQueuedCards()]);
+  renderStats();
+}
+
+/* ===================== 操作 ===================== */
+/* 训练动作一律跳回 app 承接（训练引擎不重写，状态进度不会两边不同步） */
+function goTrain(rid){ location.href = 'index.html?train=' + encodeURIComponent(rid); }
+function goCross(){ location.href = 'index.html?cross=1'; }
+function goQueued(){ location.href = 'index.html?queue=1'; }
+
+async function renameSession(rid, cur){
+  var t = prompt('修改队列名称：', cur || '');
+  if(t === null) return;
+  var nt = (t || '').trim();
+  if(!nt){ toast('名称不能为空'); return; }
+  if(nt === cur) return;
+  try{
+    await sbUpdate('practice_sessions', {title: nt}, 'rid=eq.' + encodeURIComponent(rid));
+    toast('✅ 已改名为「' + nt + '」');
+    await loadSessions();
+  }catch(e){ toast('改名失败：' + (e.message || e)); }
+}
+async function deleteSession(rid){
+  if(!confirm('确定删除该队列记录？\n\n此操作不可撤销（只删队列记录，不删卡片本身）。')) return;
+  try{
+    await sbDelete('practice_sessions', 'rid', rid);
+    toast('已删除');
+    await loadSessions();
+  }catch(e){ toast('删除失败：' + (e.message || e)); }
+}
+function selectedRids(box){
+  var out = [];
+  box.querySelectorAll('input.qcb:checked').forEach(function(cb){ out.push(cb.getAttribute('data-rid')); });
+  return out;
+}
+async function mergeSelected(box){
+  var rids = selectedRids(box);
+  if(rids.length < 2){ toast('请先勾选 2 个及以上队列'); return; }
+  if(!wbCloudReady()){ toast('云端未就绪，无法融合'); return; }
+  var map = {};
+  SESSIONS.forEach(function(s){ map[s.rid] = s; });
+  var seen = new Set(), ids = [], srcs = new Set();
+  rids.forEach(function(rid){
+    var s = map[rid]; if(!s) return;
+    if(s.source) srcs.add(s.source);
+    queueIds(s).forEach(function(id){
+      var k = String(id);
+      if(seen.has(k)) return;
+      var v = STATE_FLAT.get(k);
+      if(v != null && v >= 5) return;   /* 只融合未完全掌握的卡 */
+      seen.add(k); ids.push(id);
+    });
+  });
+  if(!ids.length){ toast('选中的队列都已完全掌握，没有可融合的卡'); return; }
+  if(!confirm('将 ' + rids.length + ' 个队列中「未完全掌握」的卡去重合成新队列，共 ' + ids.length + ' 张。\n\n确定继续？')) return;
+  try{
+    var rid = 'mg-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
+    var ds = new Date();
+    var title = ds.getFullYear() + '-' + pad(ds.getMonth() + 1) + '-' + pad(ds.getDate()) + ' 融合队列 ' + ids.length + '张';
+    await sbInsert('practice_sessions', [{
+      rid: rid, title: title, subject: '跨科',
+      source: (srcs.size === 1 ? Array.from(srcs)[0] : 'library-merge'),
+      card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()
+    }]);
+    toast('✅ 已融合为「' + title + '」');
+    await loadSessions();
+  }catch(e){ toast('融合失败：' + (e.message || e)); }
+}
+async function removeQueuedTag(cid){
+  if(!confirm('移除该卡的「待训练」打标？\n\n' + cid)) return;
+  try{
+    var rr = await sbSelect(CARDS_TABLE, 'card_id=eq.' + encodeURIComponent(cid) + '&select=tags');
+    if(rr && rr[0]){
+      var cur = Array.isArray(rr[0].tags) ? rr[0].tags : [];
+      var nt = cur.filter(function(t){ return t !== '待训练'; });
+      await sbUpdate(CARDS_TABLE, {tags: nt, updated_at: new Date().toISOString()}, 'card_id=eq.' + encodeURIComponent(cid));
+    }
+    toast('✅ 已移除打标');
+    await loadQueuedCards();
+    renderStats();
+  }catch(e){ toast('移除失败：' + (e.message || e)); }
+}
+async function retagToQueued(ids){
+  var ok = 0;
+  for(var i = 0; i < ids.length; i++){
+    try{
+      var rr = await sbSelect(CARDS_TABLE, 'card_id=eq.' + encodeURIComponent(ids[i]) + '&select=tags');
+      if(rr && rr[0]){
+        var cur = Array.isArray(rr[0].tags) ? rr[0].tags : [];
+        var nt = Array.from(new Set(cur.filter(function(t){ return t !== '待训练'; }).concat(['已入训练队列'])));
+        if(nt.join('|') !== cur.join('|')){
+          await sbUpdate(CARDS_TABLE, {tags: nt, updated_at: new Date().toISOString()}, 'card_id=eq.' + encodeURIComponent(ids[i]));
+          ok++;
+        }
+      }
+    }catch(e){}
+  }
+  return ok;
+}
+async function findExistingRid(source, ids){
+  try{
+    var rows = await sbSelect('practice_sessions', 'source=eq.' + encodeURIComponent(source) + '&order=created_at.desc&limit=8');
+    var key = ids.slice().sort().join('|');
+    for(var i = 0; i < (rows || []).length; i++){
+      var a = Array.isArray(rows[i].card_ids) ? rows[i].card_ids : [];
+      if(a.slice().sort().join('|') === key) return rows[i].rid;
+    }
+  }catch(e){}
+  return null;
+}
+async function saveQueuedToLib(){
+  if(!QUEUED_ROWS.length){ toast('暂无待训练卡可存'); return; }
+  if(!wbCloudReady()){ toast('云端未就绪，无法保存'); return; }
+  try{
+    var ids = QUEUED_ROWS.map(function(r){ return r.card_id; });
+    await retagToQueued(ids);
+    var dup = await findExistingRid('app-lib', ids);
+    if(dup){
+      toast('✅ 已存入训练库（' + ids.length + ' 张）· 该队列已存在，未重复保存');
+    }else{
+      var rid = 'tl-' + new Date().toISOString().slice(0, 10) + '-' + Date.now().toString(36).slice(-4);
+      var ds = new Date();
+      var title = ds.getFullYear() + '-' + pad(ds.getMonth() + 1) + '-' + pad(ds.getDate()) + ' 专题队列 ' + ids.length + '张';
+      await sbInsert('practice_sessions', [{
+        rid: rid, title: title, subject: '跨科', source: 'app-lib',
+        card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()
+      }]);
+      toast('✅ 已存入训练库（' + ids.length + ' 张）');
+    }
+    await refreshAll();
+  }catch(e){ toast('保存失败：' + (e.message || e)); }
+}
+
+/* ===================== 初始化 ===================== */
+function initPersonSel(){
+  var sel = $('personSel');
+  sel.innerHTML = PERSONS.map(function(p){
+    return '<option value="' + esc(p.key) + '"' + (p.key === personKey ? ' selected' : '') + '>' + esc(p.name) + '</option>';
+  }).join('');
+  sel.addEventListener('change', function(){
+    personKey = sel.value;
+    saveJ(ACTIVE_KEY, personKey);
+    STORE = loadJ(PERSON_KEY, {});
+    refreshAll();
+  });
+}
+function initNav(){
+  document.querySelectorAll('.navItem').forEach(function(it){
+    it.addEventListener('click', function(){
+      var sec = $(it.getAttribute('data-sec'));
+      if(!sec) return;
+      sec.scrollIntoView({behavior: 'smooth', block: 'start'});
+      document.querySelectorAll('.navItem').forEach(function(x){ x.classList.remove('active'); });
+      it.classList.add('active');
+    });
+  });
+}
+function init(){
+  initPersonSel();
+  initNav();
+  paintOriginWarn();
+  bindQueueBox($('libList'));
+  bindQueueBox($('cwList'));
+  $('btnRefresh').addEventListener('click', refreshAll);
+  $('btnCross').addEventListener('click', goCross);
+  $('btnQueuedStart').addEventListener('click', goQueued);
+  $('btnQueuedSave').addEventListener('click', saveQueuedToLib);
+  $('btnMergeCw').addEventListener('click', function(){ mergeSelected($('cwList')); });
+  $('btnMergeLib').addEventListener('click', function(){ mergeSelected($('libList')); });
+  $('queuedList').addEventListener('click', function(e){
+    var x = e.target.closest ? e.target.closest('.x') : null;
+    if(!x) return;
+    removeQueuedTag(x.getAttribute('data-cid'));
+  });
+  refreshAll();
+}
+init();
+</script>
+</body>
+</html>
