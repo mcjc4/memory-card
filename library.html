@@ -19,6 +19,7 @@ body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;backgroun
 .navItem{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;font-size:13.5px;color:#374151;cursor:pointer;user-select:none}
 .navItem:hover{background:#f3f4f6}
 .navItem.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+a.navItem{text-decoration:none}
 .navItem .n{margin-left:auto;font-size:11px;background:#eef0f2;color:#6b7280;border-radius:9px;padding:1px 7px;min-width:22px;text-align:center}
 .navItem.active .n{background:var(--accent);color:#fff}
 .navFoot{position:absolute;left:12px;right:12px;bottom:14px}
@@ -93,6 +94,12 @@ body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;backgroun
     <div class="navItem" data-sec="secQueued">🏷 待训练卡<span class="n" id="nvQueued">–</span></div>
     <div class="navItem" data-sec="secCw">📖 课件队列<span class="n" id="nvCw">–</span></div>
     <div class="navItem" data-sec="secLib">🗂 记忆卡队列<span class="n" id="nvLib">–</span></div>
+  </div>
+  <div class="navGroup">
+    <div class="navGroupTitle">相关页面</div>
+    <a class="navItem" href="index.html">📚 记忆卡</a>
+    <a class="navItem" href="history.html">📋 浏览历史</a>
+    <a class="navItem" href="topic.html">🎯 跨科专题练</a>
   </div>
   <div class="navFoot"><a href="index.html">← 返回记忆卡</a></div>
 </aside>
@@ -320,6 +327,7 @@ function waitCloud(){
   return new Promise(function(resolve){
     var n = 0;
     var t = setInterval(function(){
+      if(!cloudSyncEnabled){ clearInterval(t); resolve(false); return; }   /* 关了云同步就别干等 15s */
       if(wbCloudReady()){ clearInterval(t); resolve(true); return; }
       if(window.__WB_SDK_FAIL || ++n >= 60){ clearInterval(t); resolve(false); }
     }, 250);
