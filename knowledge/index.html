@@ -793,6 +793,7 @@
 #psSide nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;color:#dbe7f5;text-decoration:none;font-size:14px;font-weight:600;transition:.15s}
 #psSide nav a:hover{background:rgba(255,255,255,.12)}
 #psSide nav a.cur{background:#fff;color:#0C447C}
+#psSide nav .psGroupTitle{padding:12px 12px 2px;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,.55)}
 #psSide .psFoot{margin-top:auto;padding:12px 16px;font-size:11px;color:rgba(255,255,255,.6)}
 #psTop{position:fixed;left:220px;top:0;right:0;height:52px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:55;box-shadow:0 1px 4px rgba(0,0,0,.04)}
 #psTop .ptitle{font-size:15px;font-weight:700;color:#0C447C}
@@ -822,9 +823,13 @@ body{padding-left:220px;padding-top:52px}
 <aside id="psSide">
   <div class="brand"><span class="bname">🧠 昕言的知识体系</span><button id="psToggle" class="psToggle" title="收起/展开侧边栏">‹</button></div>
   <nav>
-    <a href="/" data-m="root"><span class="lbl">📚 记忆卡</span></a>
-    <a href="/knowledge/index.html" data-m="knowledge"><span class="lbl">📖 知识页</span></a>
-    <a href="/courseware/" data-m="courseware"><span class="lbl">📝 作业报告</span></a>
+    <a href="../index.html" data-m="root"><span class="lbl">📚 记忆卡</span></a>
+    <a href="index.html" data-m="knowledge"><span class="lbl">📖 知识页</span></a>
+    <a href="../courseware/" data-m="courseware"><span class="lbl">📝 作业报告</span></a>
+    <div class="psGroupTitle">训练与查询</div>
+    <a href="../library.html" data-m="library"><span class="lbl">🏋️ 训练库</span></a>
+    <a href="../history.html" data-m="history"><span class="lbl">📋 浏览历史</span></a>
+    <a href="../topic.html" data-m="topic"><span class="lbl">🎯 跨科专题练</span></a>
   </nav>
   <div class="psFoot">同源 WB Cloud · jikaka-memory</div>
 </aside>
@@ -839,9 +844,13 @@ body{padding-left:220px;padding-top:52px}
 <script>
 (function(){
   var m=location.pathname;
-  var cur = m.indexOf('/knowledge')>=0?'knowledge':(m.indexOf('/courseware')>=0?'courseware':'root');
+  var cur = m.indexOf('/knowledge')>=0?'knowledge'
+          : (m.indexOf('/courseware')>=0?'courseware'
+          : (m.indexOf('library.html')>=0?'library'
+          : (m.indexOf('history.html')>=0?'history'
+          : (m.indexOf('topic.html')>=0?'topic':'root'))));
   document.querySelectorAll('#psSide nav a').forEach(function(a){ if(a.getAttribute('data-m')===cur) a.classList.add('cur'); });
-  var titles={root:'记忆卡',knowledge:'知识页',courseware:'作业报告'};
+  var titles={root:'记忆卡',knowledge:'知识页',courseware:'作业报告',library:'训练库',history:'浏览历史',topic:'跨科专题练'};
   var t=document.getElementById('psTitle'); if(t) t.textContent=titles[cur]||'记忆卡';
   var mb=document.getElementById('psMgrBtn'); if(mb) mb.addEventListener('click',function(){ document.dispatchEvent(new CustomEvent('ps:openTagManager')); });
   window.__psActiveTags = window.__psActiveTags || new Set();
