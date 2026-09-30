@@ -13,6 +13,19 @@
 </script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+/* ===== 五级自评统一配色（2026-09-30 与解题课件 #cstat-bar .cl* / .cstat-inline .ci-l* 同源）=====
+   1 完全不记得=红 · 2 勉强记得一点=橙 · 3 记得一半左右=琥珀 · 4 记得大部分=天蓝 · 5 完全记住=薄荷绿
+   基准（课件侧同一套）：l1 #f87171→#ef4444 / l2 #fb923c→#f97316 / l3 #f7b84f→#f59e0b
+                        l4 #38bdf8→#0ea5e9 / l5 #22c3a6→#57d98d
+   改色只改这里（按钮渐变 a→b、浅底标签 bg+t）＋ JS 侧图表色板 LEVEL_COLOR（保持一致）
+   LVCOLOR-VER: 20260930a */
+:root{
+  --lv1a:#f87171;--lv1b:#ef4444;--lv1bg:#FEE2E2;--lv1t:#B91C1C;
+  --lv2a:#fb923c;--lv2b:#f97316;--lv2bg:#FFEDD5;--lv2t:#C2410C;
+  --lv3a:#f7b84f;--lv3b:#f59e0b;--lv3bg:#FEF3C7;--lv3t:#B45309;
+  --lv4a:#38bdf8;--lv4b:#0ea5e9;--lv4bg:#E0F2FE;--lv4t:#0369A1;
+  --lv5a:#22c3a6;--lv5b:#57d98d;--lv5bg:#CCFBF1;--lv5t:#0F766E;
+}
 body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f3f4f6;color:#1f2329;min-height:100vh;padding:22px 16px 60px}
 .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
 h1{font-size:21px;font-weight:500;text-align:center}
@@ -144,11 +157,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .browseTable .stTag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap}
 .browseTable .stPass{background:#DCFCE7;color:#3B6D11}
 .browseTable .stFail{background:#FDE2E2;color:#A32D2D}
-.browseTable .stTag.lv1{background:#FDE2E2;color:#A32D2D}
-.browseTable .stTag.lv2{background:#FCE3D6;color:#C2410C}
-.browseTable .stTag.lv3{background:#FAEEDA;color:#854F0B}
-.browseTable .stTag.lv4{background:#EAF3DE;color:#3F7D1E}
-.browseTable .stTag.lv5{background:#DCEFD0;color:#2E7D13}
+.browseTable .stTag.lv1{background:var(--lv1bg);color:var(--lv1t)}
+.browseTable .stTag.lv2{background:var(--lv2bg);color:var(--lv2t)}
+.browseTable .stTag.lv3{background:var(--lv3bg);color:var(--lv3t)}
+.browseTable .stTag.lv4{background:var(--lv4bg);color:var(--lv4t)}
+.browseTable .stTag.lv5{background:var(--lv5bg);color:var(--lv5t)}
 .browseTable .stHalf{background:#FEF3C7;color:#854F0B}
 .browseTable .stUnt{background:#F1F5F9;color:#6b7280}
 .browseTable .actBtn{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:#185FA5;white-space:nowrap}
@@ -195,11 +208,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .btn.fail{background:#A32D2D}
 .btn.half{background:#BA7517}
 .btn.pass{background:#3B6D11}
-.btn.lv1{background:#A32D2D}
-.btn.lv2{background:#C2410C}
-.btn.lv3{background:#BA7517}
-.btn.lv4{background:#3F7D1E}
-.btn.lv5{background:#2E7D13}
+.btn.lv1{background:linear-gradient(120deg,var(--lv1a),var(--lv1b))}
+.btn.lv2{background:linear-gradient(120deg,var(--lv2a),var(--lv2b))}
+.btn.lv3{background:linear-gradient(120deg,var(--lv3a),var(--lv3b))}
+.btn.lv4{background:linear-gradient(120deg,var(--lv4a),var(--lv4b))}
+.btn.lv5{background:linear-gradient(120deg,var(--lv5a),var(--lv5b))}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .empty{background:#fff;border:1px dashed #d1d5db;border-radius:12px;padding:30px;text-align:center;color:#9ca3af;font-size:14px;margin-bottom:12px}
 .panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;margin-bottom:12px}
@@ -216,11 +229,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .weak .retryItem .retryStatus.fail{background:#FDE2E2;color:#A32D2D}
 .weak .retryItem .retryStatus.half{background:#FEF3C7;color:#854F0B}
 .weak .retryItem .retryStatus.unt{background:#F1EFE8;color:#5F5E5A}
-.weak .retryItem .retryStatus.lv1{background:#FCEBEB;color:#A32D2D}
-.weak .retryItem .retryStatus.lv2{background:#FCE3D6;color:#C2410C}
-.weak .retryItem .retryStatus.lv3{background:#FAEEDA;color:#854F0B}
-.weak .retryItem .retryStatus.lv4{background:#EAF3DE;color:#3F7D1E}
-.weak .retryItem .retryStatus.lv5{background:#DCEFD0;color:#2E7D13}
+.weak .retryItem .retryStatus.lv1{background:var(--lv1bg);color:var(--lv1t)}
+.weak .retryItem .retryStatus.lv2{background:var(--lv2bg);color:var(--lv2t)}
+.weak .retryItem .retryStatus.lv3{background:var(--lv3bg);color:var(--lv3t)}
+.weak .retryItem .retryStatus.lv4{background:var(--lv4bg);color:var(--lv4t)}
+.weak .retryItem .retryStatus.lv5{background:var(--lv5bg);color:var(--lv5t)}
 .weak .retryItem .retryStatus.unt{background:#F1F5F9;color:#6b7280}
 .weak .retryItem .retryDays{font-size:11px;color:#6b7280}
 .weak .retryItem .retryJump{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:2px 9px;font-size:14px;cursor:pointer;color:#185FA5;margin-left:auto;line-height:1.2;font-weight:500}
@@ -345,11 +358,11 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .manageTable .status.half{background:#FAEEDA;color:#854F0B}
 .manageTable .status.fail{background:#FCEBEB;color:#A32D2D}
 .manageTable .status.unt{background:#F1EFE8;color:#5F5E5A}
-.manageTable .status.lv1{background:#FCEBEB;color:#A32D2D}
-.manageTable .status.lv2{background:#FCE3D6;color:#C2410C}
-.manageTable .status.lv3{background:#FAEEDA;color:#854F0B}
-.manageTable .status.lv4{background:#EAF3DE;color:#3F7D1E}
-.manageTable .status.lv5{background:#DCEFD0;color:#2E7D13}
+.manageTable .status.lv1{background:var(--lv1bg);color:var(--lv1t)}
+.manageTable .status.lv2{background:var(--lv2bg);color:var(--lv2t)}
+.manageTable .status.lv3{background:var(--lv3bg);color:var(--lv3t)}
+.manageTable .status.lv4{background:var(--lv4bg);color:var(--lv4t)}
+.manageTable .status.lv5{background:var(--lv5bg);color:var(--lv5t)}
 .manageTable .act{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
 .manageTable .act button{border:1px solid #e5e7eb;background:#fff;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:#374151}
 .manageTable .act button:hover{background:#f3f4f6}
@@ -1798,7 +1811,7 @@ function refreshToday(){
 const WEAK_MAX = 4;
 const LEVEL_NAME = {1:'完全不记得',2:'勉强记得一点',3:'记得一半左右',4:'记得大部分',5:'完全记住'};
 const LEVEL_EMOJI = {1:'😶',2:'😯',3:'🤔',4:'😊',5:'🎯'};
-const LEVEL_COLOR = {1:'#A32D2D',2:'#C2410C',3:'#BA7517',4:'#3F7D1E',5:'#2E7D13'};
+const LEVEL_COLOR = {1:'#ef4444',2:'#f97316',3:'#f59e0b',4:'#0ea5e9',5:'#22c3a6'}; /* 2026-09-30 与课件五级配色同源（取深端色，供饼图/圆点用） */
 function isWeak(v){ return v !== undefined && v !== null && v >= 1 && v <= WEAK_MAX; }
 function levelName(v){ return v ? (LEVEL_NAME[v] || '未测') : '未测'; }
 function levelCls(v){ return v ? ('lv' + v) : 'unt'; }
@@ -1837,7 +1850,7 @@ function renderStatePie(){
   }
   if(total === 0){ ring.style.background = '#eef0f3'; }
   else {
-    const segs = [['#d1d5db', unt], ['#A32D2D', lv[1]], ['#C2410C', lv[2]], ['#BA7517', lv[3]], ['#3F7D1E', lv[4]], ['#2E7D13', lv[5]]];
+    const segs = [['#d1d5db', unt]].concat([1,2,3,4,5].map(v => [LEVEL_COLOR[v], lv[v]]));
     let acc = 0; const parts = [];
     segs.forEach(([c, n]) => { const a = acc / total * 360, b = (acc + n) / total * 360; parts.push(c + ' ' + a + 'deg ' + b + 'deg'); acc = b; });
     ring.style.background = 'conic-gradient(' + parts.join(', ') + ')';
@@ -1845,7 +1858,10 @@ function renderStatePie(){
   $('piePass') && ($('piePass').textContent = lv[5]);
   $('pieTotal') && ($('pieTotal').textContent = total);
   const lg = $('pieLegend');
-  if(lg) lg.innerHTML = `<i style="background:#d1d5db"></i>未测 ${unt} <i style="background:#A32D2D"></i>完全不记得 ${lv[1]} <i style="background:#C2410C"></i>勉强 ${lv[2]} <i style="background:#BA7517"></i>小部分 ${lv[3]} <i style="background:#3F7D1E"></i>大部分 ${lv[4]} <i style="background:#2E7D13"></i>完全 ${lv[5]}`;
+  if(lg){ const _sv = ['完全不记得','勉强','小部分','大部分','完全'];
+    lg.innerHTML = '<i style="background:#d1d5db"></i>未测 ' + unt
+      + [1,2,3,4,5].map(v => '<i style="background:' + LEVEL_COLOR[v] + '"></i>' + _sv[v-1] + ' ' + lv[v]).join(' ');
+  }
 }
 function renderList(ulId, emptyId, cntId, arr, skipCount){
   const ul = $(ulId);
