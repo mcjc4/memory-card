@@ -5388,7 +5388,7 @@ function renderTrainLibBanner(){
       html += '</span><span class="bannerArrow">›</span>';
       b.innerHTML = html;
       b.style.display = 'flex';
-      b.onclick = () => { if(b.className.indexOf('done') < 0) openPracticeLib(); };
+      b.onclick = () => { location.href = 'library.html'; };
     }catch(e){ b.style.display = 'none'; }
   })();
 }
@@ -6032,11 +6032,32 @@ $('dashCloudBtn').addEventListener('click', () => { const b = $('cloudBtn'); if(
 $('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('fileInput').click(); });
 $('dashTplBtn').addEventListener('click', downloadImpTemplate);
 $('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
-$('dashPracticeLibBtn').addEventListener('click', openPracticeLib);
-/* 2026-09-27：?open=practice 自动展开训练库弹窗（课件门户「加入训练库」确定后跳 ../index.html?open=practice） */
-if(new URLSearchParams(location.search).get('open') === 'practice'){
-  setTimeout(openPracticeLib, 1200);
-}
+$('dashPracticeLibBtn').addEventListener('click', () => { location.href = 'library.html'; });
+/* ===================== 训练库独立页 library.html 回跳协议（2026-10-01） =====================
+   新页面只做浏览与管理，训练动作一律跳回本页由现有引擎承接（startPracticeSession / enterCrossRetry /
+   startQueuedTrain 都依赖内存 state / browseHistory，重写会导致状态两边不同步）。
+   ?open=practice 原为课件门户入队后自动展开弹窗，现改为直跳独立页。 */
+(function(){
+  const _q = new URLSearchParams(location.search);
+  const _train = _q.get('train'), _cross = _q.get('cross'), _queue = _q.get('queue');
+  const _open = _q.get('open');
+  if(_open === 'practice'){ location.replace('library.html'); return; }
+  if(!_train && _cross !== '1' && _queue !== '1') return;
+  /* 等云端就绪再执行（最多 15s），否则 practice_sessions / cards 读不到。
+     2026-10-01：补两个提前退出条件 —— 关闭云同步、或本域不在云端 Origin 白名单（此时 cloudReady 永远不会变 true，
+     干等 15s 才兜底），避免在非白名单域上白等。 */
+  function _afterCloud(fn){
+    let n = 0;
+    const t = setInterval(() => {
+      if(cloudReady || !cloudSyncEnabled || window.__WB_ORIGIN_BLOCKED || !wbCloudUsable() || ++n >= 60){
+        clearInterval(t); setTimeout(fn, 250);
+      }
+    }, 250);
+  }
+  if(_train){ _afterCloud(() => startPracticeSession(_train)); }
+  else if(_cross === '1'){ setTimeout(() => enterCrossRetry(), 900); }
+  else if(_queue === '1'){ _afterCloud(async () => { await renderQueuedCards(); startQueuedTrain(); }); }
+})();
 $('practiceLibClose').addEventListener('click', () => $('practiceLibModal').classList.remove('show'));
 $('practiceLibRefresh').addEventListener('click', openPracticeLib);
 $('practiceLibModal').addEventListener('click', e => { if(e.target === $('practiceLibModal')) $('practiceLibModal').classList.remove('show'); });
