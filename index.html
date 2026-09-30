@@ -920,6 +920,12 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
     <div class="personList" id="personList"></div>
     <div class="modalHint">训练数据、题库、打卡进度按执行人完全分开，切换后互不影响</div>
 
+    <div style="font-size:14px;font-weight:500;margin:16px 0 8px">🚪 打开页面行为</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 4px;cursor:pointer">
+      <input type="checkbox" id="resumeEnabled" style="width:16px;height:16px"> 打开/刷新时自动恢复上次位置
+    </label>
+    <div class="modalHint">默认关闭：打开或刷新页面一律先进「各科记忆卡片库」，不会自动弹出「进入 XX 请选择进入方式」的菜单遮挡卡片库，想看科目卡片直接就能看全。勾选开启后：打开页面会弹窗询问是否继续上次停留的那张卡。</div>
+
     <div style="font-size:14px;font-weight:500;margin:16px 0 8px">云端同步</div>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1f2329;margin:0 0 8px;cursor:pointer">
       <input type="checkbox" id="cloudSyncEnabled" style="width:16px;height:16px"> 启用云端同步（关闭后纯本地运行，训练库/进度只存本机）
@@ -4273,6 +4279,14 @@ function loadFxCfg(){
 let pushCfg = loadPushCfg();
 let fxCfg = loadFxCfg();
 /* ---------- 专注保护配置（切走检测，设置页可调） ---------- */
+/* 打开页面行为配置：是否需要「自动恢复上次停留位置」（默认关 = 打开即进科目卡片库，不弹「进入XX」菜单） */
+const RESUME_CFG_KEY = 'wulun_resume_cfg';
+const DEFAULT_RESUME = { autoResume: false };
+function loadResumeCfg(){
+  try{ const c = JSON.parse(localStorage.getItem(RESUME_CFG_KEY) || 'null'); if(c && typeof c === 'object') return Object.assign({}, DEFAULT_RESUME, c); }catch(e){}
+  return Object.assign({}, DEFAULT_RESUME);
+}
+let resumeCfg = loadResumeCfg();
 const GUARD_CFG_KEY = 'wulun_guard_cfg';
 const DEFAULT_GUARD = {
   enabled: true,          /* 总开关 */
@@ -5232,11 +5246,30 @@ async function openPracticeLib(){
 }
 async function startPracticeSession(rid){
   try{
-    const rows = await sbSelect('practice_sessions', 'rid=eq.' + encodeURIComponent(rid) + '&select=card_ids,new_card_ids,browsed_at,title,subject');
+    const rows = await sbSelect('practice_sessions', 'rid=eq.' + encodeURIComponent(rid) + '&select=card_ids,new_card_ids,browsed_at,title,subject,source,hit_map');
     const s = rows && rows[0];
     if(!s){ toast('未找到该次练习记录'); return; }
     const ids = (s.card_ids || []).concat(s.new_card_ids || []);
     if(!ids.length){ toast('该次练习没有卡片'); return; }
+    /* 2026-09-27 批注：课件队列（课件门户「加入训练库」写入）不要套记忆卡训练模板，
+       直接跳第一个课件，由课件页底部 tnav（上一课/下一课）在队列课件间串联。
+       判定：source 标记，或兜底 card_ids 全是 course_ 前缀 cid 的历史行。 */
+    const isCwQueue = s.source === 'courseware-portal' || ids.every(id => /^course_\d+_/.test(String(id)));
+    if(isCwQueue){
+      const map = s.hit_map || {};
+      const urls = [];
+      (s.card_ids || []).forEach(cid => {
+        let p = map[cid];
+        if(!p){ const m = /^course_(\d+)_(.+)$/.exec(String(cid)); p = m ? ('lessons/' + m[1] + '-' + m[2] + '/index.html') : ''; }
+        if(p && !/\.html(\?|$)/.test(p)) p += (p.slice(-1) === '/' ? '' : '/') + 'index.html';
+        if(p) urls.push(p);
+      });
+      if(!urls.length){ toast('该队列没有课件'); return; }
+      try{ localStorage.setItem('train_group', JSON.stringify({ urls: urls, rid: rid, title: s.title || '', ts: Date.now() })); }catch(e){}
+      toast('已载入课件队列「' + (s.title || '专题练') + '」');
+      setTimeout(() => { location.href = 'courseware/' + urls[0] + '?tr=0&q=' + encodeURIComponent(rid); }, 350);
+      return;
+    }
     const ts = s.browsed_at ? (new Date(s.browsed_at).getTime() || Date.now()) : Date.now();
     const subjMap = await subjectForIds(ids);
     // 缺失卡 或 本地已有但正反面全空（历史 bug 污染）的卡，都要从云端拉内容回填
@@ -5739,6 +5772,7 @@ function tqExport(){
 function openSettings(){
   try {
     $('cloudSyncEnabled').checked = cloudSyncEnabled;
+    $('resumeEnabled').checked = !!resumeCfg.autoResume;
     $('pushEnabled').checked = !!pushCfg.enabled;
     $('pushWechatOn').checked = !!pushCfg.wechatOn;
     $('pushDingOn').checked = !!pushCfg.dingOn;
@@ -5983,6 +6017,10 @@ $('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('
 $('dashTplBtn').addEventListener('click', downloadImpTemplate);
 $('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
 $('dashPracticeLibBtn').addEventListener('click', openPracticeLib);
+/* 2026-09-27：?open=practice 自动展开训练库弹窗（课件门户「加入训练库」确定后跳 ../index.html?open=practice） */
+if(new URLSearchParams(location.search).get('open') === 'practice'){
+  setTimeout(openPracticeLib, 1200);
+}
 $('practiceLibClose').addEventListener('click', () => $('practiceLibModal').classList.remove('show'));
 $('practiceLibRefresh').addEventListener('click', openPracticeLib);
 $('practiceLibModal').addEventListener('click', e => { if(e.target === $('practiceLibModal')) $('practiceLibModal').classList.remove('show'); });
@@ -5994,6 +6032,12 @@ $('pushSaveBtn').addEventListener('click', savePushCfg);
 $('fxSaveBtn').addEventListener('click', saveFxCfg);
 $('fxResetBtn').addEventListener('click', resetFxCfg);
 $('guardSaveBtn').addEventListener('click', saveGuardCfg);
+/* 打开页面行为：勾选即存，无需点保存 */
+$('resumeEnabled').addEventListener('change', () => {
+  resumeCfg.autoResume = $('resumeEnabled').checked;
+  saveJ(RESUME_CFG_KEY, resumeCfg);
+  toast(resumeCfg.autoResume ? '已开启：打开页面自动恢复上次位置' : '已关闭：打开页面直接进科目卡片库');
+});
 $('pushTestBtn').addEventListener('click', testPush);
 /* 卡片朗读 */
 $('ttsSaveBtn').addEventListener('click', saveTtsCfg);
@@ -6279,13 +6323,15 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
       document.documentElement.style.setProperty('--badge-fg', c);
       $('soundBtn').textContent = SOUND ? '🔊 音效' : '🔇 静音';
       refreshToday(); dashStats();
-      /* 优先恢复最近浏览过的卡片（任意模式：训练/审核/专题练，只要停留过就算） */
-      if(!resumeLastBrowsed()){
-        if(lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
-          enterTrain(lastView.subject);
-        } else {
-          showView('dash');
-        }
+      /* 打开页面行为：默认（resumeCfg.autoResume = false）一律先显示「各科记忆卡片库」，
+         不再自动弹「进入 XX / 请选择进入方式」的菜单去遮挡卡片库。
+         仅当用户在「设置 → 🚪 打开页面行为」里主动开启后，才恢复上次停留位置。 */
+      if(resumeCfg.autoResume && resumeLastBrowsed()){
+        /* 已恢复上次停留的卡片 */
+      } else if(resumeCfg.autoResume && lastView && lastView.view === 'train' && lastView.subject && ALL_SUBJECTS[lastView.subject]){
+        enterTrain(lastView.subject);
+      } else {
+        showView('dash');
       }
     }
     initCloudWhenSdkReady();
