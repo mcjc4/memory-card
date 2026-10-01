@@ -61,7 +61,7 @@ a.navItem{text-decoration:none}
 .msBtn{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151;cursor:pointer;min-width:142px;max-width:260px;user-select:none}
 .msBtn > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .msBtn .caret{font-size:10px;color:#9ca3af;flex:0 0 auto}
-.msPop{position:absolute;top:calc(100% + 4px);left:0;z-index:50;background:#fff;border:1px solid #d1d5db;border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.14);padding:7px;min-width:230px;max-height:300px;overflow:auto;display:none}
+.msPop{position:absolute;top:calc(100% + 4px);left:0;z-index:50;background:#fff;border:1px solid #d1d5db;border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.14);padding:7px;min-width:230px;display:none}
 .msPop.show{display:block}
 .msBar{display:flex;gap:6px;padding-bottom:6px;margin-bottom:4px;border-bottom:1px solid #f1f3f5}
 .msBar button{flex:1;font-size:11.5px;padding:4px 6px;border:1px solid #d1d5db;background:#f9fafb;border-radius:7px;cursor:pointer;color:#374151;font-family:inherit}
@@ -69,6 +69,10 @@ a.navItem{text-decoration:none}
 .msPop label{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:7px;font-size:12.5px;color:#374151;cursor:pointer;font-weight:400}
 .msPop label:hover{background:#f3f4f6}
 .msHint{font-size:11px;color:#9ca3af;padding:3px 7px 5px}
+.msSearch{width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:7px;font-size:12.5px;box-sizing:border-box;margin-bottom:6px;font-family:inherit;outline:none;background:#fff;color:#374151}
+.msSearch:focus{border-color:#185FA5;box-shadow:0 0 0 2px rgba(24,95,165,.08)}
+.msSearch::placeholder{color:#9ca3af}
+.msList{max-height:240px;overflow:auto}
 /* 结果表 */
 .tblWrap{overflow:auto;max-height:56vh;border:1px solid #eef0f2;border-radius:10px}
 table.resTable{width:100%;border-collapse:collapse;font-size:12.5px}
@@ -467,8 +471,10 @@ var REV_OPTS = [['browsed','已审核'],['unbrowsed','未审核']];
 
 /* ===================== 多选弹窗（按钮 → 勾选列表 + 全选/重置） ===================== */
 function msInit(btnId, popId, opts){
+  /* opts: {items 或 itemsFn()→[{v,label}], set, allLabel, onChange, hint} */
   var btn = $(btnId), pop = $(popId);
   var itemLabel = opts.itemLabel || function(v){ return v; };
+  var kw = '';
   function items(){ return typeof opts.itemsFn === 'function' ? opts.itemsFn() : (opts.items || []); }
   function label(){
     var s = opts.set;
@@ -476,38 +482,59 @@ function msInit(btnId, popId, opts){
     if(s.size === 1) return itemLabel([...s][0]) || [...s][0];
     return '已选 ' + s.size + ' 个';
   }
-  function paintBtn(){ btn.innerHTML = '<span>' + esc(label()) + '</span><span class="caret">▼</span>'; }
-  function paintPop(){
-    var h = '<div class="msBar"><button type="button" data-act="all">☑ 全选</button><button type="button" data-act="none">☐ 重置为空</button></div>';
-    if(opts.hint) h += '<div class="msHint">' + esc(opts.hint) + '</div>';
+  function paintBtn(){ btn.innerHTML = '<span>' + esc(label()) + '</span><span class="caret">\u25bc</span>'; }
+  /* 搜索过滤：匹配 label / 原始值 / itemLabel（不区分大小写） */
+  function filtered(){
+    var k = kw.trim().toLowerCase();
     var list = items();
-    if(!list.length) h += '<div class="msHint">（暂无可选项）</div>';
-    list.forEach(function(it){
-      h += '<label><input type="checkbox" data-v="' + esc(it.v) + '"' + (opts.set.has(it.v) ? ' checked' : '') + '> ' + esc(it.label) + '</label>';
+    if(!k) return list;
+    return list.filter(function(it){
+      var t = (it.label || '') + ' ' + String(it.v) + ' ' + itemLabel(it.v);
+      return t.toLowerCase().indexOf(k) >= 0;
     });
+  }
+  function paintPop(){
+    var h = '<input class="msSearch" type="text" placeholder="\ud83d\udd0d 搜索\u2026">'
+          + '<div class="msBar"><button type="button" data-act="all">\u2611 全选</button><button type="button" data-act="none">\u2610 重置为空</button></div>';
+    if(opts.hint) h += '<div class="msHint">' + esc(opts.hint) + '</div>';
+    h += '<div class="msList"></div>';
     pop.innerHTML = h;
-    pop.querySelectorAll('input[data-v]').forEach(function(cb){
-      cb.addEventListener('change', function(){
-        if(cb.checked) opts.set.add(cb.getAttribute('data-v')); else opts.set.delete(cb.getAttribute('data-v'));
-        paintBtn(); opts.onChange();
+    var listEl = pop.querySelector('.msList');
+    function renderList(){
+      var list = filtered();
+      if(!list.length){ listEl.innerHTML = '<div class="msHint">' + (items().length ? '无匹配项' : '（暂无可选项）') + '</div>'; return; }
+      listEl.innerHTML = list.map(function(it){
+        return '<label><input type="checkbox" data-v="' + esc(it.v) + '"' + (opts.set.has(it.v) ? ' checked' : '') + '> ' + esc(it.label) + '</label>';
+      }).join('');
+      listEl.querySelectorAll('input[data-v]').forEach(function(cb){
+        cb.addEventListener('change', function(){
+          if(cb.checked) opts.set.add(cb.getAttribute('data-v')); else opts.set.delete(cb.getAttribute('data-v'));
+          paintBtn(); opts.onChange();
+        });
       });
-    });
+    }
+    renderList();
+    /* 全选只作用于当前搜索可见的行；重置为空 = 清空整个集合 */
     pop.querySelector('[data-act="all"]').addEventListener('click', function(){
-      items().forEach(function(it){ opts.set.add(it.v); });
-      pop.querySelectorAll('input[data-v]').forEach(function(cb){ cb.checked = true; });
-      paintBtn(); opts.onChange();
+      filtered().forEach(function(it){ opts.set.add(it.v); });
+      renderList(); paintBtn(); opts.onChange();
     });
     pop.querySelector('[data-act="none"]').addEventListener('click', function(){
-      opts.set.clear();
-      pop.querySelectorAll('input[data-v]').forEach(function(cb){ cb.checked = false; });
-      paintBtn(); opts.onChange();
+      opts.set.clear(); renderList(); paintBtn(); opts.onChange();
     });
+    var si = pop.querySelector('.msSearch');
+    si.addEventListener('input', function(){ kw = si.value; renderList(); });
   }
   btn.addEventListener('click', function(e){
     e.stopPropagation();
     var open = pop.classList.contains('show');
     document.querySelectorAll('.msPop.show').forEach(function(p){ p.classList.remove('show'); });
-    if(!open){ paintPop(); pop.classList.add('show'); }
+    if(!open){
+      kw = '';                       /* 每次打开重置搜索 */
+      paintPop(); pop.classList.add('show');
+      var si = pop.querySelector('.msSearch');
+      if(si){ try{ si.focus(); }catch(_){} }
+    }
   });
   pop.addEventListener('click', function(e){ e.stopPropagation(); });
   return {repaint: function(){ paintBtn(); if(pop.classList.contains('show')) paintPop(); }};
