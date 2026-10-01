@@ -72,7 +72,7 @@
   <div class="siteChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
     <a href="https://jikaka-memory.app.workbuddy.host/" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #d1d5db;background:#fff;color:#374151">📚 记忆卡</a>
     <a href="https://jikaka-memory.app.workbuddy.host/knowledge/index.html" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #0C447C;background:#0C447C;color:#fff;font-weight:600">📖 知识页</a>
-    <a href="https://jikaka-memory.app.workbuddy.host/courseware/" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #d1d5db;background:#fff;color:#374151">📝 作业报告</a>
+    <a href="https://jikaka-memory.app.workbuddy.host/courseware/" style="display:inline-flex;align-items:center;gap:4px;padding:5px 14px;border-radius:999px;font-size:13px;text-decoration:none;border:1px solid #d1d5db;background:#fff;color:#374151">📝 解题课件库</a>
   </div>
   <div class="hero">
     <span class="tag">1120px 知识结构海报 · 胶带遮盖版 · 单文件离线可用</span>
@@ -825,7 +825,7 @@ body{padding-left:220px;padding-top:52px}
   <nav>
     <a href="../index.html" data-m="root"><span class="lbl">📚 记忆卡</span></a>
     <a href="index.html" data-m="knowledge"><span class="lbl">📖 知识页</span></a>
-    <a href="../courseware/" data-m="courseware"><span class="lbl">📝 作业报告</span></a>
+    <a href="../courseware/" data-m="courseware"><span class="lbl">📝 解题课件库</span></a>
     <div class="psGroupTitle">训练与查询</div>
     <a href="../library.html" data-m="library"><span class="lbl">🏋️ 训练库</span></a>
     <a href="../history.html" data-m="history"><span class="lbl">📋 浏览历史</span></a>
@@ -850,7 +850,7 @@ body{padding-left:220px;padding-top:52px}
           : (m.indexOf('history.html')>=0?'history'
           : (m.indexOf('topic.html')>=0?'topic':'root'))));
   document.querySelectorAll('#psSide nav a').forEach(function(a){ if(a.getAttribute('data-m')===cur) a.classList.add('cur'); });
-  var titles={root:'记忆卡',knowledge:'知识页',courseware:'作业报告',library:'训练库',history:'浏览历史',topic:'跨科专题练'};
+  var titles={root:'记忆卡',knowledge:'知识页',courseware:'解题课件库',library:'训练库',history:'浏览历史',topic:'跨科专题练'};
   var t=document.getElementById('psTitle'); if(t) t.textContent=titles[cur]||'记忆卡';
   var mb=document.getElementById('psMgrBtn'); if(mb) mb.addEventListener('click',function(){ document.dispatchEvent(new CustomEvent('ps:openTagManager')); });
   window.__psActiveTags = window.__psActiveTags || new Set();
@@ -913,7 +913,7 @@ body{padding-left:220px;padding-top:52px}
   <div class="psModal">
     <h3>🏷 统一标签库</h3>
     <div class="pbody">
-      <div class="hint">同源 WB Cloud · 三模块（记忆卡/知识页/作业报告）共用一套词表。新增时若与已有标签相似会提示合并，避免膨胀。</div>
+      <div class="hint">同源 WB Cloud · 三模块（记忆卡/知识页/解题课件库）共用一套词表。新增时若与已有标签相似会提示合并，避免膨胀。</div>
       <div class="prow">
         <input type="text" id="tmName" placeholder="新标签名，如：连接体 / 易错 / 一轮">
         <input type="color" id="tmColor" value="#0C447C">
