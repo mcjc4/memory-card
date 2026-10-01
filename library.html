@@ -92,8 +92,8 @@ a.navItem{text-decoration:none}
     <div class="navGroupTitle">训练库</div>
     <div class="navItem active" data-sec="secCross">🔁 跨科重练<span class="n" id="nvCross">–</span></div>
     <div class="navItem" data-sec="secQueued">🏷 待训练卡<span class="n" id="nvQueued">–</span></div>
-    <div class="navItem" data-sec="secCw">📖 课件队列<span class="n" id="nvCw">–</span></div>
     <div class="navItem" data-sec="secLib">🗂 记忆卡队列<span class="n" id="nvLib">–</span></div>
+    <div class="navItem" data-sec="secCw">📖 课件队列<span class="n" id="nvCw">–</span></div>
   </div>
   <div class="navGroup">
     <div class="navGroupTitle">相关页面</div>
@@ -139,6 +139,14 @@ a.navItem{text-decoration:none}
     <div class="chips" id="queuedList"><div class="empty">读取中…</div></div>
   </section>
 
+  <section class="card" id="secLib">
+    <h2>🗂 记忆卡队列<span class="cnt" id="libCnt"></span><span class="sp"></span>
+      <button class="btn" id="btnMergeLib">🔗 融合选中</button>
+    </h2>
+    <div class="hint">记忆卡自身产生的队列（专题练 / 作业批改 / 跨科融合）。勾选多个后「🔗 融合选中」会把其中<strong>未完全掌握</strong>的卡去重合成一个新队列。</div>
+    <div id="libList"><div class="empty">读取中…</div></div>
+  </section>
+
   <section class="card" id="secCw">
     <h2>📖 课件队列<span class="cnt" id="cwCnt"></span><span class="sp"></span>
       <button class="btn" id="btnMergeCw">🔗 融合选中</button>
@@ -147,13 +155,6 @@ a.navItem{text-decoration:none}
     <div id="cwList"><div class="empty">读取中…</div></div>
   </section>
 
-  <section class="card" id="secLib">
-    <h2>🗂 记忆卡队列<span class="cnt" id="libCnt"></span><span class="sp"></span>
-      <button class="btn" id="btnMergeLib">🔗 融合选中</button>
-    </h2>
-    <div class="hint">记忆卡自身产生的队列（专题练 / 作业批改 / 跨科融合）。勾选多个后「🔗 融合选中」会把其中<strong>未完全掌握</strong>的卡去重合成一个新队列。</div>
-    <div id="libList"><div class="empty">读取中…</div></div>
-  </section>
 </main>
 
 <div id="toast"></div>
