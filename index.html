@@ -6679,7 +6679,7 @@ body.ps-collapsed #psFab{display:flex}
 #psToast.psShow{opacity:1}
 body{padding-left:220px;padding-top:52px}
 .siteChips{display:none!important}
-@media(max-width:720px){#psTop{padding-right:8px}}
+@media(max-width:720px){#psTop{padding-right:8px}#psSide{width:184px}body{padding-left:184px}}
 </style>
 <aside id="psSide">
   <div class="brand"><span class="bname">🧠 昕言的知识体系</span><button id="psToggle" class="psToggle" title="收起/展开侧边栏">‹</button></div>
@@ -6730,7 +6730,7 @@ body{padding-left:220px;padding-top:52px}
   var savedColl=null; try{ savedColl=localStorage.getItem('ps_collapsed'); }catch(e){}
   if(savedColl==='1') document.body.classList.add(COLL);
   else if(savedColl==='0') document.body.classList.remove(COLL);
-  else if(window.matchMedia && window.matchMedia('(orientation: portrait)').matches) document.body.classList.add(COLL);
+  /* 不再按竖屏自动收起：侧栏默认常驻，收起/展开完全由用户手动点 ‹ 控制（状态跨页持久化到 localStorage） */
   function psSyncToggle(){ var b=document.getElementById('psToggle'); if(b) b.textContent='‹'; }
   psSyncToggle();
   function psSetColl(c){ document.body.classList.toggle(COLL,c); try{ localStorage.setItem('ps_collapsed', c?'1':'0'); }catch(e){} }
