@@ -155,6 +155,16 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .srcPopover .srcBar button{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 0;font-size:12px;cursor:pointer;color:#374151}
 .srcPopover .srcBar button:hover{background:#E6F1FB;border-color:#185FA5;color:#185FA5}
 .srcPopover .srcHint{font-size:11px;color:#9ca3af;margin-bottom:6px}
+/* 🔠 最大字号浮层（工具栏） · MAXFONT-VER: 20261002a */
+.mfPop{min-width:0;max-height:none;padding:14px 16px}
+.mfPop .mfRow{display:flex;align-items:center;gap:10px;margin:12px 0 2px}
+.mfPop .mfLab{flex:0 0 76px;font-size:13px;color:#374151}
+.mfPop .mfRow input[type=range]{flex:1;min-width:0;height:4px;accent-color:#185FA5;cursor:pointer}
+.mfPop .mfVal{flex:0 0 52px;text-align:right;font-size:15px;font-weight:600;color:#185FA5;font-variant-numeric:tabular-nums}
+.mfPop .mfPreset{display:flex;gap:6px;margin:14px 0 0;border-top:1px solid #f0f0f0;padding:10px 0 0}
+.mfPop .mfPreset button{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:5px 0;font-size:12px;cursor:pointer;color:#374151;font-weight:500}
+.mfPop .mfPreset button:hover{background:#E6F1FB;border-color:#185FA5;color:#185FA5}
+.mfPop .mfLive{font-size:11px;color:#9ca3af;margin-top:9px;line-height:1.6}
 .browseTable{width:100%;border-collapse:collapse;font-size:13px;background:#fff;min-width:640px}
 .browseTable th{background:#f9fafb;text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-weight:500;position:sticky;top:0;z-index:1;white-space:nowrap}
 .browseTable td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
@@ -605,13 +615,12 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
     <button id="soundBtn">🔊 音效</button>
     <button id="browseBtn" class="browse">👁 审核</button>
 <button id="addCardBtn" class="add">＋ 新增卡片</button>
-    <button id="browseHistoryToolbarBtn" class="browse">📋 浏览历史</button>
-    <button id="topicTrainBtn" class="manage">🎯 专题练</button>
-    <button id="manageBtn" class="manage">🗂 管理</button>
+    <!-- 浏览历史 / 专题练 / 管理 三个按钮已移除：前两者改走侧边栏（history.html / topic.html）与卡片库顶部，管理批量改卡由卡片上的「✎ 编辑 / 🗑 删除」承担 -->
     <button id="importBtn" class="add">＋ 导入科目</button>
     <button id="cloudBtn" class="browse">☁ 同步</button>
     <button id="settingsBtn" class="browse">⚙ 设置</button>
     <button id="resetBtn">重置本科目</button>
+    <button id="maxFontBtn" class="browse" title="卡片自动缩放时的字号上限（题干 / 答案各自可调）">🔠 最大字号</button>
     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
     <div class="progress"><i id="bar"></i></div>
   </div>
@@ -1287,6 +1296,7 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
 
 <!-- 出处多选浮层（工具栏 📄 出处 按钮） -->
 <div id="srcPopover" class="srcPopover" style="display:none"></div>
+<div id="maxFontPopover" class="srcPopover mfPop" style="display:none"></div>
 <script>
 const SUBJECTS = {"物理": {"color": "#185FA5", "display": "物理", "items": []}};
 const SUBJ_ORDER = ['语文','数学','英语','物理','化学','政治'];
@@ -1564,6 +1574,23 @@ const today = () => {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 };
 function loadJ(key, def){ try{ return JSON.parse(localStorage.getItem(key)) || def; }catch(e){ return def; } }
+/* ---------- 卡片最大字号（自动缩放上限，工具栏「🔠 最大字号」可调） · MAXFONT-VER: 20261002a ---------- */
+const MAXFONT_CFG_KEY = 'wulun_maxfont_cfg';
+const MAXFONT_LIMIT = { sig: [18, 140], concl: [16, 72] };   /* 滑块范围：题干 / 答案 */
+const DEFAULT_MAXFONT = { sig: 140, concl: 48 };             /* 默认＝保持原行为（题干不限、答案 48） */
+function loadMaxFontCfg(){
+  try{
+    const c = JSON.parse(localStorage.getItem(MAXFONT_CFG_KEY) || 'null');
+    if(c && typeof c === 'object'){
+      const o = Object.assign({}, DEFAULT_MAXFONT, c);
+      o.sig = Math.min(MAXFONT_LIMIT.sig[1], Math.max(MAXFONT_LIMIT.sig[0], Number(o.sig) || DEFAULT_MAXFONT.sig));
+      o.concl = Math.min(MAXFONT_LIMIT.concl[1], Math.max(MAXFONT_LIMIT.concl[0], Number(o.concl) || DEFAULT_MAXFONT.concl));
+      return o;
+    }
+  }catch(e){}
+  return Object.assign({}, DEFAULT_MAXFONT);
+}
+let maxFontCfg = loadMaxFontCfg();
 function saveJ(key, v){
   try { localStorage.setItem(key, JSON.stringify(v)); return; }
   catch(e){
@@ -2000,7 +2027,7 @@ function fitSigText(maxHpx){
   /* 测量阶段临时禁用 transition：否则二分每次 set 后强制布局会读到过渡中间值，结果失真 */
   const hadTrans = el.style.transition;
   el.style.transition = 'none';
-  let lo = 18, hi = 140;
+  let lo = MAXFONT_LIMIT.sig[0], hi = Math.max(MAXFONT_LIMIT.sig[0] + 2, maxFontCfg.sig);   /* 上限＝工具栏「🔠 最大字号」设置 */
   while(hi - lo > 1){
     const mid = (lo + hi) >> 1;
     el.style.setProperty('--sig-fit', mid + 'px');
@@ -2039,7 +2066,7 @@ function fitAnsText(){
   const oldPx = parseFloat(getComputedStyle(el).fontSize) || 0;
   const hadTrans = el.style.transition;
   el.style.transition = 'none';   /* 测量阶段禁过渡，防二分读到中间值失真 */
-  let lo = 16, hi = 48;
+  let lo = MAXFONT_LIMIT.concl[0], hi = Math.max(MAXFONT_LIMIT.concl[0] + 2, maxFontCfg.concl);   /* 上限＝工具栏「🔠 最大字号」设置 */
   while(hi - lo > 1){
     const mid = (lo + hi) >> 1;
     el.style.setProperty('--concl-fit', mid + 'px');
@@ -2602,6 +2629,7 @@ function switchSubject(name){
   $('onlyWeak').textContent = '专练未完全记住(1~4)';
   updateSrcBtn();
   const pop = $('srcPopover'); if(pop) pop.style.display = 'none';
+  const mfp = $('maxFontPopover'); if(mfp) mfp.style.display = 'none';   /* 切科目收起最大字号浮层 */
   stopSpeak();   /* 切换科目时停止朗读 */
   ttsCache.clear(); ttsInFlight.clear();   /* 切科目清空语音缓存 */
   const total = ALL_SUBJECTS[name].items.length;
@@ -5992,7 +6020,7 @@ $('browseBtn').addEventListener('click', toggleBrowse);
 $('browseExit').addEventListener('click', toggleBrowse);
 $('btnPrev').addEventListener('click', () => browseStep(-1));
 $('btnNext').addEventListener('click', () => browseStep(1));
-$('manageBtn').addEventListener('click', openManage);
+/* 工具栏「🗂 管理」按钮已移除 → 批量改卡见卡片上的「✎ 编辑 / 🗑 删除」（openManage 保留备用） */
 /* 云同步 */
 $('cloudBtn').addEventListener('click', () => {
   /* 未连接或失败时：点按钮主动触发连接（不等 20s 轮询），同时打开设置页看详情 */
@@ -6181,7 +6209,7 @@ function toggleSpeak(){
 $('fSpeakBtn').addEventListener('click', e => { e.stopPropagation(); toggleSpeak(); });
 $('fSpeakBtn').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); toggleSpeak(); }, {passive:false});
 /* 专题练 */
-$('topicTrainBtn').addEventListener('click', openTopicTrain);
+/* 工具栏「🎯 专题练」按钮已移除 → 入口见侧边栏「跨科专题练」与卡片库顶部（openTopicTrain 保留备用） */
 /* 进入科目模式弹窗按钮 */
 $('modeTrainBtn').addEventListener('click', () => handleModeChoice('train'));
 $('modeBrowseBtn').addEventListener('click', () => handleModeChoice('browse'));
@@ -6213,8 +6241,7 @@ $('bhStart').addEventListener('click', startBhPractice);
   $('dTodayCard').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
   $('dashBrowseBtn').addEventListener('click', openBrowseHistory);
   $('dashBrowseBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
-$('browseHistoryToolbarBtn').addEventListener('click', openBrowseHistory);
-$('browseHistoryToolbarBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
+/* 工具栏「📋 浏览历史」按钮已移除 → 入口见侧边栏「浏览历史」与卡片库顶部「📋 浏览历史」 */
 /* 工具栏 📄 出处 多选（影响 buildQueue）；默认全选 = 空集合显示全部 */
 function openSrcPopover(){
   const pop = $('srcPopover');
@@ -6303,6 +6330,58 @@ $('impModeMerge').addEventListener('change', () => { syncImpUI(); refreshImpStra
 $('impMergeSel').addEventListener('change', refreshImpStrategy);
 $('impNewName').addEventListener('input', () => { $('impErr').textContent = ''; });
 $('impOk').addEventListener('click', doImport);
+/* ---------- 🔠 最大字号：卡片自动缩放的字号上限（题干 / 答案各自可调） ---------- */
+function refitSigNow(){
+  const card = $('card'); if(!card) return;
+  if(card.classList.contains('show')){
+    const rvH = parseFloat(card.style.getPropertyValue('--rv-h')) || 0;
+    fitSigText(rvH ? Math.round((rvH - 52) * 0.33) - 96 : undefined);
+  } else fitSigText();
+}
+function maxFontApply(){
+  saveJ(MAXFONT_CFG_KEY, { sig: maxFontCfg.sig, concl: maxFontCfg.concl });
+  try{ refitSigNow(); }catch(e){}
+  try{ if($('card').classList.contains('show')) fitAnsText(); }catch(e){}
+}
+function renderMaxFontPop(){
+  const pop = $('maxFontPopover'); if(!pop) return;
+  const L = MAXFONT_LIMIT;
+  pop.innerHTML =
+    '<div class="srcHint">卡片自动缩放时的字号上限：调小 → 卡片字变小（内容仍完整显示，实在放不下才滚动）</div>' +
+    '<div class="mfRow"><span class="mfLab">题干字号 ≤</span><input type="range" id="mfSigR" min="' + L.sig[0] + '" max="' + L.sig[1] + '" step="2" value="' + maxFontCfg.sig + '"><b class="mfVal" id="mfSigV">' + maxFontCfg.sig + '</b></div>' +
+    '<div class="mfRow"><span class="mfLab">答案字号 ≤</span><input type="range" id="mfConclR" min="' + L.concl[0] + '" max="' + L.concl[1] + '" step="2" value="' + maxFontCfg.concl + '"><b class="mfVal" id="mfConclV">' + maxFontCfg.concl + '</b></div>' +
+    '<div class="mfPreset"><button data-mf="small">偏小</button><button data-mf="mid">适中</button><button data-mf="big">偏大</button><button data-mf="def">默认</button></div>' +
+    '<div class="mfLive">拖动即时生效，自动保存在本机（属显示设置，不随执行人切换变化）</div>';
+  const sr = pop.querySelector('#mfSigR'), cr = pop.querySelector('#mfConclR');
+  sr.addEventListener('input', () => { maxFontCfg.sig = +sr.value; pop.querySelector('#mfSigV').textContent = sr.value; maxFontApply(); });
+  cr.addEventListener('input', () => { maxFontCfg.concl = +cr.value; pop.querySelector('#mfConclV').textContent = cr.value; maxFontApply(); });
+  pop.querySelectorAll('.mfPreset button').forEach(btn => btn.addEventListener('click', () => {
+    const PR = { small: { sig: 48, concl: 24 }, mid: { sig: 72, concl: 32 }, big: { sig: 110, concl: 44 }, def: DEFAULT_MAXFONT };
+    const v = PR[btn.getAttribute('data-mf')] || DEFAULT_MAXFONT;
+    maxFontCfg.sig = v.sig; maxFontCfg.concl = v.concl;
+    sr.value = v.sig; cr.value = v.concl;
+    pop.querySelector('#mfSigV').textContent = v.sig; pop.querySelector('#mfConclV').textContent = v.concl;
+    maxFontApply();
+    toast('已切为：题干 ≤ ' + v.sig + 'px · 答案 ≤ ' + v.concl + 'px');
+  }));
+}
+$('maxFontBtn').addEventListener('click', e => {
+  const pop = $('maxFontPopover');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; e.stopPropagation(); return; }
+  renderMaxFontPop();
+  const r = $('maxFontBtn').getBoundingClientRect();
+  const w = Math.min(330, window.innerWidth - 20);
+  pop.style.width = w + 'px';
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 10)) + 'px';
+  pop.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - 260)) + 'px';
+  pop.style.display = 'block';
+  e.stopPropagation();
+});
+document.addEventListener('click', e => {
+  const pop = $('maxFontPopover'); if(!pop || pop.style.display !== 'block') return;
+  if(pop.contains(e.target) || $('maxFontBtn').contains(e.target)) return;
+  pop.style.display = 'none';
+});
 $('resetBtn').addEventListener('click', () => {
   if(confirm('确定清除「' + ALL_SUBJECTS[cur].display + '」的所有进度吗？此操作不可恢复。')){
     delete state[cur]; delete todayD[cur]; delete best[cur];
