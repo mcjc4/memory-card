@@ -459,7 +459,7 @@ function chaptersOf(ids){
 
 /* ===================== 渲染 ===================== */
 function barHtml(d){
-  var order = [5, 4, 3, 2, 1, 0];
+  var order = [0, 1, 2, 3, 4, 5];   /* 升序：未练/完全不记得在左 → 完全记住在右（2026-10-02 用户指定） */
   var total = 0;
   order.forEach(function(k){ total += d[k]; });
   if(!total) return '';
@@ -475,7 +475,7 @@ function barHtml(d){
 function distText(d, total){
   var done = total - d[0];
   var parts = ['<span>已练 <b>' + done + '</b>/' + total + '</span>'];
-  [5, 4, 3, 2, 1].forEach(function(k){
+  [1, 2, 3, 4, 5].forEach(function(k){
     if(!d[k]) return;
     parts.push('<span><i class="dot" style="background:' + LEVEL_COLOR[k] + '"></i>' + LEVEL_NAME[k] + ' ' + d[k] + '</span>');
   });
@@ -639,9 +639,54 @@ async function loadSessions(){
   }
   renderStats();
 }
+/* ===================== 云端训练成绩（2026-10-02）=====================
+ * app 端 cloudSync 已把整个执行人文档（state/browseHistory/browseMeta/trainCount…）
+ * 推到 WB Cloud 表 gaokao_state（id = 'jikaka-<personKey>'）。本页只读展示：
+ * 云就绪时拉取并用云端数据覆盖本地显示（跨设备一致）；拉取失败/云端无数据 → 保留本地。 */
+function fillIndexFromCloud(p){
+  if(!p || typeof p !== 'object') return false;
+  var st = p.state || {}, bm = p.browseMeta || {}, bh = Array.isArray(p.browseHistory) ? p.browseHistory : [];
+  var S = new Map(), M = new Map(), H = new Map(), nS = 0, nM = 0;
+  Object.keys(st).forEach(function(subj){
+    var m = st[subj]; if(!m || typeof m !== 'object') return;
+    Object.keys(m).forEach(function(id){
+      var v = m[id];
+      if(typeof v === 'number' && v >= 1 && v <= 5){ S.set(String(id), v); nS++; }
+    });
+  });
+  Object.keys(bm).forEach(function(subj){
+    var m = bm[subj]; if(!m || typeof m !== 'object') return;
+    Object.keys(m).forEach(function(id){
+      var v = m[id]; if(!v) return;
+      M.set(String(id), {browsed: !!v.browsed, lastBrowse: v.lastBrowse || 0}); nM++;
+    });
+  });
+  bh.forEach(function(e){
+    if(!e || e.id == null) return;
+    var id = String(e.id);
+    H.set(id, (H.get(id) || 0) + 1);
+    var mt = M.get(id);
+    if(!mt){ mt = {browsed: false, lastBrowse: 0}; M.set(id, mt); }
+    if(e.ts && e.ts > mt.lastBrowse) mt.lastBrowse = e.ts;
+  });
+  if(!nS && !nM && !bh.length) return false;   /* 云端无训练成绩 → 保留本地显示 */
+  STATE_FLAT = S; META_FLAT = M; HIST_COUNT = H;
+  return true;
+}
+async function loadCloudStats(){
+  if(!wbCloudReady()) return false;
+  try{
+    var rows = await sbSelect('gaokao_state', 'select=id,data&id=eq.' + encodeURIComponent('jikaka-' + personKey) + '&limit=1');
+    if(Array.isArray(rows) && rows[0] && rows[0].data && typeof rows[0].data === 'object'){
+      return fillIndexFromCloud(rows[0].data);
+    }
+    return false;
+  }catch(e){ console.warn('loadCloudStats failed:', (e && e.message) || e); return false; }
+}
 async function refreshAll(){
   buildLocalIndex();
   await waitCloud();
+  await loadCloudStats();   /* 云端训练成绩优先（跨设备同步），失败/无数据自动回落本地 */
   renderStats();
   await Promise.all([loadSessions(), loadQueuedCards()]);
   renderStats();
