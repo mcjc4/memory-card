@@ -350,6 +350,7 @@ var CARD_INDEX = new Map();   /* id → {subj, t, s, c} */
 var STATE_FLAT = new Map();   /* id → 1..5 */
 var META_FLAT = new Map();    /* id → {browsed, lastBrowse} */
 var HIST_COUNT = new Map();   /* id → 练习次数 */
+var CW_LEVEL = new Map();     /* course_id → {level, title, updated_at}（课件页五级自评，course_train 表，2026-10-03） */
 
 function personData(){ if(!STORE[personKey]) STORE[personKey] = {}; return STORE[personKey]; }
 function isWeak(v){ return v !== undefined && v !== null && v >= 1 && v <= WEAK_MAX; }
@@ -414,6 +415,7 @@ function distOf(ids){
   (ids || []).forEach(function(id){
     var v = STATE_FLAT.get(String(id));
     var k = (v == null) ? 0 : ((v >= 1 && v <= 5) ? v : 0);
+    if(!k){ var cw = CW_LEVEL.get(String(id)); if(cw && cw.level >= 1 && cw.level <= 5) k = cw.level; }   /* 课件队列：课件页五级自评计入分布 */
     d[k]++;
   });
   return d;
@@ -449,9 +451,10 @@ function chaptersOf(ids){
   var seen = [], set = new Set();
   (ids || []).forEach(function(id){
     var t = chapterOf(id);
-    if(!t) return;
     var c = CLOUD_CARDS.get(String(id));
     if(!t && c && c.chapter) t = c.chapter;
+    if(!t){ var cw = CW_LEVEL.get(String(id)); if(cw && cw.title) t = cw.title; }   /* 课件队列：用课件标题代替「章节未知」 */
+    if(!t) return;
     if(t && !set.has(t)){ set.add(t); seen.push(t); }
   });
   return seen;
@@ -482,6 +485,17 @@ function distText(d, total){
   if(d[0]) parts.push('<span><i class="dot" style="background:' + UNT_COLOR + '"></i>未练 ' + d[0] + '</span>');
   return '<div class="qdist">' + parts.join('') + '</div>';
 }
+/* 课件队列条目的「课件自评」徽章：取队列内最新一次课件页五级自评（course_train） */
+function cwAssessSpan(ids){
+  var best = null;
+  (ids || []).forEach(function(id){
+    var c = CW_LEVEL.get(String(id));
+    if(c && (!best || String(c.updated_at || '') > String(best.updated_at || ''))) best = c;
+  });
+  if(!best) return '<span style="color:#9ca3af">🧠 课件未自评</span>';
+  return '<span>🧠 课件自评：<b style="color:' + LEVEL_COLOR[best.level] + '">' + LEVEL_NAME[best.level] + '</b>'
+    + (best.updated_at ? ' <span style="color:#9ca3af">' + fmtDate(best.updated_at) + '</span>' : '') + '</span>';
+}
 function renderQueueRows(list, box, emptyMsg){
   if(!list.length){ box.innerHTML = '<div class="empty">' + esc(emptyMsg) + '</div>'; return; }
   box.innerHTML = '';
@@ -506,6 +520,7 @@ function renderQueueRows(list, box, emptyMsg){
           + '<span>' + (chs.length ? '📑 ' + esc(chs.join(' · ')) : '📑 章节未知') + '</span>'
           + '<span>' + (lb ? '🕓 最近 ' + fmtDay(lb) : '⚪ 未训练') + '</span>'
           + '<span>🕒 ' + fmtDate(s.browsed_at || s.created_at) + '</span>'
+          + (isCwQueue(s) ? cwAssessSpan(ids) : '')
         + '</div>'
         + barHtml(d)
         + distText(d, ids.length)
@@ -683,10 +698,28 @@ async function loadCloudStats(){
     return false;
   }catch(e){ console.warn('loadCloudStats failed:', (e && e.message) || e); return false; }
 }
+/* 拉取课件页五级自评（course_train 表）：每个 course_id 保留最新一行 */
+async function loadCloudCourseTrain(){
+  if(!wbCloudReady()) return false;
+  try{
+    var rows = await sbSelect('course_train', 'select=course_id,level,title,updated_at&order=updated_at.desc&limit=500');
+    var m = new Map();
+    (rows || []).forEach(function(r){
+      if(!r || !r.course_id) return;
+      var lv = +r.level;
+      if(!(lv >= 1 && lv <= 5)) return;
+      var id = String(r.course_id);
+      if(!m.has(id)) m.set(id, { level: lv, title: r.title || '', updated_at: r.updated_at || '' });
+    });
+    CW_LEVEL = m;
+    return m.size > 0;
+  }catch(e){ console.warn('loadCloudCourseTrain failed:', (e && e.message) || e); return false; }
+}
 async function refreshAll(){
   buildLocalIndex();
   await waitCloud();
   await loadCloudStats();   /* 云端训练成绩优先（跨设备同步），失败/无数据自动回落本地 */
+  await loadCloudCourseTrain();   /* 课件队列：课件页五级自评（course_train） */
   renderStats();
   await Promise.all([loadSessions(), loadQueuedCards()]);
   renderStats();
