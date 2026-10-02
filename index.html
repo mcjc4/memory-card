@@ -5049,7 +5049,7 @@ async function purgeManyCloud(subj, list){
   };
   await delIds(Array.from(drop));
   let rows = Array.isArray(CLOUD_SUBJ_ROWS) ? CLOUD_SUBJ_ROWS.filter(r => r && String(r.subject) === String(subj)) : null;
-  if(!rows){
+  if(!rows || !rows.length){
     try{ rows = await sbSelectPaged(CARDS_TABLE, 'subject=eq.' + encodeURIComponent(subj) + '&select=card_id,signal,conclusion&order=card_id', 'card_id'); }
     catch(e){ rows = []; }
   }
