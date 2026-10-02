@@ -881,6 +881,11 @@ function initNav(){
 function init(){
   initPersonSel();
   initNav();
+  /* 2026-10-03：支持 #secCw 等锚点直达（课件页「返回训练库课件队列」用） */
+  if(location.hash){
+    var hit = document.querySelector('.navItem[data-sec="' + location.hash.slice(1) + '"]');
+    if(hit) hit.click();
+  }
   paintOriginWarn();
   bindQueueBox($('libList'));
   bindQueueBox($('cwList'));
