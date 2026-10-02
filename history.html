@@ -641,14 +641,53 @@ async function loadCloudCardsForHistory(){
     });
   }catch(e){ console.warn('云端卡片详情补充失败:', e); }
 }
+function fillIndexFromCloud(p){
+  if(!p || typeof p !== 'object') return false;
+  var st = p.state || {}, bm = p.browseMeta || {}, bh = Array.isArray(p.browseHistory) ? p.browseHistory : [];
+  var S = new Map(), M = new Map(), nS = 0, nM = 0;
+  Object.keys(st).forEach(function(subj){
+    var m = st[subj]; if(!m || typeof m !== 'object') return;
+    Object.keys(m).forEach(function(id){
+      var v = m[id];
+      if(typeof v === 'number' && v >= 1 && v <= 5){ S.set(String(id), v); nS++; }
+    });
+  });
+  Object.keys(bm).forEach(function(subj){
+    var m = bm[subj]; if(!m || typeof m !== 'object') return;
+    Object.keys(m).forEach(function(id){
+      var v = m[id]; if(!v) return;
+      var cur = {browsed: !!v.browsed, lastBrowse: v.lastBrowse || 0};
+      var ex = M.get(String(id));
+      if(!ex || cur.lastBrowse > ex.lastBrowse) M.set(String(id), cur);
+      nM++;
+    });
+  });
+  if(!nS && !nM && !bh.length) return false;   /* 云端无训练成绩 → 保留本地显示 */
+  STATE_FLAT = S; BROWSE_META = M;
+  HISTORY = bh.filter(function(e){ return e && e.id != null; })
+              .sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+  return true;
+}
+async function loadCloudStats(){
+  if(!wbCloudReady()) return false;
+  try{
+    var rows = await sbSelect('gaokao_state', 'select=id,data&id=eq.' + encodeURIComponent('jikaka-' + personKey) + '&limit=1');
+    if(Array.isArray(rows) && rows[0] && rows[0].data && typeof rows[0].data === 'object'){
+      return fillIndexFromCloud(rows[0].data);
+    }
+    return false;
+  }catch(e){ console.warn('loadCloudStats failed:', (e && e.message) || e); return false; }
+}
 async function refreshAll(){
   buildLocalIndex();
   renderStats();
   msSubj.repaint();
   renderTable();
   await waitCloud();
+  await loadCloudStats();          /* 云端浏览/训练成绩优先（跨设备同步），失败/无数据自动回落本地 */
   await loadCloudCardsForHistory();
   renderStats();
+  msSubj.repaint();                /* 云端可能带来新科目，学科筛选列表同步 */
   renderTable();
 }
 
