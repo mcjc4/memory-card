@@ -64,6 +64,8 @@ a.navItem{text-decoration:none}
 /* 队列行 */
 .qrow{display:flex;gap:11px;padding:12px 0;border-top:1px solid #f1f3f5;align-items:flex-start}
 .qrow:first-child{border-top:none}
+.qrow.lastLoc{outline:2px solid #f59e0b;outline-offset:-2px;border-radius:10px;background:#FFFBEB}
+.badge.amber{background:#FEF3C7;color:#B45309}
 .qcb{margin-top:3px;width:15px;height:15px;cursor:pointer;flex:0 0 auto}
 .qmain{flex:1;min-width:0}
 .qtitle{font-size:14.5px;font-weight:600;color:#1f2329;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -434,6 +436,21 @@ function isCwQueue(s){
   var ids = queueIds(s);
   return ids.length > 0 && ids.every(function(id){ return /^course_\d+_/.test(String(id)); });
 }
+/* 📌 断点读取（2026-10-03 方案C）：本地实时优先，云端 progress 兑底（跨设备） */
+function tpFor(s){
+  var rec = null;
+  try{
+    if(isCwQueue(s)){
+      var acw = JSON.parse(localStorage.getItem('wulun_tp_cw') || '{}');
+      if(acw && acw[s.rid]) rec = acw[s.rid];
+    }else{
+      var alb = JSON.parse(localStorage.getItem('wulun_tp_lib_' + personKey) || '{}');
+      if(alb && alb[s.rid]) rec = alb[s.rid];
+    }
+  }catch(e){}
+  if(!rec && s && s.progress && s.progress.kind) rec = s.progress;
+  return rec;
+}
 function practiceCount(ids){
   var n = 0;
   (ids || []).forEach(function(id){ n += (HIST_COUNT.get(String(id)) || 0); });
@@ -505,6 +522,18 @@ function renderQueueRows(list, box, emptyMsg){
     var chs = chaptersOf(ids).slice(0, 3);
     var lb = lastBrowseOf(ids);
     var pc = practiceCount(ids);
+    /* 📌 断点徽章 + 继续训练按钮文案（2026-10-03） */
+    var tp = tpFor(s), tpBadge = '', tpActive = false;
+    if(tp && tp.kind){
+      if(tp.done){ tpBadge = '<span class="badge gray">✅ 已练完一轮</span>'; }
+      else if(tp.kind === 'cw' && typeof tp.idx === 'number'){
+        tpActive = true;
+        tpBadge = '<span class="badge amber">📌 上次练到 第' + (tp.idx + 1) + '/' + (tp.total || ids.length) + ' 课' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
+      }else if(tp.kind === 'lib' && typeof tp.pos === 'number'){
+        tpActive = true;
+        tpBadge = '<span class="badge amber">📌 上次练到 第' + (tp.pos + 1) + '/' + (tp.total || ids.length) + ' 张' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
+      }
+    }
     var row = document.createElement('div');
     row.className = 'qrow';
     row.setAttribute('data-rid', s.rid);
@@ -515,6 +544,7 @@ function renderQueueRows(list, box, emptyMsg){
           + '<span class="badge">' + ids.length + ' 张</span>'
           + '<span class="badge gray">' + esc(s.subject || '跨科') + '</span>'
           + '<span class="badge gray">已练 ' + pc + ' 次</span>'
+          + tpBadge
         + '</div>'
         + '<div class="qmeta">'
           + '<span>' + (chs.length ? '📑 ' + esc(chs.join(' · ')) : '📑 章节未知') + '</span>'
@@ -525,7 +555,7 @@ function renderQueueRows(list, box, emptyMsg){
         + barHtml(d)
         + distText(d, ids.length)
         + '<div class="qacts">'
-          + '<button class="btn primary" data-act="start" data-rid="' + esc(s.rid) + '">▶ 开始专题练</button>'
+          + '<button class="btn primary" data-act="start" data-rid="' + esc(s.rid) + '">' + (tpActive ? '▶ 继续训练' : '▶ 开始专题练') + '</button>'
           + '<button class="btn" data-act="rename" data-rid="' + esc(s.rid) + '" data-title="' + esc(s.title || '') + '">✎ 改名</button>'
           + '<button class="btn danger" data-act="del" data-rid="' + esc(s.rid) + '">🗑 删除</button>'
         + '</div>'
@@ -630,7 +660,7 @@ async function loadSessions(){
     return;
   }
   try{
-    SESSIONS = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at,source&order=browsed_at.desc&limit=200');
+    SESSIONS = await sbSelect('practice_sessions', 'select=rid,title,subject,card_ids,new_card_ids,browsed_at,created_at,source,progress&order=browsed_at.desc&limit=200');
     /* 队列里的卡若本地卡库没有，补拉云端章节信息 */
     var need = [];
     SESSIONS.forEach(function(s){
@@ -715,6 +745,29 @@ async function loadCloudCourseTrain(){
     return m.size > 0;
   }catch(e){ console.warn('loadCloudCourseTrain failed:', (e && e.message) || e); return false; }
 }
+/* 📌 自动定位：找到最近一次未练完的队列 → 高亮 + 滚动 + 侧栏同步（2026-10-03） */
+function locateLastQueue(){
+  var best = null;
+  SESSIONS.forEach(function(s){
+    var tp = tpFor(s);
+    if(tp && !tp.done && tp.ts && (!best || tp.ts > best.ts)) best = {rid: s.rid, ts: tp.ts};
+  });
+  if(!best) return;
+  var row = null;
+  try{ row = document.querySelector('.qrow[data-rid="' + best.rid.replace(/"/g, '') + '"]'); }catch(e){}
+  if(!row) return;
+  row.classList.add('lastLoc');
+  try{ row.scrollIntoView({behavior: 'smooth', block: 'center'}); }catch(e){}
+  var sec = row.closest ? row.closest('section') : null;
+  if(sec){
+    var it = document.querySelector('.navItem[data-sec="' + sec.id + '"]');
+    if(it){
+      document.querySelectorAll('.navItem').forEach(function(x){ x.classList.remove('active'); });
+      it.classList.add('active');
+    }
+  }
+  toast('📌 已定位到上次离开的队列（' + fmtDay(best.ts) + '）');
+}
 async function refreshAll(){
   buildLocalIndex();
   await waitCloud();
@@ -723,6 +776,7 @@ async function refreshAll(){
   renderStats();
   await Promise.all([loadSessions(), loadQueuedCards()]);
   renderStats();
+  locateLastQueue();
 }
 
 /* ===================== 操作 ===================== */
