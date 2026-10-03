@@ -77,6 +77,15 @@ a.navItem{text-decoration:none}
 .qdist{font-size:11.5px;color:#6b7280;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .qdist .dot{width:8px;height:8px;border-radius:3px;display:inline-block;margin-right:3px;vertical-align:middle}
 .qacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+/* 队列 tab 切换（2026-10-03：课件队列并入「记忆卡队列」区块做 tab，不再独占一块） */
+.libTabs{display:inline-flex;gap:4px;background:#eef2f6;border-radius:10px;padding:3px}
+.libTab{font-size:13px;font-weight:600;color:#6b7280;padding:5px 12px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;user-select:none}
+.libTab:hover{color:var(--accent)}
+.libTab.active{background:#fff;color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.libTab .cnt{font-size:11px;font-weight:600;color:#9ca3af}
+.libTab.active .cnt{color:var(--accent)}
+.libPane{display:none}
+.libPane.active{display:block}
 /* toast */
 #toast{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(17,24,39,.93);color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:82vw;text-align:center}
 #toast.show{opacity:1}
@@ -142,19 +151,23 @@ a.navItem{text-decoration:none}
   </section>
 
   <section class="card" id="secLib">
-    <h2>🗂 记忆卡队列<span class="cnt" id="libCnt"></span><span class="sp"></span>
+    <h2>
+      <span class="libTabs">
+        <span class="libTab active" data-tab="lib">🗂 记忆卡队列<span class="cnt" id="libCnt"></span></span>
+        <span class="libTab" data-tab="cw">📖 课件队列<span class="cnt" id="cwCnt"></span></span>
+      </span>
+      <span class="sp"></span>
       <button class="btn" id="btnMergeLib">🔗 融合选中</button>
+      <button class="btn" id="btnMergeCw" style="display:none">🔗 融合选中</button>
     </h2>
-    <div class="hint">记忆卡自身产生的队列（专题练 / 作业批改 / 跨科融合）。勾选多个后「🔗 融合选中」会把其中<strong>未完全掌握</strong>的卡去重合成一个新队列。</div>
-    <div id="libList"><div class="empty">读取中…</div></div>
-  </section>
-
-  <section class="card" id="secCw">
-    <h2>📖 课件队列<span class="cnt" id="cwCnt"></span><span class="sp"></span>
-      <button class="btn" id="btnMergeCw">🔗 融合选中</button>
-    </h2>
-    <div class="hint">来自解题课件门户「加入训练库」的队列（courseware-portal）。开始训练会跳回记忆卡并直接打开第一个课件，由课件页底部导航串联。</div>
-    <div id="cwList"><div class="empty">读取中…</div></div>
+    <div class="libPane active" id="paneLib">
+      <div class="hint">记忆卡自身产生的队列（专题练 / 作业批改 / 跨科融合）。勾选多个后「🔗 融合选中」会把其中<strong>未完全掌握</strong>的卡去重合成一个新队列。</div>
+      <div id="libList"><div class="empty">读取中…</div></div>
+    </div>
+    <div class="libPane" id="paneCw">
+      <div class="hint">来自解题课件门户「加入训练库」的队列（courseware-portal）。开始训练会跳回记忆卡并直接打开第一个课件，由课件页底部导航串联。</div>
+      <div id="cwList"><div class="empty">读取中…</div></div>
+    </div>
   </section>
 
 </main>
@@ -762,15 +775,15 @@ function locateLastQueue(){
   var row = null;
   try{ row = document.querySelector('.qrow[data-rid="' + best.rid.replace(/"/g, '') + '"]'); }catch(e){}
   if(!row) return;
+  /* 命中行在「课件队列」pane → 先切到课件 tab 再滚动（隐藏 pane 内 scrollIntoView 无效）；否则记忆卡 tab */
+  var isCw = !!(row.closest && row.closest('#paneCw'));
+  switchLibTab(isCw ? 'cw' : 'lib');
   row.classList.add('lastLoc');
   try{ row.scrollIntoView({behavior: 'smooth', block: 'center'}); }catch(e){}
-  var sec = row.closest ? row.closest('section') : null;
-  if(sec){
-    var it = document.querySelector('.navItem[data-sec="' + sec.id + '"]');
-    if(it){
-      document.querySelectorAll('.navItem').forEach(function(x){ x.classList.remove('active'); });
-      it.classList.add('active');
-    }
+  var it = document.querySelector('.navItem[data-sec="' + (isCw ? 'secCw' : 'secLib') + '"]');
+  if(it){
+    document.querySelectorAll('.navItem').forEach(function(x){ x.classList.remove('active'); });
+    it.classList.add('active');
   }
   toast('📌 已定位到上次离开的队列（' + fmtDay(best.ts) + '）');
 }
@@ -927,10 +940,29 @@ function initPersonSel(){
     refreshAll();
   });
 }
+/* 记忆卡队列 / 课件队列 tab 切换（2026-10-03：课件队列并入本区块做 tab，不再独占一块） */
+function switchLibTab(which){
+  which = (which === 'cw') ? 'cw' : 'lib';
+  document.querySelectorAll('#secLib .libTab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-tab') === which); });
+  var pl = $('paneLib'), pc = $('paneCw');
+  if(pl) pl.classList.toggle('active', which === 'lib');
+  if(pc) pc.classList.toggle('active', which === 'cw');
+  var bl = $('btnMergeLib'), bc = $('btnMergeCw');
+  if(bl) bl.style.display = (which === 'lib') ? '' : 'none';
+  if(bc) bc.style.display = (which === 'cw') ? '' : 'none';
+  /* 左侧菜单同步高亮：记忆卡队列 ↔ 课件队列 二选一 */
+  document.querySelectorAll('.navItem[data-sec="secLib"],.navItem[data-sec="secCw"]').forEach(function(x){
+    x.classList.toggle('active', x.getAttribute('data-sec') === (which === 'lib' ? 'secLib' : 'secCw'));
+  });
+}
 function initNav(){
-  document.querySelectorAll('.navItem').forEach(function(it){
+  document.querySelectorAll('.navItem[data-sec]').forEach(function(it){
     it.addEventListener('click', function(){
-      var sec = $(it.getAttribute('data-sec'));
+      var sid = it.getAttribute('data-sec');
+      /* 课件队列已并入「记忆卡队列」区块做 tab：点它 → 滚到该区块并切到课件 tab */
+      if(sid === 'secCw'){ switchLibTab('cw'); }
+      else if(sid === 'secLib'){ switchLibTab('lib'); }
+      var sec = (sid === 'secCw') ? $('secLib') : $(sid);
       if(!sec) return;
       sec.scrollIntoView({behavior: 'smooth', block: 'start'});
       document.querySelectorAll('.navItem').forEach(function(x){ x.classList.remove('active'); });
@@ -941,6 +973,9 @@ function initNav(){
 function init(){
   initPersonSel();
   initNav();
+  document.querySelectorAll('#secLib .libTab').forEach(function(t){
+    t.addEventListener('click', function(){ switchLibTab(t.getAttribute('data-tab')); });
+  });
   /* 2026-10-03：支持 #secCw 等锚点直达（课件页「返回训练库课件队列」用） */
   if(location.hash){
     var hit = document.querySelector('.navItem[data-sec="' + location.hash.slice(1) + '"]');
