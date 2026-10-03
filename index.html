@@ -7232,6 +7232,15 @@ body{padding-left:220px;padding-top:52px}
   function psSetColl(c){ document.body.classList.toggle(COLL,c); try{ localStorage.setItem('ps_collapsed', c?'1':'0'); }catch(e){} }
   var tg=document.getElementById('psToggle'); if(tg) tg.addEventListener('click',function(){ psSetColl(!document.body.classList.contains(COLL)); });
   var fab=document.getElementById('psFab'); if(fab) fab.addEventListener('click',function(){ psSetColl(false); });
+  // 点击侧边菜单以外的区域 → 自动收起（2026-10-03 用户要求：点右侧主区域即收起，露出 ☰ 汉堡）
+  document.addEventListener('click', function(e){
+    var ps=document.getElementById('psSide'); if(!ps) return;
+    if(ps.contains(e.target)) return;                 /* 点侧栏内部不收起 */
+    var fb=document.getElementById('psFab'); if(fb && fb.contains(e.target)) return;  /* 点展开汉堡不收起 */
+    if(e.target.closest && e.target.closest('.psModalMask')) return;  /* 标签管理器遮罩由其自身逻辑处理 */
+    if(document.body.classList.contains(COLL)) return;   /* 已收起则不动 */
+    psSetColl(true);
+  });
   // 复制本页链接
   var lb=document.getElementById('psLinkBtn'); if(lb) lb.addEventListener('click',function(){
     var url=location.href;
