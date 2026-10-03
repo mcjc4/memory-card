@@ -556,6 +556,10 @@ function renderQueueRows(list, box, emptyMsg){
         + distText(d, ids.length)
         + '<div class="qacts">'
           + '<button class="btn primary" data-act="start" data-rid="' + esc(s.rid) + '">' + (tpActive ? '▶ 继续训练' : '▶ 开始专题练') + '</button>'
+          /* 🎯 专练不熟（熟练度 1-4 + 未练，2026-10-03 用户指定）：课件队列不适用 */
+          + (isCwQueue(s) ? '' : '<button class="btn" data-act="weak4" data-rid="' + esc(s.rid) + '">🎯 专练不熟 ' + (ids.length - d[5]) + '</button>')
+          /* ⏮ 从头练：清除断点从第 1 张/第 1 课开始（2026-10-03 用户指定） */
+          + '<button class="btn" data-act="restart" data-rid="' + esc(s.rid) + '">⏮ 从头练</button>'
           + '<button class="btn" data-act="rename" data-rid="' + esc(s.rid) + '" data-title="' + esc(s.title || '') + '">✎ 改名</button>'
           + '<button class="btn danger" data-act="del" data-rid="' + esc(s.rid) + '">🗑 删除</button>'
         + '</div>'
@@ -570,6 +574,8 @@ function bindQueueBox(box){
     var rid = b.getAttribute('data-rid');
     var act = b.getAttribute('data-act');
     if(act === 'start') goTrain(rid);
+    else if(act === 'weak4') goTrain(rid, 'weak4');
+    else if(act === 'restart') goTrain(rid, 'restart');
     else if(act === 'rename') renameSession(rid, b.getAttribute('data-title') || '');
     else if(act === 'del') deleteSession(rid);
   });
@@ -781,7 +787,7 @@ async function refreshAll(){
 
 /* ===================== 操作 ===================== */
 /* 训练动作一律跳回 app 承接（训练引擎不重写，状态进度不会两边不同步） */
-function goTrain(rid){ location.href = 'index.html?train=' + encodeURIComponent(rid); }
+function goTrain(rid, tmode){ location.href = 'index.html?train=' + encodeURIComponent(rid) + (tmode ? '&tmode=' + tmode : ''); }
 function goCross(){ location.href = 'index.html?cross=1'; }
 function goQueued(){ location.href = 'index.html?queue=1'; }
 
