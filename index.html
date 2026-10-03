@@ -2278,6 +2278,7 @@ function show(){
   $('card').style.display = '';
   setMarkBtns(false);
   $('trainPos').textContent = '第 ' + (pos + 1) + ' / ' + queue.length + ' 张';
+  saveTrainProgress();   /* 📌 断点：带 rid 的队列训练实时记录（2026-10-03） */
   const d = itemById(queue[pos]);
   if(!d){ pos++; show(); return; }
   if(isCrossRetry){
@@ -5375,19 +5376,68 @@ async function subjectForIds(ids){
   ids.forEach(id => { if(map[id] === undefined) map[id] = (id.indexOf('_') >= 0 ? id.split('_')[0] : '化学') || '化学'; });
   return map;
 }
+/* ---------- 📌 训练进度断点（2026-10-03 方案C：本地实时 + 云端节流备份） ---------- */
+const TP_LIB_KEY = 'wulun_tp_lib_';   /* 按执行人隔离：<personKey> */
+function tpLibAll(){
+  try{ return JSON.parse(localStorage.getItem(TP_LIB_KEY + personKey) || '{}'); }catch(e){ return {}; }
+}
+function tpLibSave(rid, rec){
+  const all = tpLibAll();
+  if(rec) all[rid] = rec; else delete all[rid];
+  try{ localStorage.setItem(TP_LIB_KEY + personKey, JSON.stringify(all)); }catch(e){}
+}
+let _tpCloudTimer = null, _tpCloudPending = null;
+function tpCloudQueue(rid, rec){
+  _tpCloudPending = {rid: rid, rec: rec};
+  if(_tpCloudTimer) return;
+  _tpCloudTimer = setTimeout(tpCloudFlush, 5000);
+}
+async function tpCloudFlush(){
+  _tpCloudTimer = null;
+  const p = _tpCloudPending; _tpCloudPending = null;
+  if(!p || !p.rid || !wbCloudReady()) return;
+  try{
+    const row = {rid: p.rid, progress: p.rec, browsed_at: new Date().toISOString()};
+    const { error } = await getWbCloud().database.from('practice_sessions').upsert(row);
+    if(error) console.warn('[trainProgress]', error.message || error);
+  }catch(e){ console.warn('[trainProgress]', e); }
+}
+/* 训练视图每次渲染时调用：记录/清除断点（show() 高频调用，本地写很小；云端走 5s 节流） */
+function saveTrainProgress(){
+  if(!_curTrainRid || !isTopicTrain || browseMode || !queue.length) return;
+  if(pos >= queue.length){
+    tpLibSave(_curTrainRid, null);
+    tpCloudQueue(_curTrainRid, {kind: 'lib', done: true, total: queue.length, ts: Date.now()});
+    return;
+  }
+  const rec = {kind: 'lib', pos: pos, cardId: String(queue[pos] || ''), total: queue.length, ts: Date.now()};
+  tpLibSave(_curTrainRid, rec);
+  tpCloudQueue(_curTrainRid, rec);
+}
 function startQueueDirect(ids, title, rid){
   if(!ids.length){ toast('没有可练习的卡片'); return; }
   _curTrainRid = rid || null;        /* 记录来源队列：删卡时同步从 practice_sessions 摘掉 */
   queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
   browseMode = false; isTopicTrain = true; topic = ''; onlyWeak = false;
+  /* 📌 断点续练：优先按上次练到的 cardId 定位（卡被删则退化为按序号） */
+  let resumed = 0;
+  if(rid){
+    const rec = tpLibAll()[rid];
+    if(rec && rec.kind === 'lib' && !rec.done && rec.pos > 0 && rec.pos < ids.length){
+      let idx = ids.findIndex(x => String(x) === String(rec.cardId));
+      if(idx < 0) idx = rec.pos;
+      if(idx > 0 && idx < ids.length){ pos = idx; resumed = idx; }
+    }
+  }
   $('browseBar').style.display = 'none';
   $('topicTrainBar').style.display = 'none';
-  $('topicTrainPos').textContent = '本次第 1 / ' + queue.length + ' 张';
+  $('topicTrainPos').textContent = '本次第 ' + (pos + 1) + ' / ' + queue.length + ' 张';
   $('backBtn').textContent = '← 返回训练库';   /* UI-VER: 20261002c 队列训练来自训练库 */
   $('practiceLibModal').classList.remove('show');
   showView('train');
   show();
-  toast((title ? title + '：' : '专题练开始：') + ids.length + ' 张卡片');
+  toast((title ? title + '：' : '专题练开始：') + ids.length + ' 张卡片'
+    + (resumed > 0 ? ' · 📌 已定位到上次离开的第 ' + (resumed + 1) + ' 张' : ''));
 }
 /* ---------- 📚 训练库函数 ---------- */
 function practiceLibFmtDate(iso){
@@ -5659,7 +5709,7 @@ async function openPracticeLib(){
 }
 async function startPracticeSession(rid){
   try{
-    const rows = await sbSelect('practice_sessions', 'rid=eq.' + encodeURIComponent(rid) + '&select=card_ids,new_card_ids,browsed_at,title,subject,source,hit_map');
+    const rows = await sbSelect('practice_sessions', 'rid=eq.' + encodeURIComponent(rid) + '&select=card_ids,new_card_ids,browsed_at,title,subject,source,hit_map,progress');
     const s = rows && rows[0];
     if(!s){ toast('未找到该次练习记录'); return; }
     const ids = (s.card_ids || []).concat(s.new_card_ids || []);
@@ -5678,9 +5728,17 @@ async function startPracticeSession(rid){
         if(p) urls.push(p);
       });
       if(!urls.length){ toast('该队列没有课件'); return; }
+      /* 📌 课件断点续练：本地断点优先，云端 progress 兜底（跨设备）——2026-10-03 方案C */
+      let cwIdx = 0;
+      let cwRec = null;
+      try{ const all = JSON.parse(localStorage.getItem('wulun_tp_cw') || '{}'); if(all[rid]) cwRec = all[rid]; }catch(e){}
+      if(!cwRec && s.progress && s.progress.kind === 'cw' && !s.progress.done) cwRec = s.progress;
+      if(cwRec && typeof cwRec.idx === 'number' && cwRec.idx > 0 && cwRec.idx < urls.length) cwIdx = cwRec.idx;
       try{ localStorage.setItem('train_group', JSON.stringify({ urls: urls, rid: rid, title: s.title || '', ts: Date.now() })); }catch(e){}
-      toast('已载入课件队列「' + (s.title || '专题练') + '」');
-      setTimeout(() => { location.href = 'courseware/' + urls[0] + '?tr=0&q=' + encodeURIComponent(rid); }, 350);
+      toast(cwIdx > 0
+        ? '📌 上次练到第 ' + (cwIdx + 1) + ' / ' + urls.length + ' 课，已定位继续「' + (s.title || '专题练') + '」'
+        : '已载入课件队列「' + (s.title || '专题练') + '」');
+      setTimeout(() => { location.href = 'courseware/' + urls[cwIdx] + '?tr=' + cwIdx + '&q=' + encodeURIComponent(rid); }, 350);
       return;
     }
     const ts = s.browsed_at ? (new Date(s.browsed_at).getTime() || Date.now()) : Date.now();
