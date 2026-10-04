@@ -191,12 +191,12 @@ a.navItem{text-decoration:none}
 <!-- 📌 调整起始位置弹窗（2026-10-04）：默认值=上次离开的张数，确认后写入断点并同步「▶ 继续训练」按钮 -->
 <div id="ssMask">
   <div id="ssDlg">
-    <h3>📌 调整起始位置</h3>
+    <h3 id="ssTitle">📌 调整起始位置</h3>
     <div class="ssName" id="ssName"></div>
     <div class="ssRow">
       <span>从第</span><input id="ssNum" type="number" min="1" step="1" inputmode="numeric"><span id="ssUnit">张</span><span class="ssRange" id="ssRange"></span>
     </div>
-    <div class="ssTip">确定后，「▶ 继续训练」按钮将改为从该位置开始训练；断点同步保存（本地 + 云端）。</div>
+    <div class="ssTip" id="ssTip">确定后，「▶ 继续训练」按钮将改为从该位置开始训练；断点同步保存（本地 + 云端）。</div>
     <div class="ssBtns">
       <button class="btn" id="ssCancel" type="button">取消</button>
       <button class="btn primary" id="ssOk" type="button">确定</button>
@@ -499,15 +499,22 @@ function practiceCount(ids){
   (ids || []).forEach(function(id){ n += (HIST_COUNT.get(String(id)) || 0); });
   return n;
 }
-/* 📌 起点调整弹窗（2026-10-04）：默认值=上次离开位置；确认后写断点（本地+云端），「▶ 继续训练」按钮随之更新 */
-var SS = {rid:'', kind:'lib', total:0};
-function openSetStart(rid, cur, total, unit){
+/* 📌 起点调整弹窗（2026-10-04）：默认值=上次离开位置。
+   mode='set'（点📌徽章）：确认后写断点（本地+云端），「▶ 继续训练」按钮随之更新；
+   mode='start'（点▶继续训练按钮）：确认后直接从该位置开始训练（2026-10-04 第二轮要求）。 */
+var SS = {rid:'', kind:'lib', total:0, mode:'set'};
+function openSetStart(rid, cur, total, unit, mode){
   var s = null;
   SESSIONS.forEach(function(x){ if(x.rid === rid) s = x; });
-  SS = {rid: rid, kind: (unit === '课') ? 'cw' : 'lib', total: total};
+  SS = {rid: rid, kind: (unit === '课') ? 'cw' : 'lib', total: total, mode: (mode === 'start') ? 'start' : 'set'};
+  $('ssTitle').textContent = SS.mode === 'start' ? '▶ 继续训练 · 调整起始位置' : '📌 调整起始位置';
   $('ssName').textContent = s ? (s.title || '(未命名)') : '';
   $('ssUnit').textContent = unit;
   $('ssRange').textContent = '（1 - ' + total + '）';
+  $('ssTip').textContent = SS.mode === 'start'
+    ? '默认从上次离开的位置继续；可修改后点「开始训练」，直接从该位置开始。'
+    : '确定后，「▶ 继续训练」按钮将改为从该位置开始训练；断点同步保存（本地 + 云端）。';
+  $('ssOk').textContent = SS.mode === 'start' ? '▶ 开始训练' : '确定';
   var inp = $('ssNum');
   inp.max = total;
   inp.value = cur;
@@ -523,6 +530,8 @@ async function confirmSetStart(){
   var s = null;
   SESSIONS.forEach(function(x){ if(x.rid === rid) s = x; });
   var ids = s ? queueIds(s) : [];
+  /* mode='start'：直接从第 n 张/课开始训练（goTrain 带 start=N，优先于断点） */
+  if(SS.mode === 'start'){ goTrain(rid, '', n); return; }
   var rec;
   if(SS.kind === 'cw'){
     rec = {kind: 'cw', idx: n - 1, total: SS.total, ts: Date.now()};
@@ -653,7 +662,19 @@ function bindQueueBox(box){
     if(!b) return;
     var rid = b.getAttribute('data-rid');
     var act = b.getAttribute('data-act');
-    if(act === 'start') goTrain(rid);
+    if(act === 'start'){
+      /* ▶ 继续训练按钮也弹起点调整弹窗（2026-10-04 第二轮）：有断点 → 弹窗（默认上次位置，可改后直接开练）；无断点 → 直接开练 */
+      var s0 = null;
+      SESSIONS.forEach(function(x){ if(x.rid === rid) s0 = x; });
+      var tp0 = s0 ? tpFor(s0) : null;
+      if(tp0 && tp0.kind && !tp0.done && ((tp0.kind === 'cw' && typeof tp0.idx === 'number') || (tp0.kind === 'lib' && typeof tp0.pos === 'number'))){
+        var tot0 = tp0.total || (s0 ? queueIds(s0).length : 0);
+        var cur0 = (tp0.kind === 'cw' ? tp0.idx : tp0.pos) + 1;
+        openSetStart(rid, cur0, tot0, tp0.kind === 'cw' ? '课' : '张', 'start');
+      }else{
+        goTrain(rid);
+      }
+    }
     else if(act === 'weak4') goTrain(rid, 'weak4');
     else if(act === 'restart') goTrain(rid, 'restart');
     else if(act === 'setstart'){
