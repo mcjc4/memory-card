@@ -66,6 +66,8 @@ a.navItem{text-decoration:none}
 .qrow:first-child{border-top:none}
 .qrow.lastLoc{outline:2px solid #f59e0b;outline-offset:-2px;border-radius:10px;background:#FFFBEB}
 .badge.amber{background:#FEF3C7;color:#B45309}
+.tpSetStart{cursor:pointer}
+.tpSetStart:hover{background:#FDE68A}
 .qcb{margin-top:3px;width:15px;height:15px;cursor:pointer;flex:0 0 auto}
 .qmain{flex:1;min-width:0}
 .qtitle{font-size:14.5px;font-weight:600;color:#1f2329;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -536,15 +538,16 @@ function renderQueueRows(list, box, emptyMsg){
     var lb = lastBrowseOf(ids);
     var pc = practiceCount(ids);
     /* 📌 断点徽章 + 继续训练按钮文案（2026-10-03） */
-    var tp = tpFor(s), tpBadge = '', tpActive = false;
+    /* 📌 断点徽章（可点击改起点）+ 继续训练按钮文案带起张数（2026-10-04 用户要求） */
+    var tp = tpFor(s), tpBadge = '', tpActive = false, tpStart = 0;
     if(tp && tp.kind){
       if(tp.done){ tpBadge = '<span class="badge gray">✅ 已练完一轮</span>'; }
       else if(tp.kind === 'cw' && typeof tp.idx === 'number'){
-        tpActive = true;
-        tpBadge = '<span class="badge amber">📌 上次练到 第' + (tp.idx + 1) + '/' + (tp.total || ids.length) + ' 课' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
+        tpActive = true; tpStart = tp.idx + 1;
+        tpBadge = '<span class="badge amber tpSetStart" data-act="setstart" data-rid="' + esc(s.rid) + '" data-cur="' + tpStart + '" data-total="' + (tp.total || ids.length) + '" data-unit="课" title="点击修改起始位置">📌 上次练到 第' + tpStart + '/' + (tp.total || ids.length) + ' 课' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
       }else if(tp.kind === 'lib' && typeof tp.pos === 'number'){
-        tpActive = true;
-        tpBadge = '<span class="badge amber">📌 上次练到 第' + (tp.pos + 1) + '/' + (tp.total || ids.length) + ' 张' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
+        tpActive = true; tpStart = tp.pos + 1;
+        tpBadge = '<span class="badge amber tpSetStart" data-act="setstart" data-rid="' + esc(s.rid) + '" data-cur="' + tpStart + '" data-total="' + (tp.total || ids.length) + '" data-unit="张" title="点击修改起始位置">📌 上次练到 第' + tpStart + '/' + (tp.total || ids.length) + ' 张' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
       }
     }
     var row = document.createElement('div');
@@ -568,7 +571,7 @@ function renderQueueRows(list, box, emptyMsg){
         + barHtml(d)
         + distText(d, ids.length)
         + '<div class="qacts">'
-          + '<button class="btn primary" data-act="start" data-rid="' + esc(s.rid) + '">' + (tpActive ? '▶ 继续训练' : '▶ 开始专题练') + '</button>'
+          + '<button class="btn primary" data-act="start" data-rid="' + esc(s.rid) + '">' + (tpActive ? ('▶ 继续训练 · 第' + tpStart + (tp.kind === 'cw' ? ' 课' : ' 张') + '起') : '▶ 开始专题练') + '</button>'
           /* 🎯 专练不熟（熟练度 1-4 + 未练，2026-10-03 用户指定）：课件队列不适用 */
           + (isCwQueue(s) ? '' : '<button class="btn" data-act="weak4" data-rid="' + esc(s.rid) + '">🎯 专练不熟 ' + (ids.length - d[5]) + '</button>')
           /* ⏮ 从头练：清除断点从第 1 张/第 1 课开始（2026-10-03 用户指定） */
@@ -582,13 +585,24 @@ function renderQueueRows(list, box, emptyMsg){
 }
 function bindQueueBox(box){
   box.addEventListener('click', function(e){
-    var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+    var b = e.target.closest ? e.target.closest('[data-act]') : null;
     if(!b) return;
     var rid = b.getAttribute('data-rid');
     var act = b.getAttribute('data-act');
     if(act === 'start') goTrain(rid);
     else if(act === 'weak4') goTrain(rid, 'weak4');
     else if(act === 'restart') goTrain(rid, 'restart');
+    else if(act === 'setstart'){
+      /* 手动改起始位置（2026-10-04 用户要求）：点断点徽章输序号 → 本次从该张/课起 */
+      var total = parseInt(b.getAttribute('data-total'), 10) || 0;
+      var cur = parseInt(b.getAttribute('data-cur'), 10) || 1;
+      var unit = b.getAttribute('data-unit') || '张';
+      var v = prompt('从第几' + unit + '开始练？（1 - ' + total + '）', cur);
+      if(v == null) return;
+      var n = parseInt(v, 10);
+      if(!(n >= 1 && n <= total)){ toast('请输入 1 - ' + total + ' 之间的序号'); return; }
+      goTrain(rid, '', n);
+    }
     else if(act === 'rename') renameSession(rid, b.getAttribute('data-title') || '');
     else if(act === 'del') deleteSession(rid);
   });
@@ -800,7 +814,7 @@ async function refreshAll(){
 
 /* ===================== 操作 ===================== */
 /* 训练动作一律跳回 app 承接（训练引擎不重写，状态进度不会两边不同步） */
-function goTrain(rid, tmode){ location.href = 'index.html?train=' + encodeURIComponent(rid) + (tmode ? '&tmode=' + tmode : ''); }
+function goTrain(rid, tmode, start){ location.href = 'index.html?train=' + encodeURIComponent(rid) + (tmode ? '&tmode=' + tmode : '') + (start ? '&start=' + start : ''); }
 function goCross(){ location.href = 'index.html?cross=1'; }
 function goQueued(){ location.href = 'index.html?queue=1'; }
 
