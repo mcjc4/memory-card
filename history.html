@@ -85,6 +85,10 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
 .modeTag.mTrain{background:#EAF3DE;color:#3B6D11}
 .modeTag.mBrowse{background:#FDF2E2;color:#854F0B}
 .modeTag.mTopic{background:#E6F1FB;color:#0C447C}
+.modeTag.mCourse{background:#F3E8FF;color:#6B21A8}
+.modTag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:7px;white-space:nowrap}
+.modTag.mk{background:#EEF2F6;color:#475569}
+.modTag.mc{background:#F3E8FF;color:#6B21A8}
 .stTag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:7px;white-space:nowrap}
 .stTag.lv1{background:#FEE2E2;color:#B91C1C}
 .stTag.lv2{background:#FFEDD5;color:#C2410C}
@@ -139,6 +143,7 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
     <div class="stat"><b id="stCards" style="color:#0C447C">–</b><span>去重卡片张数</span></div>
     <div class="stat"><b id="stToday" style="color:#3B6D11">–</b><span>今日已学</span></div>
     <div class="stat"><b id="stBrowsed" style="color:#854F0B">–</b><span>已审核卡片</span></div>
+    <div class="stat"><b id="stCourse" style="color:#6B21A8">–</b><span>课件浏览</span></div>
   </div>
 
   <section class="card">
@@ -147,6 +152,13 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
       <div class="fcell wide">
         <label>搜索题干信号 / 结论 / 出处 / 章节（多个关键词用「、」分隔）</label>
         <input id="fSearch" type="text" placeholder="如：氢原子、物一轮011、诱导公式">
+      </div>
+      <div class="fcell">
+        <label>模块</label>
+        <div class="msBox">
+          <div class="msBtn" id="msKindBtn">全部模块<span class="caret">▼</span></div>
+          <div class="msPop" id="msKindPop"></div>
+        </div>
       </div>
       <div class="fcell">
         <label>学科</label>
@@ -182,6 +194,7 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
       <table class="browseTable">
         <thead><tr>
           <th style="width:140px">浏览时间</th>
+          <th style="width:66px">模块</th>
           <th style="width:66px">模式</th>
           <th>题干信号</th>
           <th style="width:88px">状态</th>
@@ -190,7 +203,7 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
           <th style="width:110px">章节</th>
           <th style="width:66px">操作</th>
         </tr></thead>
-        <tbody id="tbody"><tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr></tbody>
       </table>
     </div>
     <div class="footBar">
@@ -391,13 +404,47 @@ function buildLocalIndex(){
   });
   HISTORY = (d0.browseHistory || []).slice().sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
 }
-/* 统一取卡片展示信息：本地池优先，云端补充 */
-function fullCard(id){
+/* ---------- 课件记录（course_ / hw_ 前缀）：详情不在 cards 表，需按 id + 记录自带字段合成 ---------- */
+var COURSE_ID_RE = /^course_(\d+)_(.+)$/, HW_ID_RE = /^hw(\d{4})(\d{2})(\d{2})_(.+)$/;
+var SLUG_SUBJ = {math:'数学', phys:'物理', chem:'化学', politics:'政治'};
+function isCourseId(id){ var s = String(id == null ? '' : id); return COURSE_ID_RE.test(s) || HW_ID_RE.test(s); }
+function prettySlug(slug){ return String(slug || '').replace(/[-_]+/g, ' ').trim(); }
+function courseMeta(e){
+  e = e || {};
+  var s = String(e.id || '');
+  var t = e.t || '';
+  var tOk = t && t !== '已入训练队列' && t !== '专题练';
+  var m = COURSE_ID_RE.exec(s);
+  if(m){
+    var href = (e.src && /^(https?:|courseware\/|hw)/i.test(e.src)) ? e.src : ('courseware/lessons/' + m[1] + '-' + m[2] + '/index.html');
+    return {title: tOk ? t : ('课件 #' + m[1] + ' · ' + prettySlug(m[2])), href: href};
+  }
+  var m2 = HW_ID_RE.exec(s);
+  if(m2){
+    var parts = String(m2[4] || '').split('_');
+    var qno = String(parts[1] || '').replace(/^q/i, '');
+    return {title: tOk ? t : ('作业讲评 ' + m2[1] + m2[2] + m2[3] + ' · ' + (parts[0] || '').toUpperCase() + ' 第' + qno + ' 题'), href: e.src || ''};
+  }
+  return null;
+}
+function courseSubj(e){
+  var s = String((e && e.subject) || '').trim();
+  if(s) return s;
+  var m = COURSE_ID_RE.exec(String((e && e.id) || ''));
+  var tag = m ? String(m[2]).split('-')[0] : String((e && e.id) || '').split('_')[1] || '';
+  return SLUG_SUBJ[tag] || '';
+}
+/* 统一取卡片展示信息：本地池优先，云端补充，课件走 id 合成 */
+function fullCard(id, e){
   var k = String(id);
   var it = CARD_INDEX.get(k);
-  if(it) return {id:k, subj:it.subj, s:it.s, c:it.c, t:it.t, src:it.src, orig:it.orig||'', link:it.link||'', note:it.note||'', no:it.no||''};
+  if(it) return {id:k, subj:it.subj, s:it.s, c:it.c, t:it.t, src:it.src, orig:it.orig||'', link:it.link||'', note:it.note||'', no:it.no||'', isCourse:false};
   var c = CLOUD_CARDS.get(k);
-  if(c) return {id:k, subj:c.subject||'', s:c.signal||'', c:c.conclusion||'', t:c.chapter||'', src:c.src||'', orig:'', link:'', note:'', no:''};
+  if(c) return {id:k, subj:c.subject||'', s:c.signal||'', c:c.conclusion||'', t:c.chapter||'', src:c.src||'', orig:'', link:'', note:'', no:'', isCourse:isCourseId(k)};
+  if(isCourseId(k)){
+    var cm = courseMeta(e || {id:k}) || {title:k, href:''};
+    return {id:k, subj:courseSubj(e), s:cm.title, c:'', t:(e && e.chapter) || '', src:cm.href, orig:'', link:cm.href, note:'', no:'', isCourse:true};
+  }
   return null;
 }
 function itemById(id){ return fullCard(id); }
@@ -412,8 +459,9 @@ function subjectOfId(id){
 }
 
 /* ===================== 筛选状态 ===================== */
-var selSubj = new Set(), selMode = new Set(), selStat = new Set();
-var MODES = ['训练', '审核', '专题练'];
+var selSubj = new Set(), selMode = new Set(), selStat = new Set(), selKind = new Set();
+var MODES = ['训练', '审核', '专题练', '课件'];
+var KINDS = ['记忆卡', '课件'];
 var STAT_OPTS = [['unt','未测'],['lv1','完全不记得'],['lv2','勉强记得一点'],['lv3','记得一半左右'],['lv4','记得大部分'],['lv5','完全记住']];
 
 function subjList(){
@@ -421,7 +469,7 @@ function subjList(){
   function push(n){ if(n && !seen.has(n)){ seen.add(n); out.push(n); } }
   CARD_INDEX.forEach(function(v){ push(v.subj); });
   CLOUD_CARDS.forEach(function(v){ push(v.subject); });
-  HISTORY.forEach(function(e){ push(e.subject); });
+  HISTORY.forEach(function(e){ push(isCourseId(e.id) ? courseSubj(e) : e.subject); });
   return out.sort();
 }
 
@@ -505,30 +553,35 @@ function getFiltered(){
   var dsT = ds ? new Date(ds + 'T00:00:00').getTime() : null;
   var deT = de ? new Date(de + 'T23:59:59').getTime() : null;
   return HISTORY.filter(function(e){
-    if(selSubj.size && !selSubj.has(e.subject)) return false;
+    if(selKind.size){ if(!selKind.has(isCourseId(e.id) ? '课件' : '记忆卡')) return false; }
+    if(selSubj.size && !selSubj.has(isCourseId(e.id) ? (courseSubj(e) || '未分类') : (e.subject || '未分类'))) return false;
     if(selMode.size && !selMode.has(e.mode)) return false;
     if(dsT && (e.ts || 0) < dsT) return false;
     if(deT && (e.ts || 0) > deT) return false;
     if(selStat.size){
+      if(isCourseId(e.id)) return false;          /* 课件无记忆卡评级，状态筛选不适用 */
       var v = STATE_FLAT.get(String(e.id));
       var hit = (selStat.has('unt') && (v === undefined || v === null));
       for(var lvN = 1; lvN <= 5; lvN++){ if(selStat.has('lv' + lvN) && v === lvN) hit = true; }
       if(!hit) return false;
     }
     if(!kws.length) return true;
-    var it = fullCard(e.id);
+    var it = fullCard(e.id, e);
     if(!it) return false;
     var hay = ((it.s||'') + ' ' + (it.c||'') + ' ' + (it.src||'') + ' ' + (it.t||'')).toLowerCase();
     return kws.some(function(k){ return hay.indexOf(k) >= 0; });
   });
 }
-function modeClass(m){ return m === '审核' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : 'mTrain'); }
+function modeClass(m){ return m === '审核' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : (m === '课件' ? 'mCourse' : 'mTrain')); }
 
 function renderStats(){
-  var seen = new Set();
-  HISTORY.forEach(function(e){ seen.add(String(e.id)); });
+  var seen = new Set(), cSeen = new Set();
+  HISTORY.forEach(function(e){
+    if(isCourseId(e.id)) cSeen.add(String(e.id)); else seen.add(String(e.id));
+  });
   $('stTotal').textContent = HISTORY.length;
   $('stCards').textContent = seen.size;
+  $('stCourse').textContent = cSeen.size;
   var d0 = new Date(); d0.setHours(0,0,0,0);
   var todayN = 0;
   HISTORY.forEach(function(e){ if((e.ts||0) >= d0.getTime()) todayN++; });
@@ -548,31 +601,43 @@ function renderTable(){
   $('fCards').textContent = seen.size;
   $('tblCnt').textContent = filtered.length ? ('（' + filtered.length + ' 条）') : '';
   if(!filtered.length){
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的浏览记录</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的浏览记录</td></tr>';
     return;
   }
   var html = '';
   filtered.forEach(function(e){
-    var it = fullCard(e.id);
-    var sig = it ? String(it.s || '').slice(0, 36) : '(卡片已删除)';
+    var isC = isCourseId(e.id);
+    var it = fullCard(e.id, e);
+    var sig = it ? String(it.s || '').slice(0, 36) : (isC ? String(e.id) : '(卡片已删除)');
     var conc = it ? String(it.c || '').slice(0, 48) : '';
     var v = STATE_FLAT.get(String(e.id));
-    var stName = LEVEL_NAME[v] || '未测';
-    var stCls = v ? ('lv' + v) : 'unt';
+    var stName = isC ? '—' : (LEVEL_NAME[v] || '未测');
+    var stCls = isC ? 'unt' : (v ? ('lv' + v) : 'unt');
     html += '<tr>'
       + '<td class="ts">' + esc(relTime(e.ts)) + '<small>' + esc(fmtTs(e.ts)) + '</small></td>'
+      + '<td><span class="modTag ' + (isC ? 'mc' : 'mk') + '">' + (isC ? '课件' : '记忆卡') + '</span></td>'
       + '<td><span class="modeTag ' + modeClass(e.mode) + '">' + esc(e.mode || '-') + '</span></td>'
       + '<td class="sig">' + esc(sig) + (conc ? '<small>' + esc(conc) + '…</small>' : '') + '</td>'
       + '<td><span class="stTag ' + stCls + '">' + esc(stName) + '</span></td>'
-      + '<td>' + esc(e.subject || '-') + '</td>'
-      + '<td>' + esc(it ? (it.src || '') : (e.src || '')) + '</td>'
-      + '<td>' + esc(it ? (it.t || '') : (e.t || '')) + '</td>'
-      + '<td><button class="actBtn" data-jump="' + esc(e.id) + '">跳转</button></td>'
+      + '<td>' + esc(isC ? (courseSubj(e) || '-') : (e.subject || '-')) + '</td>'
+      + '<td>' + esc(isC ? '课件库 · ' + String((it && it.src) || e.src || '').split('/').slice(-2).join('/') : (it ? (it.src || '') : (e.src || ''))) + '</td>'
+      + '<td>' + esc(isC ? ((it && it.t) || '') : (it ? (it.t || '') : (e.t || ''))) + '</td>'
+      + (function(){
+          if(!isC) return '<td><button class="actBtn" data-jump="' + esc(e.id) + '">跳转</button></td>';
+          var link = (it && it.link) || e.src || '';
+          return link
+            ? '<td><button class="actBtn" data-jump="' + esc(e.id) + '" data-course="' + esc(link) + '">打开课件</button></td>'
+            : '<td><span style="color:#9ca3af;font-size:11.5px">无链接</span></td>';
+        })()
       + '</tr>';
   });
   tb.innerHTML = html;
   tb.querySelectorAll('button[data-jump]').forEach(function(b){
-    b.addEventListener('click', function(){ jumpToCard(b.getAttribute('data-jump')); });
+    b.addEventListener('click', function(){
+      var link = b.getAttribute('data-course');
+      if(link){ window.open(link, '_blank', 'noopener'); return; }
+      jumpToCard(b.getAttribute('data-jump'));
+    });
   });
 }
 
@@ -583,16 +648,16 @@ function jumpToCard(id){
   location.href = 'index.html?card=1';
 }
 function startPractice(){
-  var filtered = getFiltered();
+  var filtered = getFiltered().filter(function(e){ return !isCourseId(e.id); });   /* 课件不可进记忆卡训练 */
   var seen = new Set(), ids = [], cards = [];
   filtered.forEach(function(e){
     var k = String(e.id);
     if(seen.has(k)) return;
     seen.add(k); ids.push(k);
-    var c = fullCard(k);
+    var c = fullCard(k, e);
     if(c) cards.push(c);
   });
-  if(!ids.length){ toast('没有可练习的卡片，请调整筛选条件'); return; }
+  if(!ids.length){ toast('没有可练习的记忆卡（课件不参与训练，请改用「打开课件」）'); return; }
   try{ sessionStorage.setItem('lib_topic_payload', JSON.stringify({ids: ids, cards: cards})); }catch(e){}
   location.href = 'index.html?topic=1';
 }
@@ -600,8 +665,8 @@ function resetFilters(){
   $('fSearch').value = '';
   $('fDateStart').value = '';
   $('fDateEnd').value = '';
-  selSubj.clear(); selMode.clear(); selStat.clear();
-  msSubj.repaint(); msMode.repaint(); msStat.repaint();
+  selSubj.clear(); selMode.clear(); selStat.clear(); selKind.clear();
+  msSubj.repaint(); msMode.repaint(); msStat.repaint(); msKind.repaint();
   renderTable();
 }
 function quick(kind){
@@ -692,7 +757,7 @@ async function refreshAll(){
 }
 
 /* ===================== 初始化 ===================== */
-var msSubj, msMode, msStat;
+var msSubj, msMode, msStat, msKind;
 function initPersonSel(){
   var sel = $('personSel');
   sel.innerHTML = PERSONS.map(function(p){
@@ -709,6 +774,10 @@ function init(){
   initPersonSel();
   paintOriginWarn();
   /* 学科列表依赖本地索引，用 itemsFn 延迟取（init 时索引还没建） */
+  msKind = msInit('msKindBtn', 'msKindPop', {
+    items: KINDS.map(function(k){ return {v:k, label:k}; }),
+    set: selKind, allLabel: '全部模块', onChange: renderTable
+  });
   msSubj = msInit('msSubjBtn', 'msSubjPop', {
     itemsFn: function(){ return subjList().map(function(n){ return {v:n, label:n}; }); },
     set: selSubj, allLabel: '全部学科', onChange: renderTable
