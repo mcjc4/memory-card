@@ -88,6 +88,18 @@ a.navItem{text-decoration:none}
 .libTab.active .cnt{color:var(--accent)}
 .libPane{display:none}
 .libPane.active{display:block}
+/* 起点调整弹窗（2026-10-04：替代 prompt，默认值=上次离开的张数，确认后同步到「▶ 继续训练」按钮） */
+#ssMask{position:fixed;inset:0;background:rgba(17,24,39,.45);display:none;align-items:center;justify-content:center;z-index:60}
+#ssMask.show{display:flex}
+#ssDlg{background:#fff;border-radius:16px;padding:20px 22px;width:min(92vw,380px);box-shadow:0 18px 50px rgba(0,0,0,.22)}
+#ssDlg h3{font-size:15.5px;font-weight:700;color:#1f2329;margin-bottom:6px}
+#ssDlg .ssName{font-size:12.5px;color:#6b7280;margin-bottom:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ssDlg .ssRow{display:flex;align-items:center;gap:8px;font-size:14px;color:#374151;font-weight:600}
+#ssDlg input{width:90px;font-size:16px;font-weight:700;text-align:center;padding:8px 6px;border:2px solid var(--accent);border-radius:9px;color:var(--accent);outline:none;font-family:inherit}
+#ssDlg .ssRange{font-size:12px;color:#9ca3af;font-weight:400}
+#ssDlg .ssTip{font-size:12px;color:#9ca3af;line-height:1.7;margin:12px 0 16px}
+#ssDlg .ssBtns{display:flex;justify-content:flex-end;gap:9px}
+#ssDlg .ssBtns .btn{font-size:13px;padding:8px 18px}
 /* toast */
 #toast{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(17,24,39,.93);color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:82vw;text-align:center}
 #toast.show{opacity:1}
@@ -175,6 +187,22 @@ a.navItem{text-decoration:none}
 </main>
 
 <div id="toast"></div>
+
+<!-- 📌 调整起始位置弹窗（2026-10-04）：默认值=上次离开的张数，确认后写入断点并同步「▶ 继续训练」按钮 -->
+<div id="ssMask">
+  <div id="ssDlg">
+    <h3>📌 调整起始位置</h3>
+    <div class="ssName" id="ssName"></div>
+    <div class="ssRow">
+      <span>从第</span><input id="ssNum" type="number" min="1" step="1" inputmode="numeric"><span id="ssUnit">张</span><span class="ssRange" id="ssRange"></span>
+    </div>
+    <div class="ssTip">确定后，「▶ 继续训练」按钮将改为从该位置开始训练；断点同步保存（本地 + 云端）。</div>
+    <div class="ssBtns">
+      <button class="btn" id="ssCancel" type="button">取消</button>
+      <button class="btn primary" id="ssOk" type="button">确定</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ===================== WorkBuddy Cloud SDK 加载（本地副本优先，CDN 兜底） ===================== */
@@ -471,6 +499,44 @@ function practiceCount(ids){
   (ids || []).forEach(function(id){ n += (HIST_COUNT.get(String(id)) || 0); });
   return n;
 }
+/* 📌 起点调整弹窗（2026-10-04）：默认值=上次离开位置；确认后写断点（本地+云端），「▶ 继续训练」按钮随之更新 */
+var SS = {rid:'', kind:'lib', total:0};
+function openSetStart(rid, cur, total, unit){
+  var s = null;
+  SESSIONS.forEach(function(x){ if(x.rid === rid) s = x; });
+  SS = {rid: rid, kind: (unit === '课') ? 'cw' : 'lib', total: total};
+  $('ssName').textContent = s ? (s.title || '(未命名)') : '';
+  $('ssUnit').textContent = unit;
+  $('ssRange').textContent = '（1 - ' + total + '）';
+  var inp = $('ssNum');
+  inp.max = total;
+  inp.value = cur;
+  $('ssMask').classList.add('show');
+  setTimeout(function(){ inp.focus(); inp.select(); }, 30);
+}
+function closeSetStart(){ $('ssMask').classList.remove('show'); }
+async function confirmSetStart(){
+  var n = parseInt($('ssNum').value, 10);
+  if(!(n >= 1 && n <= SS.total)){ toast('请输入 1 - ' + SS.total + ' 之间的序号'); return; }
+  closeSetStart();
+  var rid = SS.rid;
+  var s = null;
+  SESSIONS.forEach(function(x){ if(x.rid === rid) s = x; });
+  var ids = s ? queueIds(s) : [];
+  var rec;
+  if(SS.kind === 'cw'){
+    rec = {kind: 'cw', idx: n - 1, total: SS.total, ts: Date.now()};
+    try{ var acw = JSON.parse(localStorage.getItem('wulun_tp_cw') || '{}'); acw[rid] = rec; localStorage.setItem('wulun_tp_cw', JSON.stringify(acw)); }catch(e){}
+  }else{
+    rec = {kind: 'lib', pos: n - 1, cardId: String(ids[n - 1] || ''), total: SS.total, ts: Date.now()};
+    try{ var alb = JSON.parse(localStorage.getItem('wulun_tp_lib_' + personKey) || '{}'); alb[rid] = rec; localStorage.setItem('wulun_tp_lib_' + personKey, JSON.stringify(alb)); }catch(e){}
+  }
+  if(wbCloudReady()){
+    try{ await sbUpdate('practice_sessions', {progress: rec}, 'rid=eq.' + encodeURIComponent(rid)); }catch(e){ console.warn('[setstart] cloud sync failed:', e); }
+  }
+  toast('✅ 已调整：「▶ 继续训练」将从第 ' + n + ' ' + (SS.kind === 'cw' ? '课' : '张') + '开始');
+  renderStats();
+}
 function lastBrowseOf(ids){
   var mx = 0;
   (ids || []).forEach(function(id){
@@ -536,7 +602,6 @@ function renderQueueRows(list, box, emptyMsg){
     var d = distOf(ids);
     var chs = chaptersOf(ids).slice(0, 3);
     var lb = lastBrowseOf(ids);
-    var pc = practiceCount(ids);
     /* 📌 断点徽章 + 继续训练按钮文案（2026-10-03） */
     /* 📌 断点徽章（可点击改起点）+ 继续训练按钮文案带起张数（2026-10-04 用户要求） */
     var tp = tpFor(s), tpBadge = '', tpActive = false, tpStart = 0;
@@ -559,7 +624,6 @@ function renderQueueRows(list, box, emptyMsg){
         + '<div class="qtitle">' + esc(s.title || '(未命名)')
           + '<span class="badge">' + ids.length + ' 张</span>'
           + '<span class="badge gray">' + esc(s.subject || '跨科') + '</span>'
-          + '<span class="badge gray">已练 ' + pc + ' 次</span>'
           + tpBadge
         + '</div>'
         + '<div class="qmeta">'
@@ -593,15 +657,11 @@ function bindQueueBox(box){
     else if(act === 'weak4') goTrain(rid, 'weak4');
     else if(act === 'restart') goTrain(rid, 'restart');
     else if(act === 'setstart'){
-      /* 手动改起始位置（2026-10-04 用户要求）：点断点徽章输序号 → 本次从该张/课起 */
+      /* 手动改起始位置（2026-10-04）：弹窗调整，默认值=上次离开的张数；确认后写入断点并同步「▶ 继续训练」按钮 */
       var total = parseInt(b.getAttribute('data-total'), 10) || 0;
       var cur = parseInt(b.getAttribute('data-cur'), 10) || 1;
       var unit = b.getAttribute('data-unit') || '张';
-      var v = prompt('从第几' + unit + '开始练？（1 - ' + total + '）', cur);
-      if(v == null) return;
-      var n = parseInt(v, 10);
-      if(!(n >= 1 && n <= total)){ toast('请输入 1 - ' + total + ' 之间的序号'); return; }
-      goTrain(rid, '', n);
+      openSetStart(rid, cur, total, unit);
     }
     else if(act === 'rename') renameSession(rid, b.getAttribute('data-title') || '');
     else if(act === 'del') deleteSession(rid);
@@ -998,6 +1058,15 @@ function init(){
   paintOriginWarn();
   bindQueueBox($('libList'));
   bindQueueBox($('cwList'));
+  /* 起点调整弹窗事件（2026-10-04） */
+  $('ssOk').addEventListener('click', confirmSetStart);
+  $('ssCancel').addEventListener('click', closeSetStart);
+  $('ssMask').addEventListener('click', function(e){ if(e.target === $('ssMask')) closeSetStart(); });
+  $('ssNum').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') confirmSetStart();
+    else if(e.key === 'Escape') closeSetStart();
+  });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && $('ssMask').classList.contains('show')) closeSetStart(); });
   $('btnRefresh').addEventListener('click', refreshAll);
   $('btnCross').addEventListener('click', goCross);
   $('btnQueuedStart').addEventListener('click', goQueued);
