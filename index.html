@@ -5414,7 +5414,7 @@ function saveTrainProgress(){
   tpLibSave(_curTrainRid, rec);
   tpCloudQueue(_curTrainRid, rec);
 }
-function startQueueDirect(ids, title, rid, noResume){
+function startQueueDirect(ids, title, rid, noResume, startNum){
   if(!ids.length){ toast('没有可练习的卡片'); return; }
   _curTrainRid = rid || null;        /* 记录来源队列：删卡时同步从 practice_sessions 摘掉 */
   queue = ids.slice(); pos = 0; shown = false; combo = 0; markBusy = false; retryOrder = [];
@@ -5422,7 +5422,11 @@ function startQueueDirect(ids, title, rid, noResume){
   /* 📌 断点续练：优先按上次练到的 cardId 定位（卡被删则退化为按序号）
      noResume=true 时跳过（⏮ 从头练已清断点；🎯 专练不熟的队列与原断点序号不对应） */
   let resumed = 0;
-  if(rid && !noResume){
+  if(startNum && startNum >= 1 && startNum <= ids.length){
+    /* 手动指定起点（训练库行带 start=N，1-based）：优先于断点（2026-10-04 用户要求） */
+    pos = startNum - 1;
+    if(pos > 0) resumed = pos;
+  }else if(rid && !noResume){
     const rec = tpLibAll()[rid];
     if(rec && rec.kind === 'lib' && !rec.done && rec.pos > 0 && rec.pos < ids.length){
       let idx = ids.findIndex(x => String(x) === String(rec.cardId));
@@ -5708,7 +5712,7 @@ async function openPracticeLib(){
     if(tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#b91c1c;padding:24px">读取失败：' + escHtml(e.message) + '</td></tr>';
   }
 }
-async function startPracticeSession(rid, mode){
+async function startPracticeSession(rid, mode, start){
   try{
     const rows = await sbSelect('practice_sessions', 'rid=eq.' + encodeURIComponent(rid) + '&select=card_ids,new_card_ids,browsed_at,title,subject,source,hit_map,progress');
     const s = rows && rows[0];
@@ -5740,6 +5744,8 @@ async function startPracticeSession(rid, mode){
         if(!cwRec && s.progress && s.progress.kind === 'cw' && !s.progress.done) cwRec = s.progress;
       }
       if(cwRec && typeof cwRec.idx === 'number' && cwRec.idx > 0 && cwRec.idx < urls.length) cwIdx = cwRec.idx;
+      /* 手动指定起点（训练库「改起点」带 start=N，1-based）：优先于断点 */
+      if(start && start >= 1 && start <= urls.length) cwIdx = start - 1;
       try{ localStorage.setItem('train_group', JSON.stringify({ urls: urls, rid: rid, title: s.title || '', ts: Date.now() })); }catch(e){}
       toast(cwIdx > 0
         ? '📌 上次练到第 ' + (cwIdx + 1) + ' / ' + urls.length + ' 课，已定位继续「' + (s.title || '专题练') + '」'
@@ -5809,7 +5815,13 @@ async function startPracticeSession(rid, mode){
     }
     /* ⏮ 从头练：清记忆卡断点，从第 1 张开始（2026-10-03 训练库双按钮） */
     if(mode === 'restart'){ tpLibSave(rid, null); trainTitle = '⏮ 从头练「' + (s.title || '专题练') + '」'; }
-    startQueueDirect(trainIds, trainTitle, rid, mode === 'weak4');
+    /* 云端断点兜底（跨设备）：本机无本地断点时，用 s.progress 补写本地供续练（2026-10-04） */
+    if(mode !== 'restart' && s.progress && s.progress.kind === 'lib' && !s.progress.done){
+      const _la = tpLibAll();
+      if(!_la[rid]) tpLibSave(rid, s.progress);
+    }
+    /* start：手动指定起始位置（训练库「改起点」用），透传给 startQueueDirect 优先于断点 */
+    startQueueDirect(trainIds, trainTitle, rid, mode === 'weak4', start || 0);
   }catch(e){
     console.error('startPracticeSession failed:', e);
     toast('载入练习失败：' + e.message);
@@ -6553,6 +6565,7 @@ function jumpToCardFromPage(id, card){
   const _q = new URLSearchParams(location.search);
   const _train = _q.get('train'), _cross = _q.get('cross'), _queue = _q.get('queue');
   const _tmode = _q.get('tmode');   /* weak4=专练不熟 restart=从头练（2026-10-03 训练库双按钮） */
+  const _start = parseInt(_q.get('start'), 10) || 0;   /* 手动指定起始位置 1-based（2026-10-04 训练库「改起点」） */
   const _topic = _q.get('topic'), _card = _q.get('card');
   const _open = _q.get('open');
   if(_open === 'practice'){ location.replace('library.html'); return; }
@@ -6579,7 +6592,7 @@ function jumpToCardFromPage(id, card){
       }
     }, 250);
   }
-  if(_train){ _afterCloud(() => startPracticeSession(_train, _tmode || null)); }
+  if(_train){ _afterCloud(() => startPracticeSession(_train, _tmode || null, _start)); }
   else if(_cross === '1'){ setTimeout(() => enterCrossRetry(), 900); }
   else if(_queue === '1'){ _afterCloud(async () => { await renderQueuedCards(); startQueuedTrain(); }); }
 })();
