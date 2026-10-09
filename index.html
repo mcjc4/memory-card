@@ -577,6 +577,7 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
         <button id="dashPracticeLibBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #1D5C7C;background:#E8F4F8;color:#1D5C7C;cursor:pointer;font-weight:600">📚 训练库</button>
         <button id="dashImportBtn" class="add" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#EAF3DE;color:#3B6D11;cursor:pointer">＋ 导入</button>
         <button id="dashTplBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer" title="下载导入模板 xlsx（含备注列，按表头填写后导入）">📄 模板</button>
+        <button id="dashReloadLibBtn" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #FCD34D;background:#FEF3C7;color:#B45309;cursor:pointer;font-weight:600" title="以云端卡库为准：清理本地与云端重名的旧导入科目（化学/数学/英语旧版本等），并丢弃本地缓存重新从云端加载">🔄 重载卡库</button>
       </div>
     </div>
     <div class="timeRingWrap">
@@ -1538,7 +1539,36 @@ function usePhySeed(){
   CLOUD_SUBJ_ROWS = null;   /* 只含物理，别当全量复用 */
   return true;
 }
-function cardLibRerender(){ rebuildSubjects(); refreshToday(); updateStats(); renderTrainLibBanner(); }
+function cardLibRerender(){ rebuildSubjects(); refreshToday(); updateStats(); renderTrainLibBanner();
+  /* DASH-VER: 20261009a —— 云端卡库/缓存到货后必须重绘首页科目卡：
+     否则首页停在首帧（旧缓存或「待导入」），云端新数据一律不显示。 */
+  try{ renderDash(); }catch(e){ console.warn('cardLibRerender dash skip:', e); }
+}
+/* RELOAD-LIB: 20261009a —— 「🔄 重载卡库」：以云端卡库为准，清理本地重复的旧导入层。
+   背景：subjDef 优先级 = CUSTOM > IMPORTED > CLOUD_SUBJ > SUBJECTS，
+   浏览器里残留的早期导入层（化学/数学/英语…）会压过云端卡库，云端更新后页面仍是旧数字。
+   只清「云端也有同名科目」的本地覆盖；用户自建、云端没有的科目（物必三/数学错题本…）原样保留。 */
+async function reloadCloudCardLib(){
+  if(!confirm('「重载卡库」将执行：\n\n1. 清除本地与云端重名的旧导入科目（化学 / 数学 / 英语 等）\n2. 丢弃本地卡库缓存，重新从云端拉取\n\n自己新建、云端没有的科目不受影响；训练进度不受影响。\n\n确定继续？')) return;
+  let cloudNames = new Set(Object.keys(CLOUD_SUBJ).filter(n => CLOUD_SUBJ[n] && CLOUD_SUBJ[n].items && CLOUD_SUBJ[n].items.length));
+  if(!cloudNames.size){
+    try{
+      toast('正在拉取云端科目清单…');
+      const rows = await sbSelectPaged(CARDS_TABLE, 'select=card_id,subject&order=card_id', 'card_id');
+      cloudNames = new Set((rows || []).map(r => r.subject || '物理'));
+    }catch(e){ toast('云端拉取失败：' + (e.message || e)); return; }
+  }
+  const removed = [];
+  [['wulun_cards_imported', IMPORTED], ['wulun_cards_custom', CUSTOM]].forEach(pair => {
+    const key = pair[0], obj = pair[1]; let hit = false;
+    Object.keys(obj).forEach(n => { if(cloudNames.has(n)){ delete obj[n]; removed.push(n); hit = true; } });
+    if(hit) saveJ(key, obj);
+  });
+  try{ localStorage.removeItem(CLOUD_SUBJ_CACHE_KEY); }catch(e){}
+  try{ schedulePush(); }catch(e){}
+  toast('已清理 ' + (removed.length ? removed.join('、') : '0 个重复科目') + '，正在重载…');
+  setTimeout(() => location.reload(), 900);
+}
 /* 无缓存时的启动路径：源本来就不在白名单 → 立刻落骨料；
    源在可用名单 → 不下骨料，交给 bootstrapCloudSubjects 的结果决定（失败才兜底）。 */
 function applyCloudSubjectsFromCacheOrSeed(){
@@ -6520,6 +6550,7 @@ $('dashImportBtn').addEventListener('click', () => { importCaller = 'cross'; $('
 $('dashTplBtn').addEventListener('click', downloadImpTemplate);
 $('dashCrossTopicBtn').addEventListener('click', () => { rebuildSubjects(); openCrossTopicTrain(); });
 $('dashPracticeLibBtn').addEventListener('click', () => { location.href = 'library.html'; });
+$('dashReloadLibBtn').addEventListener('click', reloadCloudCardLib);
 /* ===================== 训练库独立页 library.html 回跳协议（2026-10-01） =====================
    新页面只做浏览与管理，训练动作一律跳回本页由现有引擎承接（startPracticeSession / enterCrossRetry /
    startQueuedTrain 都依赖内存 state / browseHistory，重写会导致状态两边不同步）。
