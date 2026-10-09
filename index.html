@@ -194,6 +194,15 @@ h1{font-size:21px;font-weight:500;text-align:center}
 .srcPopover .srcBar button{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 0;font-size:12px;cursor:pointer;color:#374151}
 .srcPopover .srcBar button:hover{background:#E6F1FB;border-color:#185FA5;color:#185FA5}
 .srcPopover .srcHint{font-size:11px;color:#9ca3af;margin-bottom:6px}
+/* 📄 出处浮层：全功能选择菜单（弹出+勾选+全选+重置为空+搜索） · SRCSEL-VER: 20261009b
+   搜索框与「全选/重置为空」栏固定在上方，仅列表区滚动 */
+#srcPopover{max-height:none;overflow:visible;padding:10px 12px 12px}
+#srcPopover .srcSearch{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;box-sizing:border-box;margin-bottom:6px;font-family:inherit;color:#1f2329}
+#srcPopover .srcSearch:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 2px rgba(24,95,165,.12)}
+#srcPopover .srcList{max-height:186px;overflow:auto}
+#srcPopover .srcList label{display:flex;align-items:center;gap:6px;font-size:13px;color:#1f2329;margin:4px 0;cursor:pointer;border-radius:6px;padding:2px 4px}
+#srcPopover .srcList label:hover{background:#F3F7FB}
+#srcPopover .srcEmpty{font-size:12px;color:#9ca3af;padding:10px 4px;text-align:center}
 /* 🔠 最大字号浮层（工具栏） · MAXFONT-VER: 20261002a */
 .mfPop{min-width:0;max-height:none;padding:14px 16px}
 .mfPop .mfRow{display:flex;align-items:center;gap:10px;margin:12px 0 2px}
@@ -6703,7 +6712,8 @@ $('bhStart').addEventListener('click', startBhPractice);
   $('dashBrowseBtn').addEventListener('click', openBrowseHistory);
   $('dashBrowseBtn').addEventListener('touchstart', e => { e.preventDefault(); openBrowseHistory(); }, {passive:false});
 /* 工具栏「📋 浏览历史」按钮已移除 → 入口见侧边栏「浏览历史」与卡片库顶部「📋 浏览历史」 */
-/* 工具栏 📄 出处 多选（影响 buildQueue）；默认全选 = 空集合显示全部 */
+/* 工具栏 📄 出处 多选（影响 buildQueue）；默认全选 = 空集合显示全部
+   全功能选择菜单五要素：弹出面板 + 勾选 + ☑全选 + 重置为空 + 搜索（SRCSEL-VER: 20261009b） */
 function openSrcPopover(){
   const pop = $('srcPopover');
   pop.innerHTML = '';
@@ -6714,40 +6724,64 @@ function openSrcPopover(){
   else {
     const sf = srcSet(cur);
     if(!srcInited[cur]){ srcInited[cur] = true; all.forEach(s => sf.add(s)); }   /* 首次打开：默认全选 */
+    /* ① 搜索框（固定顶部，不随列表滚动） */
+    const search = document.createElement('input');
+    search.type = 'text'; search.className = 'srcSearch';
+    search.placeholder = '🔍 搜索出处（共 ' + all.length + ' 项）…';
+    pop.appendChild(search);
     const hint = document.createElement('div');
     hint.className = 'srcHint';
     hint.textContent = '勾选=显示该出处 · 取消=排除；「重置为空」全部取消勾选（卡片清空）';
     pop.appendChild(hint);
+    /* ② 全选 / 重置为空（作用于当前搜索可见的条目） */
     const bar = document.createElement('div');
     bar.className = 'srcBar';
     const allBtn = document.createElement('button'); allBtn.textContent = '☑ 全选';
     const clearBtn = document.createElement('button'); clearBtn.textContent = '☐ 重置为空';
     bar.appendChild(allBtn); bar.appendChild(clearBtn);
     pop.appendChild(bar);
-    all.forEach(s => {
-      const lab = document.createElement('label');
-      lab.innerHTML = '<input type="checkbox" data-src2="' + escHtml(s) + '"> ' + escHtml(s);
-      pop.appendChild(lab);
-    });
-    pop.querySelectorAll('input[data-src2]').forEach(cb => {
-      const s = cb.getAttribute('data-src2');
-      cb.checked = sf.has(s);   /* 严格语义：勾选=在集合中 */
-      cb.addEventListener('change', () => {
-        if(cb.checked) sf.add(s); else sf.delete(s);
-        updateSrcBtn();
-        buildQueue(); show();
+    /* ③ 勾选列表（仅此区滚动） */
+    const listBox = document.createElement('div'); listBox.className = 'srcList';
+    pop.appendChild(listBox);
+    let rows = all.slice();
+    function renderSrcList(){
+      listBox.innerHTML = '';
+      if(!rows.length){
+        const e = document.createElement('div'); e.className = 'srcEmpty'; e.textContent = '无匹配出处';
+        listBox.appendChild(e); return;
+      }
+      rows.forEach(s => {
+        const lab = document.createElement('label');
+        lab.innerHTML = '<input type="checkbox" data-src2="' + escHtml(s) + '"> ' + escHtml(s);
+        listBox.appendChild(lab);
       });
+      listBox.querySelectorAll('input[data-src2]').forEach(cb => {
+        const s = cb.getAttribute('data-src2');
+        cb.checked = sf.has(s);   /* 严格语义：勾选=在集合中 */
+        cb.addEventListener('change', () => {
+          if(cb.checked) sf.add(s); else sf.delete(s);
+          updateSrcBtn();
+          buildQueue(); show();
+        });
+      });
+    }
+    renderSrcList();
+    search.addEventListener('input', () => {
+      const kw = search.value.trim().toLowerCase();
+      rows = kw ? all.filter(s => String(s).toLowerCase().includes(kw)) : all.slice();
+      renderSrcList();
     });
     allBtn.addEventListener('click', () => {
-      all.forEach(s => sf.add(s));
-      pop.querySelectorAll('input[data-src2]').forEach(cb => cb.checked = true);
+      rows.forEach(s => sf.add(s));   /* 全选只作用于当前搜索可见的行 */
+      renderSrcList();
       updateSrcBtn(); buildQueue(); show();
     });
     clearBtn.addEventListener('click', () => {
-      sf.clear();
-      pop.querySelectorAll('input[data-src2]').forEach(cb => cb.checked = false);   /* 全部不选 */
+      sf.clear();                    /* 重置为空 = 清空整个集合（全部不选 → 卡片清空） */
+      renderSrcList();
       updateSrcBtn(); buildQueue(); show();
     });
+    try{ search.focus({ preventScroll: true }); }catch(e){}
   }
   const btn = $('srcFilterBtn');
   const rect = btn.getBoundingClientRect();
