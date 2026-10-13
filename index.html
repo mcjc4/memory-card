@@ -7073,11 +7073,37 @@ function refitSigNow(){
 function applyOrigFont(){
   try{ document.documentElement.style.setProperty('--orig-size', Math.round(maxFontCfg.orig) + 'px'); }catch(e){}
 }
-/* 按「可见字数」截断已渲染 HTML：KaTeX 公式整体当一个原子（绝不切碎公式 DOM，避免半截分数线残留） */
+/* 按「可见字数」截断已渲染 HTML · ORIGFIT-VER: 20261013a
+   ① 只数肉眼可见的字：KaTeX 的 .katex-mathml 是隐藏的无障碍副本，必须排除，
+      否则同一个公式被数两遍 → 同样的字数上限只显示一半内容；
+   ② 公式整体当一个原子：整块保留或整块删除，绝不切碎公式 DOM（避免半截分数线残留）。 */
+const _ORIG_ZERO_W = /[\u200b\u200c\u200d\u2060\ufeff]/g;
+function _origVisibleTextOf(el){
+  if(!el || !el.querySelector) return '';
+  const h = el.querySelector('.katex-html');
+  return String((h || el).textContent || '').replace(_ORIG_ZERO_W, '');
+}
+/* 已渲染原题块的「可见字数」（与截断同一口径，供设置/回归自证） */
+function origVisibleLen(el){
+  el = el || $('fOrig'); if(!el) return 0;
+  let n = 0;
+  (function walk(node){
+    const kids = node.childNodes;
+    for(let i = 0; i < kids.length; i++){
+      const k = kids[i];
+      if(k.nodeType === 3){ n += String(k.nodeValue || '').replace(_ORIG_ZERO_W, '').length; continue; }
+      if(k.nodeType !== 1) continue;
+      const cl = k.classList;
+      if(cl && cl.contains('katex-mathml')) continue;   /* 隐藏副本，不计入字数 */
+      if(cl && (cl.contains('katex') || cl.contains('katex-display'))){ n += _origVisibleTextOf(k).length; continue; }
+      walk(k);
+    }
+  })(el);
+  return n;
+}
 function clampRenderedText(root, max){
   if(!root || !(max > 0)) return;
-  const ZERO = /[\u200b\u200c\u200d\u2060\ufeff]/g;
-  const txtOf = n => String(n.textContent || '').replace(ZERO, '');
+  const ZERO = _ORIG_ZERO_W;
   const isKatex = n => n.nodeType === 1 && n.classList && (n.classList.contains('katex') || n.classList.contains('katex-display'));
   let used = 0, done = false;
   (function walk(node){
@@ -7092,8 +7118,9 @@ function clampRenderedText(root, max){
         used = max; done = true; continue;
       }
       if(k.nodeType !== 1) continue;
+      if(k.classList && k.classList.contains('katex-mathml')) continue;   /* 隐藏的无障碍副本：保留但不计字数 */
       if(isKatex(k)){
-        const t = txtOf(k);
+        const t = _origVisibleTextOf(k);
         if(used + t.length <= max){ used += t.length; continue; }
         if(used >= max){ if(k.parentNode) k.parentNode.removeChild(k); done = true; continue; }
         used += t.length;   /* 公式不拆：允许最后一个公式略微超出字数上限 */
