@@ -471,7 +471,7 @@ var SESSIONS = [];
 var QUEUED_ROWS = [];
 var CLOUD_CARDS = new Map();   /* card_id → {subject, chapter, signal} */
 
-/* ===== SEQNO-VER: 20261013a 卡片编号 + 从小到大排序 =====
+/* ===== SEQNO-VER: 20261013b 卡片编号 + 从小到大排序 =====
    cardNoRaw：从 card_id 里抠出内嵌「编号」（序号）。
      mat0245 → "0245" ｜ phy3293 → "3293" ｜ hw:物理:phy5846 → "5846"
      cus:英语:wb100-029-el1xbr → "029"（末尾 6 位随机后缀先丢掉）｜ course_112_... → "112" */
@@ -487,16 +487,32 @@ function cardNoRaw(id){
   var digs = segs.join('-').match(/[0-9]+/g);
   return (digs && digs.length) ? digs[digs.length - 1] : '';
 }
+function cardPrefixKey(id){
+  var s = String(id == null ? '' : id);
+  var c = s.lastIndexOf(':');
+  if(c >= 0) s = s.slice(c + 1);
+  var segs = s.split(/[-_]/);
+  if(segs.length > 1){
+    var last = segs[segs.length - 1];
+    if(/^[A-Za-z0-9]{4,8}$/.test(last) && /[A-Za-z]/.test(last) && /[0-9]/.test(last)) segs.pop();
+  }
+  s = segs.join('-');
+  var m = s.match(/^[A-Za-z]+/);   // 开头连续字母 = 科目前缀（mat/phy/wb/course…）
+  return m ? m[0] : '';
+}
 function cardSeqNum(id){
   var r = cardNoRaw(id);
   return r ? parseInt(r, 10) : null;
 }
-/* 队列卡片「从小到大」排序：按编号升序；无编号者排末尾；同号/无号保持原相对次序（稳定排序） */
+/* 队列卡片「从小到大」排序：先按科目前缀分组（mat/phy/wb/course…），组内再按编号升序；
+   无编号者排末尾；同号/无号保持原相对次序（稳定排序） */
 function sortIdsAsc(ids){
   var arr = (ids || []).slice();
   var ord = new Map();
   arr.forEach(function(id, i){ if(!ord.has(String(id))) ord.set(String(id), i); });
   arr.sort(function(a, b){
+    var pa = cardPrefixKey(a), pb = cardPrefixKey(b);
+    if(pa !== pb) return pa < pb ? -1 : 1;
     var na = cardSeqNum(a), nb = cardSeqNum(b);
     var ha = (na === null), hb = (nb === null);
     if(ha !== hb) return ha ? 1 : -1;
@@ -667,7 +683,7 @@ function renderQueueRows(list, box, emptyMsg){
         tpBadge = '<span class="badge amber tpSetStart" data-act="setstart" data-rid="' + esc(s.rid) + '" data-cur="' + tpStart + '" data-total="' + (tp.total || ids.length) + '" data-unit="课" title="点击修改起始位置">📌 上次练到 第' + tpStart + '/' + (tp.total || ids.length) + ' 课' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
       }else if(tp.kind === 'lib' && typeof tp.pos === 'number'){
         tpActive = true;
-        /* SEQNO-VER: 20261013a —— 队列已按编号升序重排：优先按 cardId 反查位置，保证「第 N 张」指向同一张卡 */
+        /* SEQNO-VER: 20261013b —— 队列已按编号升序重排：优先按 cardId 反查位置，保证「第 N 张」指向同一张卡 */
         var _li = tp.cardId ? ids.findIndex(function(x){ return String(x) === String(tp.cardId); }) : -1;
         tpStart = (_li >= 0 ? _li : tp.pos) + 1;
         tpBadge = '<span class="badge amber tpSetStart" data-act="setstart" data-rid="' + esc(s.rid) + '" data-cur="' + tpStart + '" data-total="' + (tp.total || ids.length) + '" data-unit="张" title="点击修改起始位置">📌 上次练到 第' + tpStart + '/' + (tp.total || ids.length) + ' 张' + (tp.ts ? ' · ' + fmtDay(tp.ts) : '') + '</span>';
@@ -991,7 +1007,7 @@ async function mergeSelected(box){
       seen.add(k); ids.push(id);
     });
   });
-  ids = sortIdsAsc(ids);   /* SEQNO-VER: 20261013a 融合队列从小到大 */
+  ids = sortIdsAsc(ids);   /* SEQNO-VER: 20261013b 融合队列从小到大 */
   if(!ids.length){ toast('选中的队列都已完全掌握，没有可融合的卡'); return; }
   if(!confirm('将 ' + rids.length + ' 个队列中「未完全掌握」的卡去重合成新队列，共 ' + ids.length + ' 张。\n\n确定继续？')) return;
   try{
@@ -1053,7 +1069,7 @@ async function saveQueuedToLib(){
   if(!QUEUED_ROWS.length){ toast('暂无待训练卡可存'); return; }
   if(!wbCloudReady()){ toast('云端未就绪，无法保存'); return; }
   try{
-    var ids = sortIdsAsc(QUEUED_ROWS.map(function(r){ return r.card_id; }));   /* SEQNO-VER: 20261013a 从小到大存库 */
+    var ids = sortIdsAsc(QUEUED_ROWS.map(function(r){ return r.card_id; }));   /* SEQNO-VER: 20261013b 从小到大存库 */
     await retagToQueued(ids);
     var dup = await findExistingRid('app-lib', ids);
     if(dup){
