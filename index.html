@@ -1404,6 +1404,25 @@ let state, todayD, goal, best, streakD, guard, IMPORTED, CUSTOM, POS, lastView, 
 function emptyPerson(){
   return {state:{}, today:{}, goal:{}, best:{}, streak:[], pos:{}, lastView:{view:'dash'}, lastRes:{}, firstRated:{}, tasks:[], browseHistory:[], browseMeta:{}, trainCount:{}, subjectTime:{}, guard:{date:'', count:0, minutes:0}, updatedAt:0};
 }
+/* TODAYSPLIT-VER: 20261013e —— 回填 firstRated（首次评级时间）：取 lastRes.ts 与 browseHistory 最早 ts 的较小者作为已知最早。
+   在 loadPerson 与 云端拉取(applyCloudPayload) 后都要跑一遍：本机为空、数据靠云端拉取时，仅 loadPerson 回填会漏。 */
+function backfillFirstRated(){
+  try{
+    Object.keys(lastRes || {}).forEach(nm => {
+      const lm = lastRes[nm]; if(!lm || typeof lm !== 'object') return;
+      firstRated[nm] = firstRated[nm] || {};
+      Object.keys(lm).forEach(id => {
+        const t = lm[id] && lm[id].ts;
+        if(t && (!firstRated[nm][id] || t < firstRated[nm][id])) firstRated[nm][id] = t;
+      });
+    });
+    (browseHistory || []).forEach(e => {
+      if(!e || !e.subject || !e.id || !e.ts) return;
+      const b = firstRated[e.subject] || (firstRated[e.subject] = {});
+      if(!b[e.id] || e.ts < b[e.id]) b[e.id] = e.ts;
+    });
+  }catch(err){ console.warn('[firstRated backfill]', err); }
+}
 function bindPerson(key){
   const idx = PERSONS.findIndex(p => p.key === key);
   const pkey = idx >= 0 ? key : PERSONS[0].key;
@@ -1465,22 +1484,8 @@ function bindPerson(key){
     if(e.mode === '审核') m.browsed = true;
     browseMeta[e.subject][e.id] = m;
   });
-  /* TODAYSPLIT-VER: 20261013e —— 回填 firstRated（首次评级时间）：取 lastRes.ts 与 browseHistory 最早 ts 的较小者作为已知最早（旧数据迁移） */
-  try{
-    Object.keys(lastRes || {}).forEach(nm => {
-      const lm = lastRes[nm]; if(!lm || typeof lm !== 'object') return;
-      firstRated[nm] = firstRated[nm] || {};
-      Object.keys(lm).forEach(id => {
-        const t = lm[id] && lm[id].ts;
-        if(t && (!firstRated[nm][id] || t < firstRated[nm][id])) firstRated[nm][id] = t;
-      });
-    });
-    browseHistory.forEach(e => {
-      if(!e || !e.subject || !e.id || !e.ts) return;
-      const b = firstRated[e.subject] || (firstRated[e.subject] = {});
-      if(!b[e.id] || e.ts < b[e.id]) b[e.id] = e.ts;
-    });
-  }catch(err){ console.warn('[firstRated backfill]', err); }
+  /* TODAYSPLIT-VER: 20261013e —— 回填 firstRated（首次评级时间），旧数据迁移 */
+  backfillFirstRated();
   saveJ(ACTIVE_KEY, pkey);
 }
 function savePerson(){
@@ -4175,6 +4180,8 @@ function applyCloudPayload(p){
       });
     });
   }
+  /* TODAYSPLIT-VER: 20261013e —— 云端拉取后重新回填（本机为空、数据全靠云端时，loadPerson 阶段回填会漏） */
+  backfillFirstRated();
   if(p.pos && typeof p.pos === 'object'){ Object.keys(p.pos).forEach(subj => { POS[subj] = p.pos[subj]; }); }
   if(p.trainCount && typeof p.trainCount === 'object'){
     Object.keys(p.trainCount).forEach(subj => {
