@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>📚 训练库 · 记忆卡</title>
+<title>📚 训练库 · 记忆卡 v1020weak</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -100,6 +100,34 @@ a.navItem{text-decoration:none}
 #ssDlg .ssTip{font-size:12px;color:#9ca3af;line-height:1.7;margin:12px 0 16px}
 #ssDlg .ssBtns{display:flex;justify-content:flex-end;gap:9px}
 #ssDlg .ssBtns .btn{font-size:13px;padding:8px 18px}
+/* 🎯 专练不熟 · 不熟程度选择弹窗（WEAKLV-VER: 20261014a）
+   2026-10-14 用户截图意见：专练不熟需提供「不熟程度」选择，例如本次只练程度 1-3，可手工勾选任意档位 */
+#wkMask{position:fixed;inset:0;background:rgba(17,24,39,.45);display:none;align-items:center;justify-content:center;z-index:61}
+#wkMask.show{display:flex}
+#wkDlg{background:#fff;border-radius:16px;padding:18px 20px 16px;width:min(94vw,440px);box-shadow:0 18px 50px rgba(0,0,0,.22)}
+#wkDlg h3{font-size:15.5px;font-weight:700;color:#1f2329;margin-bottom:5px}
+#wkDlg .wkName{font-size:12.5px;color:#6b7280;margin-bottom:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#wkDlg .wkHint{font-size:11.5px;color:#9ca3af;line-height:1.6;margin-bottom:9px}
+#wkQuick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+#wkQuick .chip{font:inherit;font-size:12px;font-weight:600;color:#374151;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:5px 9px;cursor:pointer;white-space:nowrap}
+#wkQuick .chip:hover{border-color:var(--accent);color:var(--accent)}
+#wkQuick .chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+#wkQuick .sp{flex:1 1 auto;min-width:0}
+#wkQuick .chip2{font:inherit;font-size:12px;font-weight:600;color:#185FA5;background:#EFF6FF;border:1px solid #bfdbfe;border-radius:8px;padding:5px 9px;cursor:pointer;white-space:nowrap}
+#wkQuick .chip2:hover{background:#DBEAFE}
+#wkList{border:1px solid #e5e7eb;border-radius:11px;overflow:hidden}
+#wkList label{display:flex;align-items:center;gap:9px;padding:9px 12px;font-size:13.5px;color:#374151;cursor:pointer;border-top:1px solid #f1f3f5}
+#wkList label:first-child{border-top:none}
+#wkList label:hover{background:#f8fafc}
+#wkList label.off{color:#9ca3af}
+#wkList input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none}
+#wkList .dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+#wkList .cnt{margin-left:auto;font-size:12px;color:#9ca3af;font-variant-numeric:tabular-nums;white-space:nowrap}
+#wkList label.on .cnt{color:var(--accent);font-weight:600}
+#wkSum{font-size:12.5px;color:#6b7280;margin:11px 0 14px;line-height:1.7}
+#wkSum b{color:var(--accent);font-size:14.5px}
+#wkDlg .wkBtns{display:flex;justify-content:flex-end;gap:9px}
+#wkDlg .wkBtns .btn{font-size:13px;padding:8px 18px}
 /* toast */
 #toast{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(17,24,39,.93);color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:82vw;text-align:center}
 #toast.show{opacity:1}
@@ -200,6 +228,31 @@ a.navItem{text-decoration:none}
     <div class="ssBtns">
       <button class="btn" id="ssCancel" type="button">取消</button>
       <button class="btn primary" id="ssOk" type="button">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🎯 专练不熟 · 选择不熟程度（WEAKLV-VER: 20261014a · 2026-10-14 用户截图意见）
+     勾选要纳入的熟练度档位（①~⑤ + 未练），确认后带 lvs 参数进入训练；默认记忆上次选择（首次=1-4+未练，即旧行为） -->
+<div id="wkMask">
+  <div id="wkDlg">
+    <h3>🎯 专练不熟 · 选择不熟程度</h3>
+    <div class="wkName" id="wkName"></div>
+    <div class="wkHint">勾选本次要练的档位（可跨档多选，例如只练 ①~③）。括号内为该档张数。</div>
+    <div id="wkQuick">
+      <button class="chip" type="button" data-lvs="1-2">1-2</button>
+      <button class="chip" type="button" data-lvs="1-3">1-3</button>
+      <button class="chip" type="button" data-lvs="1-4">1-4</button>
+      <button class="chip" type="button" data-lvs="1-4+u">1-4+未练</button>
+      <span class="sp"></span>
+      <button class="chip2" type="button" id="wkAll">☑ 全选</button>
+      <button class="chip2" type="button" id="wkNone">☐ 重置</button>
+    </div>
+    <div id="wkList"></div>
+    <div id="wkSum"></div>
+    <div class="wkBtns">
+      <button class="btn" id="wkCancel" type="button">取消</button>
+      <button class="btn primary" id="wkOk" type="button">🎯 开始专练</button>
     </div>
   </div>
 </div>
@@ -592,6 +645,113 @@ function openSetStart(rid, cur, total, unit, mode){
   setTimeout(function(){ inp.focus(); inp.select(); }, 30);
 }
 function closeSetStart(){ $('ssMask').classList.remove('show'); }
+
+/* ===================== 🎯 专练不熟 · 不熟程度选择（WEAKLV-VER: 20261014a · 2026-10-14） =====================
+   档位键：1~5 = 五级自评；0 = 未练。默认「1-4 + 未练」＝ 旧「滤掉完全记住」行为。
+   档位串序列化：连续段写 "1-3"、不连续写 "1,3"，未练记 "u" → 例 "1-3+u"（URL 参数 lvs）。
+   选择结果记忆在本机（按执行人），下次打开默认沿用。 */
+var WK = {rid:'', total:0, d:{}, sel:{}};
+function wkKey(){ return 'wulun_weak_lvs_' + personKey; }
+function wkLevels(){ return [1, 2, 3, 4, 5]; }
+function wkParseLvs(str){
+  var out = {0:false, 1:false, 2:false, 3:false, 4:false, 5:false};
+  if(str === null || str === undefined || str === '') return out;
+  String(str).replace(/\s+/g, '').split('+').forEach(function(seg){
+    if(!seg) return;
+    if(seg === 'u' || seg === 'unt' || seg === '未练'){ out[0] = true; return; }
+    seg.split(',').forEach(function(part){
+      var m = /^([1-5])-([1-5])$/.exec(part);
+      if(m){ var a = +m[1], b = +m[2]; if(a > b){ var t = a; a = b; b = t; } for(var i = a; i <= b; i++) out[i] = true; return; }
+      if(/^[1-5]$/.test(part)) out[+part] = true;
+    });
+  });
+  return out;
+}
+function wkStrOf(sel){
+  var ks = []; wkLevels().forEach(function(k){ if(sel[k]) ks.push(k); });
+  var segs = [], i = 0;
+  while(i < ks.length){
+    var j = i;
+    while(j + 1 < ks.length && ks[j + 1] === ks[j] + 1) j++;
+    segs.push(i === j ? String(ks[i]) : (ks[i] + '-' + ks[j]));
+    i = j + 1;
+  }
+  var body = segs.join(',');
+  if(!sel[0]) return body;
+  return body ? (body + '+u') : 'u';
+}
+function wkHas(sel){ return wkLevels().some(function(k){ return !!sel[k]; }) || !!sel[0]; }
+function wkCount(sel, d){
+  var n = 0;
+  Object.keys(sel).forEach(function(k){ if(sel[k]) n += ((d && d[k]) || 0); });
+  return n;
+}
+function wkSavedSel(){
+  var sel = wkParseLvs(loadJ(wkKey(), ''));
+  return wkHas(sel) ? sel : wkParseLvs('1-4+u');
+}
+function openWeakPick(rid){
+  var s = null;
+  SESSIONS.forEach(function(x){ if(x.rid === rid) s = x; });
+  if(!s) return;
+  var ids = queueIds(s);
+  if(!ids.length){ toast('该队列没有卡片'); return; }
+  WK.rid = rid; WK.total = ids.length; WK.d = distOf(ids); WK.sel = wkSavedSel();
+  $('wkName').textContent = (s.title || '(未命名)') + ' · 共 ' + ids.length + ' 张';
+  var html = '';
+  wkLevels().forEach(function(k){
+    html += '<label><input type="checkbox" data-lv="' + k + '">'
+      + '<i class="dot" style="background:' + LEVEL_COLOR[k] + '"></i>' + LEVEL_NAME[k]
+      + '<span class="cnt">(' + (WK.d[k] || 0) + ' 张)</span></label>';
+  });
+  html += '<label><input type="checkbox" data-lv="0">'
+    + '<i class="dot" style="background:' + UNT_COLOR + '"></i>未练'
+    + '<span class="cnt">(' + (WK.d[0] || 0) + ' 张)</span></label>';
+  $('wkList').innerHTML = html;
+  $('wkList').querySelectorAll('input[data-lv]').forEach(function(cb){
+    cb.checked = !!WK.sel[+cb.getAttribute('data-lv')];
+    cb.addEventListener('change', wkPaint);
+  });
+  wkPaint();
+  $('wkMask').classList.add('show');
+}
+function wkPaint(){
+  var sel = {0:false, 1:false, 2:false, 3:false, 4:false, 5:false};
+  $('wkList').querySelectorAll('input[data-lv]').forEach(function(cb){
+    var k = +cb.getAttribute('data-lv');
+    sel[k] = !!cb.checked;
+    var lb = cb.parentNode;
+    if(lb && lb.tagName === 'LABEL'){ lb.classList.toggle('on', sel[k]); lb.classList.toggle('off', !sel[k]); }
+  });
+  WK.sel = sel;
+  var n = wkCount(sel, WK.d);
+  var names = [];
+  wkLevels().forEach(function(k){ if(sel[k]) names.push('① ② ③ ④ ⑤'.split(' ')[k - 1] + ' ' + LEVEL_NAME[k]); });
+  if(sel[0]) names.push('未练');
+  $('wkSum').innerHTML = n
+    ? '将练 <b>' + n + '</b> 张 / 共 ' + WK.total + ' 张　<span style="color:#9ca3af">（' + names.join(' ＋ ') + '）</span>'
+    : '<span style="color:#B91C1C">未勾选任何档位，无法开始专练</span>';
+  $('wkOk').disabled = !n;
+  var cur = wkStrOf(sel);
+  document.querySelectorAll('#wkQuick .chip').forEach(function(c){
+    c.classList.toggle('on', wkStrOf(wkParseLvs(c.getAttribute('data-lvs'))) === cur);
+  });
+}
+function closeWeakPick(){ $('wkMask').classList.remove('show'); }
+function wkSetLvs(str){
+  var sel = wkParseLvs(str);
+  $('wkList').querySelectorAll('input[data-lv]').forEach(function(cb){ cb.checked = !!sel[+cb.getAttribute('data-lv')]; });
+  wkPaint();
+}
+function confirmWeakPick(){
+  var sel = {};
+  $('wkList').querySelectorAll('input[data-lv]').forEach(function(cb){ sel[+cb.getAttribute('data-lv')] = !!cb.checked; });
+  if(!wkCount(sel, WK.d)){ toast('请至少勾选一个档位'); return; }
+  var lvs = wkStrOf(sel);
+  saveJ(wkKey(), lvs);            /* 记忆本次选择：下次打开默认同范围 */
+  closeWeakPick();
+  goTrain(WK.rid, 'weak4', 0, lvs);
+}
 async function confirmSetStart(){
   var n = parseInt($('ssNum').value, 10);
   if(!(n >= 1 && n <= SS.total)){ toast('请输入 1 - ' + SS.total + ' 之间的序号'); return; }
@@ -718,8 +878,9 @@ function renderQueueRows(list, box, emptyMsg){
         + distText(d, ids.length)
         + '<div class="qacts">'
           + '<button class="btn primary" data-act="start" data-rid="' + esc(s.rid) + '">' + (tpActive ? ('▶ 继续训练 · 第' + tpStart + (tp.kind === 'cw' ? ' 课' : ' 张') + '起') : '▶ 开始专题练') + '</button>'
-          /* 🎯 专练不熟（熟练度 1-4 + 未练，2026-10-03 用户指定）：课件队列不适用 */
-          + (isCwQueue(s) ? '' : '<button class="btn" data-act="weak4" data-rid="' + esc(s.rid) + '">🎯 专练不熟 ' + (ids.length - d[5]) + '</button>')
+          /* 🎯 专练不熟：点击弹出「不熟程度选择」弹窗（WEAKLV-VER: 20261014a · 2026-10-14 用户截图意见）；
+             括号数字 = 默认范围（1-4 + 未练，即旧口径「滤掉完全记住」）的张数 */
+          + (isCwQueue(s) ? '' : '<button class="btn" data-act="weak4" data-rid="' + esc(s.rid) + '" title="点击选择本次要练的不熟程度（可只练 ①~③ 等任意档位）">🎯 专练不熟 ' + (ids.length - d[5]) + ' ▾</button>')
           /* ⏮ 从头练：清除断点从第 1 张/第 1 课开始（2026-10-03 用户指定） */
           + '<button class="btn" data-act="restart" data-rid="' + esc(s.rid) + '">⏮ 从头练</button>'
           + '<button class="btn" data-act="rename" data-rid="' + esc(s.rid) + '" data-title="' + esc(s.title || '') + '">✎ 改名</button>'
@@ -748,7 +909,7 @@ function bindQueueBox(box){
         goTrain(rid);
       }
     }
-    else if(act === 'weak4') goTrain(rid, 'weak4');
+    else if(act === 'weak4') openWeakPick(rid);
     else if(act === 'restart') goTrain(rid, 'restart');
     else if(act === 'setstart'){
       /* 手动改起始位置（2026-10-04）：弹窗调整，默认值=上次离开的张数；确认后写入断点并同步「▶ 继续训练」按钮 */
@@ -968,7 +1129,8 @@ async function refreshAll(){
 
 /* ===================== 操作 ===================== */
 /* 训练动作一律跳回 app 承接（训练引擎不重写，状态进度不会两边不同步） */
-function goTrain(rid, tmode, start){ location.href = 'index.html?train=' + encodeURIComponent(rid) + (tmode ? '&tmode=' + tmode : '') + (start ? '&start=' + start : ''); }
+/* WEAKLV-VER: 20261014a —— 第 4 参 lvs = 不熟程度档位串（例 "1-3+u"），仅 weak4 用；不传则沿用旧默认 1-4+未练 */
+function goTrain(rid, tmode, start, lvs){ location.href = 'index.html?train=' + encodeURIComponent(rid) + (tmode ? '&tmode=' + tmode : '') + (start ? '&start=' + start : '') + (lvs ? '&lvs=' + encodeURIComponent(lvs) : ''); }
 function goCross(){ location.href = 'index.html?cross=1'; }
 function goQueued(){ location.href = 'index.html?queue=1'; }
 
@@ -1162,6 +1324,16 @@ function init(){
     else if(e.key === 'Escape') closeSetStart();
   });
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && $('ssMask').classList.contains('show')) closeSetStart(); });
+  /* 🎯 专练不熟 · 不熟程度选择弹窗事件（WEAKLV-VER: 20261014a） */
+  $('wkOk').addEventListener('click', confirmWeakPick);
+  $('wkCancel').addEventListener('click', closeWeakPick);
+  $('wkMask').addEventListener('click', function(e){ if(e.target === $('wkMask')) closeWeakPick(); });
+  $('wkAll').addEventListener('click', function(){ wkSetLvs('1-5+u'); });
+  $('wkNone').addEventListener('click', function(){ wkSetLvs(''); });
+  document.querySelectorAll('#wkQuick .chip').forEach(function(c){
+    c.addEventListener('click', function(){ wkSetLvs(c.getAttribute('data-lvs')); });
+  });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && $('wkMask').classList.contains('show')) closeWeakPick(); });
   $('btnRefresh').addEventListener('click', refreshAll);
   $('btnCross').addEventListener('click', goCross);
   $('btnQueuedStart').addEventListener('click', goQueued);
