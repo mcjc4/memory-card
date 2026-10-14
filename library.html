@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>📚 训练库 · 记忆卡 v1020weak</title>
+<title>📚 训练库 · 记忆卡 v1021reset</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -883,6 +883,8 @@ function renderQueueRows(list, box, emptyMsg){
           + (isCwQueue(s) ? '' : '<button class="btn" data-act="weak4" data-rid="' + esc(s.rid) + '" title="点击选择本次要练的不熟程度（可只练 ①~③ 等任意档位）">🎯 专练不熟 ' + (ids.length - d[5]) + ' ▾</button>')
           /* ⏮ 从头练：清除断点从第 1 张/第 1 课开始（2026-10-03 用户指定） */
           + '<button class="btn" data-act="restart" data-rid="' + esc(s.rid) + '">⏮ 从头练</button>'
+          /* RESETQ-VER: 20261014b —— 队列状态重置：把队列全部卡片清回「未测」状态（清除评分/课件自评，不可撤销，需确认） */
+          + '<button class="btn" data-act="reset" data-rid="' + esc(s.rid) + '" title="把该队列全部卡片重置为「未测」状态（清除评分/课件自评，不可撤销）">🔄 重置为未测</button>'
           + '<button class="btn" data-act="rename" data-rid="' + esc(s.rid) + '" data-title="' + esc(s.title || '') + '">✎ 改名</button>'
           + '<button class="btn danger" data-act="del" data-rid="' + esc(s.rid) + '">🗑 删除</button>'
         + '</div>'
@@ -920,6 +922,7 @@ function bindQueueBox(box){
     }
     else if(act === 'rename') renameSession(rid, b.getAttribute('data-title') || '');
     else if(act === 'del') deleteSession(rid);
+    else if(act === 'reset') resetSessionState(rid);
   });
 }
 
@@ -1153,6 +1156,52 @@ async function deleteSession(rid){
     toast('已删除');
     await loadSessions();
   }catch(e){ toast('删除失败：' + (e.message || e)); }
+}
+/* RESETQ-VER: 20261014b —— 队列状态重置：把队列全部卡片清回「未测」状态。
+   记忆卡队列：清除 person.state 评分 + firstRated/lastRes（彻底回到未测），本地 saveJ + 云端 gaokao_state upsert（index.html 云端合并按科目整体替换，删除条目可跨设备生效）；
+   课件队列：清除课件页五级自评（本地 CW_LEVEL + 云端 course_train）。浏览历史(browseMeta/browseHistory)保留。 */
+async function resetSessionState(rid){
+  var s = (SESSIONS || []).find(function(x){ return x.rid === rid; });
+  if(!s) return;
+  var ids = queueIds(s);
+  if(!ids.length){ toast('该队列没有卡片'); return; }
+  var isCw = isCwQueue(s);
+  var label = isCw ? '课件自评（五级）' : '评分（熟练度）';
+  if(!confirm('确定把该队列的全部 ' + ids.length + ' 张卡片重置为「未测」状态？\n\n即清除这些卡片的' + label + '，恢复到从未自测的状态。\n此操作不可撤销。')) return;
+  var cleared = 0;
+  if(isCw){
+    /* 课件队列：清除课件页五级自评（course_train 表） */
+    for(var ci = 0; ci < ids.length; ci++){
+      var cid = String(ids[ci]);
+      if(CW_LEVEL.has(cid)){ CW_LEVEL.delete(cid); cleared++; }
+    }
+    try{
+      if(wbCloudReady()){ for(var di = 0; di < ids.length; di++){ await sbDelete('course_train', 'course_id', String(ids[di])); } }
+    }catch(e){ console.warn('reset cw cloud failed:', e); toast('⚠️ 本地已重置，但云端同步失败：' + (e.message || e)); }
+  } else {
+    /* 记忆卡队列：清除 person.state 评分 + 首次/末次评级时间戳 */
+    var pd = personData();
+    pd.state = pd.state || {}; pd.firstRated = pd.firstRated || {}; pd.lastRes = pd.lastRes || {};
+    ids.forEach(function(id){
+      var sid = String(id);
+      var subj = subjectOf(id);
+      if(subj && pd.state[subj]){ if(pd.state[subj][sid] != null){ delete pd.state[subj][sid]; cleared++; } }
+      if(subj && pd.firstRated[subj]) delete pd.firstRated[subj][sid];
+      if(subj && pd.lastRes[subj]) delete pd.lastRes[subj][sid];
+      STATE_FLAT.delete(sid);
+    });
+    saveJ(PERSON_KEY, STORE);
+    /* 推云端（person 整体 upsert；云端合并按科目整体替换，删除条目可跨设备生效） */
+    try{
+      if(wbCloudReady()){
+        await getWbCloud().database.from('gaokao_state').upsert({ id: 'jikaka-' + personKey, data: pd, updated_at: new Date().toISOString() });
+      }
+    }catch(e){ console.warn('reset cloud push failed:', e); toast('⚠️ 本地已重置，但云端同步失败：' + (e.message || e)); }
+  }
+  /* 重建展示层并刷新队列行计数（分布/专练不熟张数/待重练统计随之更新） */
+  buildLocalIndex();
+  renderStats();
+  toast('✅ 已重置 ' + cleared + ' 张卡片为「未测」状态');
 }
 function selectedRids(box){
   var out = [];
