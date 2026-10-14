@@ -268,6 +268,207 @@
 <div id="confetti-root"></div>
 <div class="toast" id="toast"></div>
 
+<!-- ===================== WorkBuddy Cloud 适配器（GKWB-VER: 20261014a） =====================
+  高考学习目标管理台云端后端：Supabase → WorkBuddy Cloud（同源 jikaka-memory，免跨域预检）
+    endpoint      = https://jikaka-memory.app.workbuddy.host
+    publishableKey= wbpk_QuSSvKgXD7uP73LA5D5gNT_W0t84UkhE7UB0e9poO19fS9ZgJR6WlOP
+  表映射：Supabase gaokao_state → WB Cloud gaokao_goal_state
+    （独立表，避开记忆卡人档占用的 gaokao_state；RLS off + GRANT anon/authenticated）
+  原理：动态加载 WB Cloud SDK（本地 vendor 优先 / CDN 兜底）→ 覆盖 window.fetch：
+    凡命中 *.supabase.co/rest/v1/ 的请求翻译成 from().select()/upsert()，
+    返回与 fetch 兼容的 { ok, status, json() }，页面同步代码零改动。
+  一次性迁移：maybeMigrateLegacy() 经 window.__REAL_FETCH（原始 fetch）读旧 Supabase，
+    legacy 比 WB Cloud 新时采纳并 force push 到 WB Cloud；每执行人一次，失败不留标记下轮重试。
+  ⚠️ Origin 信任仅 CloudStudio 域名；GH Pages / Vercel 镜像打开时云端不可用（右下角角标提示），本地照常。
+======================================================================================== -->
+<script>
+(function () {
+  'use strict';
+  window.GKWB_VER = '20261014a';
+  var WB_CLOUD_CFG = {
+    endpoint: 'https://jikaka-memory.app.workbuddy.host',
+    publishableKey: 'wbpk_QuSSvKgXD7uP73LA5D5gNT_W0t84UkhE7UB0e9poO19fS9ZgJR6WlOP'
+  };
+  window.WB_CLOUD_CFG = WB_CLOUD_CFG;
+  window.WB_READY = false;
+  window.WB_DB = null;
+
+  /* 表映射：supabase 表名 → { WB 表名, upsert 冲突列 } */
+  var TABLE_MAP = { gaokao_state: { table: 'gaokao_goal_state', conflict: 'id' } };
+
+  /* ---------- 1) SDK 载入（本地 vendor 优先，CDN 兜底） ---------- */
+  (function loadSdk() {
+    var srcs = [
+      '../vendor/wbcloud-sdk.js',
+      'https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js',
+      'https://unpkg.com/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js'
+    ];
+    var i = 0;
+    (function next() {
+      if (typeof WorkBuddyCloud !== 'undefined') { initClient(); return; }
+      if (i >= srcs.length) { window.__WB_SDK_FAIL = true; return; }
+      var s = document.createElement('script');
+      s.src = srcs[i++];
+      s.onload = function () { if (typeof WorkBuddyCloud === 'undefined') { next(); } else { initClient(); } };
+      s.onerror = function () { next(); };
+      (document.head || document.documentElement).appendChild(s);
+    })();
+  })();
+
+  function initClient() {
+    try {
+      var client = WorkBuddyCloud.createWorkBuddyCloud({
+        endpoint: WB_CLOUD_CFG.endpoint,
+        publishableKey: WB_CLOUD_CFG.publishableKey
+      });
+      window.WB_DB = client.database;
+      window.WB_READY = true;
+    } catch (e) { window.__WB_SDK_FAIL = true; }
+  }
+
+  /* ---------- 2) 翻译层 ---------- */
+  function waitWbReady(ms) {
+    ms = ms || 12000;
+    return new Promise(function (resolve) {
+      if (window.WB_DB) return resolve(true);
+      var n = 0, step = 200, max = Math.ceil(ms / step);
+      var t = setInterval(function () {
+        if (window.WB_DB) { clearInterval(t); return resolve(true); }
+        if (window.__WB_SDK_FAIL || ++n >= max) { clearInterval(t); return resolve(false); }
+      }, step);
+    });
+  }
+
+  /* 右下角云状态角标：让用户即时看到云端是否可用（跨域拦截会立刻显现） */
+  function showCloudBadge(state, detail) {
+    try {
+      var el = document.getElementById('wbCloudBadge');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'wbCloudBadge';
+        el.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:99999;font:12px/1.5 system-ui,-apple-system,sans-serif;padding:6px 11px;border-radius:9px;box-shadow:0 2px 10px rgba(0,0,0,.18);max-width:280px;pointer-events:none;transition:opacity .3s';
+        (document.body || document.documentElement).appendChild(el);
+      }
+      if (state === 'ok') { el.style.background = '#E6F4EA'; el.style.color = '#137333'; el.textContent = '☁ 已连接 WB Cloud'; }
+      else if (state === 'wait') { el.style.background = '#FEF7E0'; el.style.color = '#B06000'; el.textContent = '☁ 连接云端中…'; }
+      else { el.style.background = '#FCE8E8'; el.style.color = '#C5221F'; el.textContent = '⚠️ ' + (detail || '云端不可用'); }
+    } catch (e) {}
+  }
+  function wbBadge(status) {
+    if (status >= 200 && status < 300) showCloudBadge('ok');
+    else if (status === 500) showCloudBadge('err', 'WB Cloud 拒绝写入');
+    else showCloudBadge('err', '云端不可用（可能被跨域拦截，请用 CloudStudio 链接打开本页）');
+  }
+
+  /* 解析 supabase REST 查询串 → WB Cloud 构造器参数 */
+  function parseQuery(search) {
+    var cols = '*', eqs = [], order = null, limit = null;
+    var params = new URLSearchParams(search);
+    params.forEach(function (val, key) {
+      if (key === 'select') { cols = val; }
+      else if (key === 'order') { var a = val.split('.'); order = { col: a[0], asc: a[1] !== 'desc' }; }
+      else if (key === 'limit') { limit = parseInt(val, 10) || null; }
+      else {
+        var m = val.match(/^(eq|ne|gt|gte|lt|lte|like|ilike|is|in|cs|cd|ov|fts)\.(.*)$/);
+        if (m) { eqs.push({ col: key, op: m[1], val: m[2] }); }
+        else { eqs.push({ col: key, op: 'eq', val: val }); }
+      }
+    });
+    return { cols: cols, eqs: eqs, order: order, limit: limit };
+  }
+
+  function applyFilters(qb, eqs, order, limit) {
+    eqs.forEach(function (f) {
+      if (f.op === 'eq') qb = qb.eq(f.col, f.val);
+      else if (f.op === 'in') { var v = f.val.replace(/^\(|\)$/g, '').split(','); qb = qb.in(f.col, v); }
+      else if (f.op === 'cs' || f.op === 'cd' || f.op === 'ov') {
+        try { qb = qb.contains(f.col, JSON.parse(f.val)); } catch (e) { qb = qb.contains(f.col, f.val); }
+      } else qb = qb.filter(f.col, f.op, f.val);
+    });
+    if (order) qb = qb.order(order.col, { ascending: order.asc });
+    if (limit) qb = qb.limit(limit);
+    return qb;
+  }
+
+  function makeResp(data, status) {
+    wbBadge(status);
+    return {
+      ok: (status >= 200 && status < 300),
+      status: status || 200,
+      json: function () { return Promise.resolve(data); }
+    };
+  }
+
+  async function wbFetchRest(url, opts) {
+    opts = opts || {};
+    var method = (opts.method || 'GET').toUpperCase();
+    var u; try { u = new URL(url); } catch (e) { return makeResp([], 400); }
+    var m = u.pathname.match(/\/rest\/v1\/([^?/]+)/);
+    if (!m) return makeResp([], 400);
+    var table = m[1];
+    var mapEntry = TABLE_MAP[table] || null;
+    var wbTable = mapEntry ? mapEntry.table : table;
+    var q = parseQuery(u.search);
+    var ready = await waitWbReady(12000);
+    if (!ready || !window.WB_DB) return makeResp([], 502);
+    var db = window.WB_DB;
+    try {
+      if (method === 'GET') {
+        var qb = db.from(wbTable).select(q.cols);
+        qb = applyFilters(qb, q.eqs, q.order, q.limit);
+        var r1 = await qb;
+        if (r1.error) return makeResp([], 500);
+        return makeResp(r1.data || [], 200);
+      } else if (method === 'POST') {
+        var rows = JSON.parse(opts.body || '[]');
+        if (!Array.isArray(rows)) rows = [rows];
+        var prefer = ((opts.headers && (opts.headers.Prefer || opts.headers.prefer)) || '').toString();
+        if (/merge-duplicates/.test(prefer)) {
+          /* upsert：映射表按映射冲突列，其余按主键 */
+          var conflict = mapEntry ? mapEntry.conflict : undefined;
+          var r2 = conflict
+            ? await db.from(wbTable).upsert(rows, { onConflict: conflict })
+            : await db.from(wbTable).upsert(rows);
+          if (r2.error) return makeResp([], 500);
+          return makeResp(r2.data || [], 201);
+        }
+        rows.forEach(function (row) { if (row && row.id == null) row.id = Date.now() + '-' + Math.random().toString(36).slice(2, 8); });
+        var r3 = await db.from(wbTable).insert(rows);
+        if (r3.error) return makeResp([], 500);
+        return makeResp(r3.data || [], 201);
+      } else if (method === 'DELETE') {
+        var qbd = db.from(wbTable).delete();
+        qbd = applyFilters(qbd, q.eqs, null, null);
+        var r4 = await qbd;
+        if (r4.error) return makeResp([], 500);
+        return makeResp(r4.data || [], 200);
+      } else if (method === 'PATCH' || method === 'PUT') {
+        var patch = JSON.parse(opts.body || '{}');
+        var qbu = db.from(wbTable).update(patch);
+        qbu = applyFilters(qbu, q.eqs, null, null);
+        var r5 = await qbu;
+        if (r5.error) return makeResp([], 500);
+        return makeResp(r5.data || [], 200);
+      }
+      return makeResp([], 405);
+    } catch (e) {
+      return makeResp([], 502);
+    }
+  }
+
+  /* ---------- 3) 拦截 Supabase REST fetch → WB Cloud ---------- */
+  if (typeof window.fetch === 'function') {
+    var REAL_FETCH = window.fetch.bind(window);
+    window.__REAL_FETCH = REAL_FETCH;   /* 供一次性迁移读旧 Supabase 用 */
+    window.fetch = function (url, opts) {
+      if (typeof url === 'string' && /supabase\.co\/rest\/v1\//.test(url)) {
+        return wbFetchRest(url, opts);
+      }
+      return REAL_FETCH(url, opts);
+    };
+  }
+})();
+</script>
 <script>
 "use strict";
 /* ===================== 工具 ===================== */
@@ -551,13 +752,14 @@ function switchExecutor(i){
   if(cloudCfg&&cloudCfg.url&&cloudCfg.key&&!cloudCfg.disabled){
     cloudReady=false;cloudStatus='connecting';renderMineSafe();
     // 关键防护：本机已有该执行人数据时，切换不强制用云端覆盖本地（避免云端被污染的数据反向覆盖本地正确数据）
-    pullCloud(false,freshPreset).then(()=>{cloudReady=true;cloudStatus='online';renderMineSafe();}).catch(()=>{cloudStatus='error';renderMineSafe();});
+    pullCloud(false,freshPreset).then(()=>{cloudReady=true;cloudStatus='online';renderMineSafe();maybeMigrateLegacy();}).catch(()=>{cloudStatus='error';renderMineSafe();});
   }
 }
 
-/* ===================== 云端共享（Supabase REST API） =====================
- * 共享同一份数据：所有人通过 Supabase REST API 读写 gaokao_state 表。
- * 本地 localStorage 作为即时缓存与离线兜底；配置了 URL + Anon Key 才启用云端同步。
+/* ===================== 云端共享（WB Cloud · GKWB-VER: 20261014a） =====================
+ * 共享同一份数据：页面内的 Supabase REST 调用由 <head> 的 WB Cloud 适配器透明翻译——
+ *   Supabase gaokao_state → WB Cloud gaokao_goal_state（wbapp_QuSSvKgXD7uP73LA5D5gNT，同源免跨域）。
+ * 本地 localStorage 作为即时缓存与离线兜底；仅 CloudStudio 域名可读写云端，其他域名打开时仅本机可用。
  * 表结构：id text primary key, data jsonb, updated_at timestamptz default now()
  */
 const CLOUD_CFG_KEY="gaokao_cloud_cfg";
@@ -614,6 +816,7 @@ async function initCloud(force){
     // 新机器首次连接：本地是初始示例数据，强制由云端向本地同步
     await pullCloud(true, force||freshPreset);
     cloudReady=true;cloudStatus='online';
+    maybeMigrateLegacy();
     startSyncLoop();
   }catch(e){console.warn("Cloud init failed:",e);cloudReady=false;cloudStatus='error';}
   renderMineSafe();
@@ -728,6 +931,48 @@ async function fetchCloudMeta(){
 }
 
 /* ===================== 预置示例 ===================== */
+
+/* ---- 一次性迁移：旧 Supabase → WB Cloud（GKWB-VER 20261014a） ----
+ * 云端后端从 Supabase(mixuqjognbdrafrrlivc/gaokao_state) 迁至 WB Cloud(gaokao_goal_state)。
+ * 旧云端只读一次：经 window.__REAL_FETCH（适配器注入的原始 fetch）访问，避开适配器拦截。
+ * 采纳条件：legacy 比 WB Cloud 现值新，且（本机是全新预置 或 legacy 比本地新）。
+ * 每个执行人独立迁移（localStorage 标记）；旧云端不可达时不留标记，下次打开重试。
+ * 调试/重迁：URL 加 ?legacyUrl=<base> 可改旧云端基址（base 下需有 /rest/v1/gaokao_state）。 */
+async function maybeMigrateLegacy(){
+  try{
+    var cid=curCloudId();
+    var flag='gaokao_wb_mig_v1_'+cid;
+    if(localStorage.getItem(flag))return;
+    var RF=window.__REAL_FETCH;
+    if(!RF)return;
+    var q=new URLSearchParams(location.search);
+    var base=(q.get('legacyUrl')||DEFAULT_CLOUD_URL).replace(/\/+$/,"");
+    var res=await RF(base+'/rest/v1/gaokao_state?id=eq.'+encodeURIComponent(cid)+'&select=*',
+      {headers:{apikey:DEFAULT_CLOUD_KEY,Authorization:'Bearer '+DEFAULT_CLOUD_KEY}});
+    if(!res||!res.ok)return; /* 旧云端不可达：不置标记，下次重试 */
+    var rows=await res.json();
+    if(!Array.isArray(rows)||!rows.length){localStorage.setItem(flag,'nolegacy');return;}
+    var legacy=rows[0];
+    var legacyUp=new Date(legacy.updated_at||0).getTime()||0;
+    var wbMeta=await fetchCloudMeta();
+    var wbUp=wbMeta?new Date(wbMeta).getTime()||0:0;
+    if(legacyUp>wbUp&&(freshPreset||legacyUp>(S.updatedAt||0))){
+      var payload=typeof legacy.data==='string'?JSON.parse(legacy.data):legacy.data;
+      payload.updatedAt=legacyUp;
+      S=migrate(payload);
+      if(S.dailyTargetMins!=null){dailyTargetMins=Math.max(0,Number(S.dailyTargetMins)||0);try{localStorage.setItem(dailyKey(),String(dailyTargetMins));}catch(e){}}
+      if(S.yuanPerMin!=null){yuanPerMin=Math.max(0,Number(S.yuanPerMin)||0);try{localStorage.setItem(yuanKey(),String(yuanPerMin));}catch(e){}}
+      if(typeof S.affirmation==="string"){affirmation=S.affirmation;try{localStorage.setItem(affirmKey(),affirmation);}catch(e){}}
+      S.updatedAt=legacyUp;setBaseUp(legacyUp);setCloudSyncAt(legacyUp);
+      try{localStorage.setItem(curStoreKey(),JSON.stringify(S));}catch(e){}
+      if(curTab)render();
+      pushCloud(true); /* 强制写 WB Cloud，绕过推送保护（本地刚被 legacy 替换） */
+      toast('☁ 已从旧云端迁移「'+(curCfg().name||'')+'」的数据');
+    }
+    localStorage.setItem(flag,'done');
+  }catch(e){console.warn('legacy migrate failed:',e);}
+}
+
 function buildPreset(){
   const goals=[
     {id:uid(),name:"语文",unit:"项",total:29,deadline:"2026-08-29",color:"#7c5cff",demo:false,
@@ -1395,7 +1640,7 @@ function renderMine(){
 
     <div class="section-title">云端共享（多人协作）</div>
     <div class="card">
-      <div class="hint" style="margin-bottom:8px">已内置默认 Supabase 配置，新机器首次打开即自动连接并共享同一份数据；如需更换，可在此修改 URL 和 Key 后点「保存并连接」。需建表 <b>gaokao_state</b>（字段 id text、data jsonb、updated_at timestamptz），并开启该表的公开读写权限（RLS 允许 anon 增删改查）。</div>
+      <div class="hint" style="margin-bottom:8px">云端已切换至 <b>WorkBuddy Cloud</b>（同源 jikaka-memory.app.workbuddy.host，数据表 gaokao_goal_state），新机器首次打开即自动连接并共享同一份数据，国内直连不再依赖 supabase.co。<b>仅 CloudStudio 域名可读写云端</b>；用其他域名（GitHub Pages / Vercel 镜像）打开时云端不可用，数据仅存本机。旧 Supabase 数据会在首次打开时自动迁移到 WB Cloud。</div>
       <label style="font-size:13px;font-weight:700">Supabase 项目 URL</label>
       <input id="cloud-url" placeholder="https://xxxx.supabase.co" value="${cloudCfg?esc(cloudCfg.url):''}" style="font-size:13px;margin-bottom:8px">
       <label style="font-size:13px;font-weight:700">Anon Key（公开密钥）</label>
