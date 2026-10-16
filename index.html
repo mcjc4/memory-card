@@ -2708,8 +2708,8 @@ function show(){
   }
   syncBadgeRows();   /* CHAP-VER: 20261010a徽章空态不占空白间距 */
   viewingCardId = d.id;   /* IMG-VER: 20261016a 当前卡 id（原题图关联） */
-  if(!_imgHasFlags) prefetchImgFlags();
-  refreshCardImgThumb(d.id);
+  if(!_imgHasFlags) prefetchImgFlags().then(function(){ if(viewingCardId) refreshCardImgThumb(viewingCardId); });   /* flags 异步回来后补刷当前卡 */
+  else refreshCardImgThumb(d.id);
   /* 编号徽章：优先导入 xlsx 的「编号」列；无则由 card_id 内嵌编号回退并带科目前缀（mat0245 → mat0245）。
      SEQNO-VER: 20261013c —— 队列已按此编号从小到大排序；正面编号与「📄 出处」同行，背面不再显示编号 */
   const noVal = d.no || cardNoLabel(d.id);
