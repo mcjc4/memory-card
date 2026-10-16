@@ -788,6 +788,14 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
 <div class="toast" id="toast"></div>
 
 <!-- 卡片表单（新增/编辑复用） -->
+<!-- IMG-VER: 20261016a 原题图放大查看（必须在主 script 之前，否则事件绑定时 DOM 不存在） -->
+<div class="modalMask" id="imgZoomMask">
+  <div class="modalBox" style="max-width:min(94vw,880px)">
+    <h2><span>🔍 原题图</span><span class="x" id="imgZoomClose">&times;</span></h2>
+    <img id="imgZoomImg" alt="原题图大图" style="max-width:100%;max-height:78vh;display:block;margin:0 auto;border-radius:8px">
+    <div class="modalHint" style="text-align:center">点击空白处或 &times; 关闭</div>
+  </div>
+</div>
 <div class="modalMask" id="cardModal">
   <div class="modalBox">
     <h2><span id="modalTitle">新增卡片</span><span class="x" id="modalClose">×</span></h2>
@@ -8328,13 +8336,5 @@ body{padding-left:220px;padding-top:52px}
 })();
 </script>
 
-<!-- IMG-VER: 20261016a 原题图放大查看 -->
-<div class="modalMask" id="imgZoomMask">
-  <div class="modalBox" style="max-width:min(94vw,880px)">
-    <h2><span>🔍 原题图</span><span class="x" id="imgZoomClose">&times;</span></h2>
-    <img id="imgZoomImg" alt="原题图大图" style="max-width:100%;max-height:78vh;display:block;margin:0 auto;border-radius:8px">
-    <div class="modalHint" style="text-align:center">点击空白处或 &times; 关闭</div>
-  </div>
-</div>
 </body>
 </html>
