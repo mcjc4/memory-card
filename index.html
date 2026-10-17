@@ -6166,23 +6166,25 @@ async function addNewTag(){
   }catch(e){ tagStat('⚠️ 保存词表失败：' + ((e && e.message) || e)); }
 }
 /* —— 专题练查询：标签筛选（tqMultiBtn 全功能选项菜单同款） —— */
-function openTqTagPop(){
-  const pop = $('tqTagPop');
-  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+function collectTqTagCandidates(){   /* 候选 = 词表 ∪ 全库卡 tags ∪ 已选（首渲染与词表异步刷新都用它，防重渲染挤掉非词表标签） */
   const names = tagLexicon().map(function(t){ return t.name; });
-  tagFreq();   /* 触发全库频次统计（顺带把词表外的存量标签也收集进候选） */
   SUBJ_NAMES.forEach(function(n){
     const d = subjDef(n); if(!d || !Array.isArray(d.items)) return;
     d.items.forEach(function(it){ (it.tags || []).forEach(function(t){ if(!names.includes(t)) names.push(t); }); });
   });
+  [...tqTagSel].forEach(function(t){ if(!names.includes(t)) names.push(t); });
+  return names.sort();
+}
+function openTqTagPop(){
+  const pop = $('tqTagPop');
+  if(pop.style.display === 'block'){ pop.style.display = 'none'; return; }
+  const names = collectTqTagCandidates();
   if(!names.length){ pop.innerHTML = '<div style="color:#9ca3af;font-size:13px">词表为空：先在训练页给卡片打标签，或点「＋ 添加」新建</div>'; pop.style.display = 'block'; return; }
-  renderTqCheckPop(pop, { items: names.sort(), selected: tqTagSel, onChange: function(){ updateTqTagBtn(); refreshTqCountAsync(); } });
+  renderTqCheckPop(pop, { items: names, selected: tqTagSel, onChange: function(){ updateTqTagBtn(); refreshTqCountAsync(); } });
   positionTqPop('tqTagPop', 'tqTagBtn');
   tagLexiconFresh().then(function(){
     if(pop.style.display !== 'block') return;
-    const lexNames = tagLexicon().map(function(t){ return t.name; });
-    const merged = [...new Set(lexNames.concat([...tqTagSel]))].sort();
-    renderTqCheckPop(pop, { items: merged, selected: tqTagSel, onChange: function(){ updateTqTagBtn(); refreshTqCountAsync(); } });
+    renderTqCheckPop(pop, { items: collectTqTagCandidates(), selected: tqTagSel, onChange: function(){ updateTqTagBtn(); refreshTqCountAsync(); } });
   });
 }
 function updateTqTagBtn(){
@@ -8545,7 +8547,7 @@ body{padding-left:220px;padding-top:52px}
   function saveLocal(){lsSet(NM,cache);}
   function loadCloud(){var d=db();if(!d)return Promise.resolve(cache);return d.from('tags').select('id,name,color,category,kind').then(function(r){var rows=(r&&r.data)||[];if(rows.length){cache=rows.map(function(x){return{id:x.id,name:x.name,color:x.color||'#0C447C',category:x.category||'',kind:x.kind||'controlled'};});saveLocal();}}).catch(function(){});return Promise.resolve(cache);}
   function push(t){var d=db();if(!d){saveLocal();return Promise.resolve(t);}return d.from('tags').upsert({id:t.id,name:t.name,color:t.color,category:t.category,kind:t.kind||'controlled'}).then(function(){return t;}).catch(function(){saveLocal();return t;});}
-  function del(id){cache=cache.filter(function(x){return x.id!==id;});saveLocal();var d=db();if(!d)return Promise.resolve();return d.from('tags').delete().eq('id',id).catch(function(){});}
+  function del(id){cache=cache.filter(function(x){return x.id!==id;});saveLocal();var d=db();if(!d)return Promise.resolve();return Promise.resolve(d.from('tags').delete().eq('id',id)).catch(function(){});}   /* TAG-VER: 20261017a WB Cloud delete 链是 thenable 非 Promise，包一层才能 .catch */
   function render(){var box=document.getElementById('tmList');if(!box)return;if(!cache.length){box.innerHTML='<div class="empty">尚无标签，先在上方添加。</div>';return;}var h='';cache.forEach(function(t){h+='<div class="titem" data-id="'+t.id+'"><span class="dot" style="background:'+(t.color||'#0C447C')+'"></span><span class="nm">'+t.name+'</span>'+(t.category?'<span class="cat">'+t.category+'</span>':'')+'<button class="rn">重命名</button><button class="del">归档</button></div>';});box.innerHTML=h;box.querySelectorAll('.titem').forEach(function(it){var id=it.getAttribute('data-id');var rec=cache.find(function(x){return x.id===id;});it.querySelector('.rn').onclick=function(){var nv=prompt('重命名为：',rec.name);if(nv&&nv.trim()){rec.name=nv.trim();saveLocal();push(rec).then(render);}};it.querySelector('.del').onclick=function(){if(confirm('归档「'+rec.name+'」？内容上的引用保留，仅从词表移除。')){del(id).then(render);}};});}
   function open(){loadCloud().then(function(){render();document.getElementById('psTagMgrMask').classList.remove('psHide');});}
   function close(){document.getElementById('psTagMgrMask').classList.add('psHide');}
