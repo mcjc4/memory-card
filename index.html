@@ -755,6 +755,7 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
           <div class="src" id="bNote" style="display:none"></div>
           <div class="src" id="bLink" style="display:none"></div>
         </div>
+        <img class="cardImgThumb" id="bImg" alt="背面图（点击放大）" title="背面图（点击放大）">
       </div>
     </div>
     <div class="trainPos" id="trainPos"><button class="navStep" id="navPrev" title="上一张（← 方向键）">‹ 上一张</button><span class="navPosNum" id="trainPosNum"></span><button class="navStep" id="navNext" title="下一张（→ 方向键）">下一张 ›</button></div><!-- POS-VER: 20261005a 进度移入卡片内 · NAV-VER: 20261009a 增加上一张/下一张 -->
@@ -834,6 +835,13 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
     <div class="imgPrevWrap" id="mImgWrap">
       <img class="imgPrev" id="mImgPrev" alt="原题图预览" title="点击放大">
       <div class="imgPrevBar"><span id="mImgInfo"></span><button id="mImgClear" type="button" style="margin-left:auto;padding:4px 10px;font-size:12px;border:1px solid #dc2626;background:#fff;color:#dc2626;border-radius:6px;cursor:pointer">清除原题图</button></div>
+    </div>
+    <label>背面图 <span style="color:#9ca3af;font-weight:normal">（可选：截图后在本弹窗内直接 Ctrl+V 粘贴，或点下面选择图片；翻到背面后显示，点击可放大）</span></label>
+    <div class="imgThumbBtn" id="mImgPick2">📋 点此选择背面图 · 或直接 Ctrl+V 粘贴截图</div>
+    <input type="file" id="mImgFile2" accept="image/*" style="display:none">
+    <div class="imgPrevWrap" id="mImgWrap2">
+      <img class="imgPrev" id="mImgPrev2" alt="背面图预览" title="点击放大">
+      <div class="imgPrevBar"><span id="mImgInfo2"></span><button id="mImgClear2" type="button" style="margin-left:auto;padding:4px 10px;font-size:12px;border:1px solid #dc2626;background:#fff;color:#dc2626;border-radius:6px;cursor:pointer">清除背面图</button></div>
     </div>
     <label>标签 <span style="color:#9ca3af;font-weight:normal">（与解题库共用全局词表，勾选即保存）</span></label>
     <div class="tagPickWrap">
@@ -3495,14 +3503,17 @@ function openCardModal(editId){
   $('mLink').value = it ? (it.link || '') : '';
   $('modalErr').textContent = '';
   /* IMG-VER: 20261016a 原题图区：记录编辑中的卡 + 加载已有图 */
-  _imgModalId = editId || null; _imgPending = null;
-  const iw0 = $('mImgWrap'); if(iw0) iw0.classList.remove('on');
-  if(_imgModalId) cardImgLoad(_imgModalId).then(function(){ refreshImgUI(_imgModalId); });
+  _imgModalId = editId || null; _imgPending = null; _imgModalFace = 'front';
+  ['mImgWrap', 'mImgWrap2'].forEach(function(wid){ const w0 = $(wid); if(w0) w0.classList.remove('on'); });
+  if(_imgModalId){
+    const mid = _imgModalId;
+    Promise.all([cardImgLoad(mid, 'front'), cardImgLoad(mid, 'back')]).then(function(){ refreshImgUI(mid, 'front'); refreshImgUI(mid, 'back'); });
+  }
   refreshModalTagPrev(editId);   /* TAG-VER: 20261017a 弹窗标签预览 */
   $('cardModal').classList.add('show');
   setTimeout(() => $('mSig').focus(), 80);
 }
-function closeCardModal(){ $('cardModal').classList.remove('show'); _imgModalId = null; _imgPending = null; const iw = $('mImgWrap'); if(iw) iw.classList.remove('on'); }
+function closeCardModal(){ $('cardModal').classList.remove('show'); _imgModalId = null; _imgPending = null; _imgModalFace = 'front'; ['mImgWrap', 'mImgWrap2'].forEach(function(wid){ const w0 = $(wid); if(w0) w0.classList.remove('on'); }); }
 async function submitCard(){
   const t = $('mTopic').value.trim();
   const no = $('mNo').value.trim();
@@ -3520,7 +3531,7 @@ async function submitCard(){
     toast(r.cloud ? '已更新 · 本地 + ☁ 云端' : '已更新（本地）');
   } else {
     const nid = addCard(cur, {t, s, c, src, note, orig, link, no});
-    if(_imgPending){ const pb = _imgPending; _imgPending = null; uploadCardImg(nid, pb, true).then(function(r){ toast(r && r.cloud ? '已添加 · 原题图已上传 ☁ 云端' : '已添加 · 原题图仅本机会话有效'); }); }
+    if(_imgPending){ const pb = _imgPending; _imgPending = null; uploadCardImg(nid, pb.blob, true, pb.face).then(function(r){ const nm = pb.face === 'back' ? '背面图' : '原题图'; toast(r && r.cloud ? '已添加 · ' + nm + '已上传 ☁ 云端' : '已添加 · ' + nm + '仅本机会话有效'); }); }
     else toast('已添加，开始训练时会出现');
   }
   closeCardModal();
@@ -5861,7 +5872,7 @@ async function purgeManyCloud(subj, list){
 let _purgeBatch = [];
 let _purgeTimer = null;
 function purgeCardEverywhere(subj, id, s, c){
-  clearCardImg(id, true);   /* IMG-VER: 20261016a 删卡同步墓雁原题图（防他端补传） */
+  clearCardImg(id, true, 'front'); clearCardImg(id, true, 'back');   /* IMG-VER: 20261016a 删卡同步墓碑原题图（防他端补传）；BACKIMG-VER: 20261019a 背面图同清 */
   pruneCloudShadow(subj, id, s, c);
   _purgeBatch.push({subj: subj, id: id, s: s || '', c: c || ''});
   queueTrainQueueSync([id]);
@@ -5899,11 +5910,14 @@ async function flushCloudPurge(){
    云端唯一真源；localStorage 不缓存图本体（配额紧张），会话内 Map 缓存。 */
 const MEDIA_TABLE = 'memory_media';
 const IMG_MAX_EDGE = 1200, IMG_TARGET_BYTES = 340 * 1024;
-let _imgHasFlags = null;      /* Set<card_id>：哪些卡有图（预取元数据，不拉 base64） */
-const _imgDataCache = {};     /* card_id → {data_b64,mime,w,h,bytes} 会话缓存 */
-const _imgFetching = {};      /* card_id → Promise 去重 */
+const IMG_BACK_SUFFIX = '#b';   /* BACKIMG-VER: 20261019a 背面图行 id = card_id + '#b'（memory_media 主键唯一，kind='back'） */
+function imgRowId(id, face){ return face === 'back' ? String(id) + IMG_BACK_SUFFIX : String(id); }
+let _imgHasFlags = null;      /* Set<rowId>：哪些行有图（正面=card_id / 背面=card_id#b；预取元数据，不拉 base64） */
+const _imgDataCache = {};     /* rowId → {data_b64,mime,w,h,bytes} 会话缓存 */
+const _imgFetching = {};      /* rowId → Promise 去重 */
 let _imgModalId = null;       /* 编辑弹窗正在编辑的卡（新增时 null） */
-let _imgPending = null;       /* 新增卡弹窗里暂存的截图 blob（保存后落到新 id） */
+let _imgModalFace = 'front';  /* 弹窗当前选中的贴图面：front/back（粘贴路由用） */
+let _imgPending = null;       /* 新增卡弹窗里暂存的截图 {blob,face}（保存后落到新 id） */
 function imgCloudOk(){ try{ return typeof wbCloudReady === 'function' && wbCloudReady() && typeof wbCloudUsable === 'function' && wbCloudUsable() && !window.__WB_ORIGIN_BLOCKED; }catch(e){ return false; } }
 function imgDb(){ try{ return getWbCloud().database; }catch(e){ return null; } }
 function imgSrcUrl(rec){ return 'data:' + (rec && rec.mime ? rec.mime : 'image/png') + ';base64,' + (rec && rec.data_b64 || ''); }
@@ -5929,26 +5943,27 @@ async function compressImage(blob){
   }catch(e){ console.warn('[img] compress fail', e); return null; }
 }
 /* 读某卡原题图：null=不可用/无行/墓雁，否则行对象 */
-function cardImgLoad(id){
+function cardImgLoad(id, face){
   if(!id) return Promise.resolve(null);
-  if(_imgDataCache[id]) return Promise.resolve(_imgDataCache[id]);
-  if(_imgFetching[id]) return _imgFetching[id];
+  const rid = imgRowId(id, face);
+  if(_imgDataCache[rid]) return Promise.resolve(_imgDataCache[rid]);
+  if(_imgFetching[rid]) return _imgFetching[rid];
   if(!imgCloudOk()) return Promise.resolve(null);
   const p = (async () => {
     try{
       const d = imgDb(); if(!d) return null;
-      const r = await d.from(MEDIA_TABLE).select('*').eq('id', id);
+      const r = await d.from(MEDIA_TABLE).select('*').eq('id', rid);
       const rows = (r && r.data) || [];
       const row = rows[0];
       if(row && row.data_b64){
         const rec = {data_b64: row.data_b64, mime: row.mime, w: row.w, h: row.h, bytes: row.bytes};
-        _imgDataCache[id] = rec; return rec;
+        _imgDataCache[rid] = rec; return rec;
       }
       return null;
     }catch(e){ return null; }
   })();
-  _imgFetching[id] = p;
-  p.then(function(){ delete _imgFetching[id]; }, function(){ delete _imgFetching[id]; });
+  _imgFetching[rid] = p;
+  p.then(function(){ delete _imgFetching[rid]; }, function(){ delete _imgFetching[rid]; });
   return p;
 }
 /* 预取「哪些卡有图」（只取元数据，几十 KB） */
@@ -5967,64 +5982,77 @@ function prefetchImgFlags(){
   })();
 }
 /* 上传：blob → 压缩 → upsert 云端；返回 {ok, cloud} */
-async function uploadCardImg(id, blob, quiet){
+async function uploadCardImg(id, blob, quiet, face){
   if(!id || !blob) return {ok:false, cloud:false};
+  const isBack = face === 'back';
+  const rid = imgRowId(id, face);
   const rec = await compressImage(blob);
   if(!rec || !rec.data_b64) return {ok:false, cloud:false};
-  _imgDataCache[id] = rec;
-  if(_imgHasFlags) _imgHasFlags.add(String(id));
+  _imgDataCache[rid] = rec;
+  if(_imgHasFlags) _imgHasFlags.add(rid);
   let cloud = false;
   if(imgCloudOk()){
     try{
       const d = imgDb();
-      const r = await d.from(MEDIA_TABLE).upsert([{id: id, kind: 'orig', mime: rec.mime, data_b64: rec.data_b64, w: rec.w, h: rec.h, bytes: rec.bytes, updated_at: new Date().toISOString()}], {onConflict: 'id'});
+      const r = await d.from(MEDIA_TABLE).upsert([{id: rid, kind: isBack ? 'back' : 'orig', mime: rec.mime, data_b64: rec.data_b64, w: rec.w, h: rec.h, bytes: rec.bytes, updated_at: new Date().toISOString()}], {onConflict: 'id'});
       cloud = !(r && r.error);
     }catch(e){}
   }
-  refreshImgUI(id);
-  if(!quiet) toast(cloud ? '📷 原题图已上传 · ☁ 云端（' + Math.round(rec.bytes / 1024) + 'KB）' : '📷 原题图仅本机会话有效（云端不可用）');
+  refreshImgUI(id, face);
+  const nm = isBack ? '背面图' : '原题图';
+  if(!quiet) toast(cloud ? '📷 ' + nm + '已上传 · ☁ 云端（' + Math.round(rec.bytes / 1024) + 'KB）' : '📷 ' + nm + '仅本机会话有效（云端不可用）');
   return {ok:true, cloud:cloud};
 }
 /* 清除 = 墓雁行（避免其他设备把已删图补传回来） */
-async function clearCardImg(id, quiet){
+async function clearCardImg(id, quiet, face){
   if(!id) return {ok:false, cloud:false};
-  delete _imgDataCache[id];
-  if(_imgHasFlags) _imgHasFlags.delete(String(id));
+  const isBack = face === 'back';
+  const rid = imgRowId(id, face);
+  delete _imgDataCache[rid];
+  if(_imgHasFlags) _imgHasFlags.delete(rid);
   let cloud = false;
   if(imgCloudOk()){
     try{
       const d = imgDb();
-      const r = await d.from(MEDIA_TABLE).upsert([{id: id, kind: 'orig', mime: '', data_b64: '', w: 0, h: 0, bytes: 0, updated_at: new Date().toISOString()}], {onConflict: 'id'});
+      const r = await d.from(MEDIA_TABLE).upsert([{id: rid, kind: isBack ? 'back' : 'orig', mime: '', data_b64: '', w: 0, h: 0, bytes: 0, updated_at: new Date().toISOString()}], {onConflict: 'id'});
       cloud = !(r && r.error);
     }catch(e){}
   }
-  refreshImgUI(id);
-  if(!quiet) toast(cloud ? '原题图已清除 · ☁ 云端' : '原题图已清除（本机会话）');
+  refreshImgUI(id, face);
+  const nm = isBack ? '背面图' : '原题图';
+  if(!quiet) toast(cloud ? nm + '已清除 · ☁ 云端' : nm + '已清除（本机会话）');
   return {ok:true, cloud:cloud};
 }
 /* 刷新两处 UI：编辑弹窗预览 + 训练页缩略图 */
-function refreshImgUI(id){
-  const rec = _imgDataCache[id] || null;
-  const wrap = $('mImgWrap');
+function refreshImgUI(id, face){
+  const isBack = face === 'back';
+  const rec = _imgDataCache[imgRowId(id, face)] || null;
+  const wrap = $(isBack ? 'mImgWrap2' : 'mImgWrap');
+  const prev = $(isBack ? 'mImgPrev2' : 'mImgPrev');
+  const info = $(isBack ? 'mImgInfo2' : 'mImgInfo');
   if(wrap && _imgModalId === id){
-    if(rec){ $('mImgPrev').src = imgSrcUrl(rec); wrap.classList.add('on'); $('mImgInfo').textContent = (rec.w || '?') + '×' + (rec.h || '?') + ' · ' + Math.round((rec.bytes || 0) / 1024) + 'KB · ' + String(rec.mime || '').replace('image/', ''); }
-    else { wrap.classList.remove('on'); $('mImgPrev').removeAttribute('src'); $('mImgInfo').textContent = ''; }
+    if(rec){ prev.src = imgSrcUrl(rec); wrap.classList.add('on'); info.textContent = (rec.w || '?') + '×' + (rec.h || '?') + ' · ' + Math.round((rec.bytes || 0) / 1024) + 'KB · ' + String(rec.mime || '').replace('image/', ''); }
+    else { wrap.classList.remove('on'); prev.removeAttribute('src'); info.textContent = ''; }
   }
   refreshCardImgThumb(id);
 }
 /* 训练页当前卡缩略图（有 flag 才拉取，避免每张卡都请求） */
 function refreshCardImgThumb(id){
-  const fImg = $('fImg'); if(!fImg) return;
-  fImg.classList.remove('on'); fImg.removeAttribute('src');
-  const rec = _imgDataCache[id];
-  if(rec){ fImg.src = imgSrcUrl(rec); fImg.classList.add('on'); return; }
-  if(_imgHasFlags && _imgHasFlags.has(String(id))){
-    cardImgLoad(id).then(function(r){ if(r && viewingCardId === id) refreshCardImgThumb(id); });
-  }
+  ['front', 'back'].forEach(function(face){
+    const el = $(face === 'back' ? 'bImg' : 'fImg'); if(!el) return;
+    const rid = imgRowId(id, face);
+    el.classList.remove('on'); el.removeAttribute('src');
+    const rec = _imgDataCache[rid];
+    if(rec){ el.src = imgSrcUrl(rec); el.classList.add('on'); return; }
+    if(_imgHasFlags && _imgHasFlags.has(rid)){
+      cardImgLoad(id, face).then(function(r){ if(r && viewingCardId === id) refreshCardImgThumb(id); });
+    }
+  });
 }
-function openImgZoom(id){
-  const rec = _imgDataCache[id];
-  if(!rec){ toast('原题图还在从云端加载，请稍后再点'); return; }
+function openImgZoom(id, face){
+  const isBack = face === 'back';
+  const rec = _imgDataCache[imgRowId(id, face)];
+  if(!rec){ toast((isBack ? '背面图' : '原题图') + '还在从云端加载，请稍后再点'); return; }
   $('imgZoomImg').src = imgSrcUrl(rec);
   $('imgZoomMask').classList.add('show');
 }
@@ -7813,28 +7841,45 @@ document.addEventListener('paste', function(e){
   }
   if(!blob) return;
   const modalOpen = $('cardModal').classList.contains('show');
-  const targetId = _imgModalId || viewingCardId;
-  if(targetId){ e.preventDefault(); uploadCardImg(targetId, blob); return; }
+  /* BACKIMG-VER: 20261019a 粘贴路由优先弹窗，其次训练页（翻到背面则贴背面） */
+  if(modalOpen && _imgModalId){ e.preventDefault(); uploadCardImg(_imgModalId, blob, false, _imgModalFace); return; }
   if(modalOpen){
-    e.preventDefault(); _imgPending = blob;
-    const iw = $('mImgWrap'); if(iw) iw.classList.add('on');
-    $('mImgPrev').removeAttribute('src');
-    $('mImgInfo').textContent = '已暂存截图，保存卡片后自动上传';
-    toast('📷 已暂存，保存卡片后自动上传');
+    e.preventDefault(); _imgPending = {blob: blob, face: _imgModalFace};
+    const isBack = _imgModalFace === 'back';
+    const iw = $(isBack ? 'mImgWrap2' : 'mImgWrap'); if(iw) iw.classList.add('on');
+    $(isBack ? 'mImgPrev2' : 'mImgPrev').removeAttribute('src');
+    $(isBack ? 'mImgInfo2' : 'mImgInfo').textContent = '已暂存截图，保存卡片后自动上传';
+    toast('📷 已暂存' + (isBack ? '背面图' : '原题图') + '，保存卡片后自动上传');
+    return;
+  }
+  if(viewingCardId){
+    e.preventDefault();
+    const face = $('card').classList.contains('show') ? 'back' : 'front';
+    uploadCardImg(viewingCardId, blob, false, face);
     return;
   }
   toast('当前没有关联卡片：请先在训练/浏览视图打开一张卡，或在编辑弹窗中操作');
 });
-$('mImgPick').addEventListener('click', function(){ $('mImgFile').click(); });
+$('mImgPick').addEventListener('click', function(){ _imgModalFace = 'front'; $('mImgFile').click(); });
+$('mImgPick2').addEventListener('click', function(){ _imgModalFace = 'back'; $('mImgFile2').click(); });
 $('mImgFile').addEventListener('change', function(){
   const f = this.files && this.files[0]; this.value = '';
   if(!f) return;
   if(!_imgModalId){ toast('请先在编辑弹窗中保存/打开一张卡'); return; }
-  uploadCardImg(_imgModalId, f);
+  uploadCardImg(_imgModalId, f, false, 'front');
 });
-$('mImgPrev').addEventListener('click', function(){ if(_imgModalId) openImgZoom(_imgModalId); });
-$('mImgClear').addEventListener('click', function(){ if(_imgModalId) clearCardImg(_imgModalId); });
-$('fImg').addEventListener('click', function(){ if(viewingCardId) openImgZoom(viewingCardId); });
+$('mImgFile2').addEventListener('change', function(){
+  const f = this.files && this.files[0]; this.value = '';
+  if(!f) return;
+  if(!_imgModalId){ toast('请先在编辑弹窗中保存/打开一张卡'); return; }
+  uploadCardImg(_imgModalId, f, false, 'back');
+});
+$('mImgPrev').addEventListener('click', function(){ if(_imgModalId) openImgZoom(_imgModalId, 'front'); });
+$('mImgPrev2').addEventListener('click', function(){ if(_imgModalId) openImgZoom(_imgModalId, 'back'); });
+$('mImgClear').addEventListener('click', function(){ if(_imgModalId) clearCardImg(_imgModalId, false, 'front'); });
+$('mImgClear2').addEventListener('click', function(){ if(_imgModalId) clearCardImg(_imgModalId, false, 'back'); });
+$('fImg').addEventListener('click', function(){ if(viewingCardId) openImgZoom(viewingCardId, 'front'); });
+$('bImg').addEventListener('click', function(){ if(viewingCardId) openImgZoom(viewingCardId, 'back'); });
 $('imgZoomClose').addEventListener('click', function(){ $('imgZoomMask').classList.remove('show'); });
 $('imgZoomMask').addEventListener('click', function(e){ if(e.target === this) this.classList.remove('show'); });
 /* TAG-VER: 20261017a 标签事件 */
