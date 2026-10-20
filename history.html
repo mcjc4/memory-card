@@ -288,6 +288,8 @@ function relTime(ts){
 
 /* ===================== 云端（WB Cloud） ===================== */
 var CARDS_TABLE = 'cards';
+var BROWSE_TABLE = 'gaokao_state';                       /* R49：课件浏览独立行同表，id 加 -browse 后缀 */
+function BROWSE_ROW_ID(){ return 'jikaka-' + personKey + '-browse'; }
 var WB_CLOUD_CFG = {
   endpoint: 'https://jikaka-memory.app.workbuddy.host',
   publishableKey: 'wbpk_QuSSvKgXD7uP73LA5D5gNT_W0t84UkhE7UB0e9poO19fS9ZgJR6WlOP'
@@ -826,15 +828,48 @@ function fillIndexFromCloud(p){
               .sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
   return true;
 }
+/* 合并课件浏览独立行（R49：门户只写 jikaka-<person>-browse，小载荷手机端也能落云）
+   规则：课件（course_/hw）按 id 只留最近一次；记忆卡条目只补「比主档更新」的，不删主档历史 */
+function mergeBrowseIntoHistory(arr){
+  if(!Array.isArray(arr) || !arr.length) return 0;
+  var maxTs = new Map();
+  HISTORY.forEach(function(e){
+    if(!e || e.id == null) return;
+    var k = String(e.id), t = e.ts || 0;
+    if(t > (maxTs.get(k) || 0)) maxTs.set(k, t);
+  });
+  var changed = 0;
+  arr.forEach(function(e){
+    if(!e || e.id == null) return;
+    var k = String(e.id), t = e.ts || 0;
+    if(t <= (maxTs.get(k) || 0)) return;
+    if(isCourseId(k)) HISTORY = HISTORY.filter(function(x){ return String(x && x.id) !== k; });
+    HISTORY.push(e); maxTs.set(k, t); changed++;
+  });
+  if(changed) HISTORY.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+  window.__BROWSE_MERGED = changed;
+  return changed;
+}
+async function loadBrowseRow(){
+  if(!wbCloudReady()) return 0;
+  try{
+    var rows = await sbSelect(BROWSE_TABLE, 'select=id,data&id=eq.' + encodeURIComponent(BROWSE_ROW_ID()) + '&limit=1');
+    var p = (Array.isArray(rows) && rows[0] && rows[0].data) ? rows[0].data : null;
+    if(!p || !Array.isArray(p.browseHistory)) return 0;
+    return mergeBrowseIntoHistory(p.browseHistory);
+  }catch(e){ console.warn('loadBrowseRow failed:', (e && e.message) || e); return 0; }
+}
 async function loadCloudStats(){
   if(!wbCloudReady()) return false;
+  var ok = false;
   try{
     var rows = await sbSelect('gaokao_state', 'select=id,data&id=eq.' + encodeURIComponent('jikaka-' + personKey) + '&limit=1');
     if(Array.isArray(rows) && rows[0] && rows[0].data && typeof rows[0].data === 'object'){
-      return fillIndexFromCloud(rows[0].data);
+      ok = fillIndexFromCloud(rows[0].data);
     }
-    return false;
-  }catch(e){ console.warn('loadCloudStats failed:', (e && e.message) || e); return false; }
+  }catch(e){ console.warn('loadCloudStats failed:', (e && e.message) || e); }
+  var merged = await loadBrowseRow();      /* 课件浏览（跨设备：门户写独立行） */
+  return ok || merged > 0;
 }
 async function refreshAll(){
   buildLocalIndex();
