@@ -232,7 +232,7 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
       </table>
     </div>
     <div class="footBar">
-      <span>匹配 <b id="fCount">0</b> / 共 <b id="fTotal">0</b> 条（按日期倒序）· <b id="fCards">0</b> 张去重卡片</span>
+      <span>匹配 <b id="fCount">0</b> / 共 <b id="fTotal">0</b> 条（按浏览时间倒序 · 最新在最上）· <b id="fCards">0</b> 张去重卡片</span>
       <span class="sp"></span>
       <button class="btn go" id="btnPractice">🎯 开始专题练</button>
     </div>
@@ -667,8 +667,14 @@ function renderStats(){
   $('stBrowsed').textContent = br;
 }
 
+/* 统一排序：默认按浏览时间从最新到最早（无论数据来自本地镜像还是云端都保证同一顺序） */
+function sortHistDesc(){
+  if(!Array.isArray(HISTORY)) return;
+  HISTORY.sort(function(a,b){ return ((b && b.ts) || 0) - ((a && a.ts) || 0); });
+}
 function renderTable(){
   var tb = $('tbody');
+  sortHistDesc();
   renderCoursePanel();
   var filtered = getFiltered();
   $('fCount').textContent = filtered.length;
