@@ -79,6 +79,12 @@ table.browseTable td{padding:8px 10px;border-bottom:1px solid #f4f6f8;vertical-a
 table.browseTable tr:hover td{background:#fafbfc}
 table.browseTable td.ts{white-space:nowrap;color:#374151}
 table.browseTable td.ts small{display:block;color:#9ca3af;font-size:11px}
+/* 课件行：左侧紫色条 + 紫底时间戳，浏览时间一眼可见（R48） */
+table.browseTable tr.cRow td{background:#FBF7FF}
+table.browseTable tr.cRow:hover td{background:#F5EDFC}
+table.browseTable tr.cRow td:first-child{border-left:3px solid #A855F7}
+table.browseTable tr.cRow td.ts{color:#5B21B6;font-weight:700}
+table.browseTable tr.cRow td.ts small{color:#7C3AED;font-weight:600}
 table.browseTable td.sig{max-width:420px}
 table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin-top:2px}
 .modeTag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px}
@@ -124,6 +130,8 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
     <div class="navGroupTitle">快捷筛选</div>
     <div class="navItem" data-quick="today">🕓 今天</div>
     <div class="navItem" data-quick="week">📆 近 7 天</div>
+    <div class="navItem" data-quick="course">📝 课件浏览时间</div>
+    <div class="navItem" data-quick="cards">🃏 仅记忆卡</div>
     <div class="navItem" data-quick="all">🗂 全部（清空条件）</div>
   </div>
   <div class="navFoot"><a href="index.html">← 返回记忆卡</a></div>
@@ -145,6 +153,23 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
     <div class="stat"><b id="stBrowsed" style="color:#854F0B">–</b><span>已审核卡片</span></div>
     <div class="stat"><b id="stCourse" style="color:#6B21A8">–</b><span>课件浏览</span></div>
   </div>
+
+  <section class="card" id="courseCard">
+    <h2>📝 课件浏览时间<span class="cnt" id="cCnt"></span><span class="sp"></span><button class="btn" id="cToggle" style="display:none">展开全部</button></h2>
+    <div class="hint">按最近浏览时间倒序 · 覆盖全部课件浏览记录（不受上方筛选条件影响，方便直接核对课件看没看、什么时候看的）</div>
+    <div class="tblWrap" style="max-height:none">
+      <table class="browseTable">
+        <thead><tr>
+          <th style="width:150px">最近浏览时间</th>
+          <th>课件</th>
+          <th style="width:78px">学科</th>
+          <th style="width:88px">浏览次数</th>
+          <th style="width:96px">操作</th>
+        </tr></thead>
+        <tbody id="cBody"><tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px">读取中…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
 
   <section class="card">
     <h2>🔍 筛选条件<span class="sp"></span><button class="btn" id="btnReset">✕ 清空条件</button></h2>
@@ -574,6 +599,57 @@ function getFiltered(){
 }
 function modeClass(m){ return m === '审核' ? 'mBrowse' : (m === '专题练' ? 'mTopic' : (m === '课件' ? 'mCourse' : 'mTrain')); }
 
+/* ===================== 课件浏览时间面板（R48：让课件浏览时间可直接查） ===================== */
+var _cAll = false;
+function courseBrowseRows(){
+  var g = new Map();
+  HISTORY.forEach(function(e){
+    if(!isCourseId(e.id)) return;
+    var k = String(e.id), ts = e.ts || 0;
+    var it = fullCard(k, e) || {};
+    var r = g.get(k);
+    if(!r){
+      g.set(k, {id:k, title:(it.s || k), subj:(courseSubj(e) || it.subj || ''), link:(it.link || e.src || ''), last:ts, n:1});
+    } else {
+      r.n++;
+      if(ts > r.last) r.last = ts;
+      if(!r.link && (it.link || e.src)) r.link = it.link || e.src;
+    }
+  });
+  return Array.from(g.values()).sort(function(a,b){ return b.last - a.last; });
+}
+function renderCoursePanel(){
+  var tb = $('cBody');
+  if(!tb) return;
+  var rows = courseBrowseRows();
+  var totalN = rows.reduce(function(s,r){ return s + r.n; }, 0);
+  $('cCnt').textContent = rows.length ? ('（' + rows.length + ' 门 · ' + totalN + ' 次浏览）') : '';
+  var btn = $('cToggle');
+  if(rows.length <= 8){ btn.style.display = 'none'; _cAll = false; }
+  else { btn.style.display = ''; btn.textContent = _cAll ? '收起' : ('展开全部 ' + rows.length + ' 门'); }
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px">暂无课件浏览记录</td></tr>';
+    return;
+  }
+  var show = _cAll ? rows : rows.slice(0, 8);
+  var html = '';
+  show.forEach(function(r){
+    html += '<tr class="cRow">'
+      + '<td class="ts">' + esc(relTime(r.last)) + '<small>' + esc(fmtTs(r.last)) + '</small></td>'
+      + '<td class="sig">' + esc(String(r.title).slice(0, 64)) + '<small>' + esc(r.id) + '</small></td>'
+      + '<td>' + esc(r.subj || '-') + '</td>'
+      + '<td>' + r.n + ' 次</td>'
+      + '<td>' + (r.link
+          ? '<button class="actBtn" data-open="' + esc(r.link) + '">打开课件</button>'
+          : '<span style="color:#9ca3af;font-size:11.5px">无链接</span>') + '</td>'
+      + '</tr>';
+  });
+  tb.innerHTML = html;
+  tb.querySelectorAll('button[data-open]').forEach(function(b){
+    b.addEventListener('click', function(){ window.open(b.getAttribute('data-open'), '_blank', 'noopener'); });
+  });
+}
+
 function renderStats(){
   var seen = new Set(), cSeen = new Set();
   HISTORY.forEach(function(e){
@@ -593,6 +669,7 @@ function renderStats(){
 
 function renderTable(){
   var tb = $('tbody');
+  renderCoursePanel();
   var filtered = getFiltered();
   $('fCount').textContent = filtered.length;
   $('fTotal').textContent = HISTORY.length;
@@ -613,7 +690,7 @@ function renderTable(){
     var v = STATE_FLAT.get(String(e.id));
     var stName = isC ? '—' : (LEVEL_NAME[v] || '未测');
     var stCls = isC ? 'unt' : (v ? ('lv' + v) : 'unt');
-    html += '<tr>'
+    html += '<tr' + (isC ? ' class="cRow"' : '') + '>'
       + '<td class="ts">' + esc(relTime(e.ts)) + '<small>' + esc(fmtTs(e.ts)) + '</small></td>'
       + '<td><span class="modTag ' + (isC ? 'mc' : 'mk') + '">' + (isC ? '课件' : '记忆卡') + '</span></td>'
       + '<td><span class="modeTag ' + modeClass(e.mode) + '">' + esc(e.mode || '-') + '</span></td>'
@@ -680,6 +757,10 @@ function quick(kind){
     var d7 = new Date(d0.getTime() - 6*86400000);
     $('fDateStart').value = fmtInput(d7);
     $('fDateEnd').value = fmtInput(d0);
+  } else if(kind === 'course'){
+    selKind.add('课件'); msKind.repaint();
+  } else if(kind === 'cards'){
+    selKind.add('记忆卡'); msKind.repaint();
   }
   renderTable();
 }
@@ -694,17 +775,23 @@ async function loadCloudCardsForHistory(){
     var k = String(e.id);
     if(seen.has(k)) return;
     if(CARD_INDEX.has(k) || CLOUD_CARDS.has(k)) return;
-    if(k.indexOf('course_') === 0) return;
+    if(isCourseId(k)) return;               /* 课件的标题/链接由 id 合成，不需要查 cards 表 */
     seen.add(k); need.push(k);
   });
   if(!need.length) return;
-  need = need.slice(0, 400);
-  try{
-    var rows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + need.map(encodeURIComponent).join(',') + ')&select=card_id,subject,chapter,signal,conclusion,src&limit=500');
-    (rows || []).forEach(function(r){
-      if(r && r.card_id) CLOUD_CARDS.set(String(r.card_id), {subject: r.subject||'', chapter: r.chapter||'', signal: r.signal||'', conclusion: r.conclusion||'', src: r.src||''});
-    });
-  }catch(e){ console.warn('云端卡片详情补充失败:', e); }
+  /* 网关对超长 URL 直接断连（334 个 id ≈ 16KB → ERR_CONNECTION_CLOSED），必须分批，每批 40 个 */
+  var BATCH = 40, MAXN = 800, added = 0;
+  need = need.slice(0, MAXN);
+  for(var i = 0; i < need.length; i += BATCH){
+    var part = need.slice(i, i + BATCH);
+    try{
+      var rows = await sbSelect(CARDS_TABLE, 'card_id=in.(' + part.map(encodeURIComponent).join(',') + ')&select=card_id,subject,chapter,signal,conclusion,src&limit=200');
+      (rows || []).forEach(function(r){
+        if(r && r.card_id){ CLOUD_CARDS.set(String(r.card_id), {subject: r.subject||'', chapter: r.chapter||'', signal: r.signal||'', conclusion: r.conclusion||'', src: r.src||''}); added++; }
+      });
+    }catch(e){ console.warn('云端卡片详情补充失败(第 ' + (Math.floor(i / BATCH) + 1) + ' 批):', (e && e.message) || e); }
+  }
+  window.__CLOUD_CARDS_ADDED = added;
 }
 function fillIndexFromCloud(p){
   if(!p || typeof p !== 'object') return false;
@@ -750,6 +837,7 @@ async function refreshAll(){
   renderTable();
   await waitCloud();
   await loadCloudStats();          /* 云端浏览/训练成绩优先（跨设备同步），失败/无数据自动回落本地 */
+  renderCoursePanel();             /* 课件浏览时间面板不依赖卡片详情，先出结果（不必等下面的慢查询） */
   await loadCloudCardsForHistory();
   renderStats();
   msSubj.repaint();                /* 云端可能带来新科目，学科筛选列表同步 */
@@ -796,6 +884,7 @@ function init(){
   $('btnRefresh').addEventListener('click', refreshAll);
   $('btnReset').addEventListener('click', resetFilters);
   $('btnPractice').addEventListener('click', startPractice);
+  $('cToggle').addEventListener('click', function(){ _cAll = !_cAll; renderCoursePanel(); });
   document.querySelectorAll('[data-quick]').forEach(function(el){
     el.addEventListener('click', function(){
       document.querySelectorAll('[data-quick]').forEach(function(x){ x.classList.remove('active'); });
