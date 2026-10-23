@@ -2653,6 +2653,7 @@ function show(){
   }
   viewingCard = true;
   $('card').style.display = '';
+  $('empty').style.display = 'none';   /* TRAINCLEAN-VER: 20261023b —— 队列末尾显示过的空状态框，回到有卡状态时必须收起（原来只在 empty 分支设置 display:block，从不复位，导致卡片仍在却挂着「所有条目都测完了」白框） */
   setMarkBtns(false);
   $('trainPosNum').textContent = '第 ' + (pos + 1) + ' / ' + queue.length + ' 张';
   updateNavBtns();
