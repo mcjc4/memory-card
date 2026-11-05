@@ -1450,9 +1450,9 @@ ${l.stack}`)}else c=a?.stack??"";let d=this.url.toString().length;return a?.name
 <div id="srcPopover" class="srcPopover" style="display:none"></div>
 <div id="maxFontPopover" class="srcPopover mfPop" style="display:none"></div>
 <script>
-const SUBJECTS = {"物理": {"color": "#185FA5", "display": "物理", "items": []}};
-const SUBJ_ORDER = ['语文','数学','英语','物理','化学','政治'];
-const SUBJ_COLORS = {语文:'#993C1D',数学:'#534AB7',英语:'#0F6E56',物理:'#185FA5',化学:'#3B6D11',政治:'#BA7517'};
+const SUBJECTS = {"物理": {"color": "#185FA5", "display": "物理", "items": []}, "考场策略": {"color": "#D4537E", "display": "考场策略", "items": []}};
+const SUBJ_ORDER = ['语文','数学','英语','物理','化学','政治','考场策略'];
+const SUBJ_COLORS = {语文:'#993C1D',数学:'#534AB7',英语:'#0F6E56',物理:'#185FA5',化学:'#3B6D11',政治:'#BA7517',考场策略:'#D4537E'};
 const PALETTE = ['#185FA5','#3B6D11','#534AB7','#993C1D','#0F6E56','#B3407A','#854F0B','#1D9E75'];
 /* ===================== 双执行人（陈昕言 / 陈梓涵）数据隔离 ===================== */
 const PERSONS = [
@@ -3614,6 +3614,7 @@ function deleteSubject(nm, silent){
   if(cur === nm){ cur = SUBJ_NAMES[0] || null; }
   renderManage(); refreshToday(); updateStats(); renderDash();
   if(cur){ const cc = ALL_SUBJECTS[cur].color; document.documentElement.style.setProperty('--accent', cc); }
+  schedulePush();                       /* 删除立即同步云端，避免其他设备/缓存把科目推回来 */
   toast('已删除科目「' + disp + '」（' + ids.length + ' 张卡片）');
   return true;
 }
@@ -4336,17 +4337,24 @@ function cloudPayload(){
 function applyCloudPayload(p){
   if(!p || typeof p !== 'object') return;
   /* 空壳保护：云端同名科目为空壳（无卡片）且本地有实质内容时，跳过覆盖，避免导入内容被反向清空 */
-  if(p.custom && typeof p.custom === 'object') Object.keys(p.custom).forEach(k => {
-    const pc = p.custom[k];
-    if(pc && CUSTOM[k] && CUSTOM[k].items && CUSTOM[k].items.length && (!pc.items || !pc.items.length)) return;
-    CUSTOM[k] = pc;
-  });
-  if(p.imported && typeof p.imported === 'object') Object.keys(p.imported).forEach(k => {
-    const pi = p.imported[k];
-    const li = IMPORTED[k] || CUSTOM[k] || SUBJECTS[k];
-    if(pi && li && li.items && li.items.length && (!pi.items || !pi.items.length)) return;
-    IMPORTED[k] = pi;
-  });
+  if(p.custom && typeof p.custom === 'object'){
+    /* 删除传播：云端已无该科目 → 本地同步删除（否则本地缓存会把删掉的科目又推回云端） */
+    Object.keys(CUSTOM).forEach(k => { if(!(k in p.custom)) delete CUSTOM[k]; });
+    Object.keys(p.custom).forEach(k => {
+      const pc = p.custom[k];
+      if(pc && CUSTOM[k] && CUSTOM[k].items && CUSTOM[k].items.length && (!pc.items || !pc.items.length)) return;
+      CUSTOM[k] = pc;
+    });
+  }
+  if(p.imported && typeof p.imported === 'object'){
+    Object.keys(IMPORTED).forEach(k => { if(!(k in p.imported)) delete IMPORTED[k]; });
+    Object.keys(p.imported).forEach(k => {
+      const pi = p.imported[k];
+      const li = IMPORTED[k] || CUSTOM[k] || SUBJECTS[k];
+      if(pi && li && li.items && li.items.length && (!pi.items || !pi.items.length)) return;
+      IMPORTED[k] = pi;
+    });
+  }
   ecPurgeApply(true);   /* ECPURGE-VER: 20261028b —— 云端覆盖层落本地后立即复切易错块，脏数据就地洗净并回推 */
   if(p.state && typeof p.state === 'object') Object.keys(p.state).forEach(k => state[k] = p.state[k]);
   if(p.today && typeof p.today === 'object') Object.keys(p.today).forEach(k => todayD[k] = p.today[k]);
@@ -8477,7 +8485,8 @@ body{padding-left:220px;padding-top:52px}
   var savedColl=null; try{ savedColl=localStorage.getItem('ps_collapsed'); }catch(e){}
   if(savedColl==='1') document.body.classList.add(COLL);
   else if(savedColl==='0') document.body.classList.remove(COLL);
-  /* 不再按竖屏自动收起：侧栏默认常驻，收起/展开完全由用户手动点 ‹ 控制（状态跨页持久化到 localStorage） */
+  /* 无手动存档偏好时：竖屏默认收起成左上角小图标（横屏保持常驻） */
+  else if(window.matchMedia && window.matchMedia('(orientation: portrait)').matches) document.body.classList.add(COLL);
   function psSyncToggle(){ var b=document.getElementById('psToggle'); if(b) b.textContent='‹'; }
   psSyncToggle();
   function psSetColl(c){ document.body.classList.toggle(COLL,c); try{ localStorage.setItem('ps_collapsed', c?'1':'0'); }catch(e){} }
