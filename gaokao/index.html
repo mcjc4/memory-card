@@ -6,6 +6,7 @@
 <title>高考学习目标管理台</title>
 <!-- PAGEPAY-VER: 20261108b 按页数计奖励（双轨：分钟收入 + 页数收入） -->
 <!-- PAGERULE-TASK-VER: 20261108b 启用的页数规则在今日页自动生成可打卡任务 -->
+<!-- PAGERULE-EDIT-VER: 20261108c 页数规则支持「✎ 修改」+ 文案统一「每天 N 页」 -->
 <style>
   :root{
     --bg:#f5f6fb; --surface:#ffffff; --surface-2:#fafbff;
@@ -534,6 +535,16 @@ function pageRules(){
   if(!Array.isArray(S.pageRules))S.pageRules=[];
   return S.pageRules;
 }
+/* PAGERULE-EDIT-VER 20261108c — 规则修改态：仅内存，不入库；切换执行人/刷新自动回新增模式 */
+let pageRuleEditRef=null;   /* {id,i} 正在修改的规则；null = 新增模式 */
+function pageRuleEditGet(){
+  if(!pageRuleEditRef)return null;
+  const rs=pageRules();
+  let r=pageRuleEditRef.id?rs.find(x=>x&&x.id===pageRuleEditRef.id):null;
+  if(!r)r=rs[pageRuleEditRef.i];
+  return r||null;
+}
+function pageRuleEditClear(){pageRuleEditRef=null;}
 function pageRulePages(r){return Math.max(1,Number(r&&r.pages)||10);}
 function pageRuleYuan(r){return Math.max(0,Number(r&&r.yuan)||0);}
 function pageRuleMatch(subject,sub,material){
@@ -564,7 +575,7 @@ function pageEarnOf(rule,pages){
 }
 function pageRuleLabel(rule){
   if(!rule)return "";
-  return (String(rule.subject||"").trim()||"全部学科")+" · "+(String(rule.keyword||"").trim()||"全部任务")+" · 每 "+pageRulePages(rule)+" 页 "+pageRuleYuan(rule)+" 元";
+  return (String(rule.subject||"").trim()||"全部学科")+" · "+(String(rule.keyword||"").trim()||"全部任务")+" · 每天 "+pageRulePages(rule)+" 页 "+pageRuleYuan(rule)+" 元";
 }
 function lastPageEndOf(rule,subject,sub){
   let best=null;
@@ -590,20 +601,42 @@ function todayEarnParts(){
 }
 function pageRulesHtml(){
   const rs=pageRules();
-  if(!rs.length)return '<div class="muted" style="font-size:12px;padding:6px 0">暂无规则。点「填入示例」可一键带入「数学 / 洋葱数学 / 每 10 页 5 元」，新增后今日页会自动出现同名任务，打卡时会多出「开始页数 / 结束页数」。</div>';
-  return rs.map((r,i)=>'<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:12px;margin-bottom:4px;flex-wrap:wrap"><span style="font-weight:700;color:#166534">'+esc(String(r.subject||"").trim()||"全部学科")+'</span><span style="color:#374151">'+esc(String(r.keyword||"").trim()||"全部任务")+'</span><span style="font-weight:700;color:#b45309">每 '+pageRulePages(r)+' 页 '+pageRuleYuan(r)+' 元</span><span class="muted">'+(r.mode==="floor"?"满档才计":"按比例")+'</span><button class="btn ghost sm" data-act="page-rule-toggle" data-i="'+i+'">'+(r.enabled===false?"已停用":"启用中")+'</button><button class="btn ghost sm" data-act="page-rule-del" data-i="'+i+'">删除</button></div>').join("");
+  if(!rs.length)return '<div class="muted" style="font-size:12px;padding:6px 0">暂无规则。点「填入示例」可一键带入「数学 / 洋葱数学 / 每天 10 页 5 元」，新增后今日页会自动出现同名任务，打卡时会多出「开始页数 / 结束页数」。</div>';
+  const er=pageRuleEditGet();
+  return rs.map((r,i)=>{
+    const editing=!!er&&er===r;
+    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:'+(editing?'#eff6ff':'#f0fdf4')+';border:1px solid '+(editing?'#93c5fd':'#86efac')+';border-radius:8px;font-size:12px;margin-bottom:4px;flex-wrap:wrap">'+
+      '<span style="font-weight:700;color:#166534">'+esc(String(r.subject||"").trim()||"全部学科")+'</span>'+
+      '<span style="color:#374151">'+esc(String(r.keyword||"").trim()||"全部任务")+'</span>'+
+      '<span style="font-weight:700;color:#b45309">每天 '+pageRulePages(r)+' 页 '+pageRuleYuan(r)+' 元</span>'+
+      '<span class="muted">'+(r.mode==="floor"?"满档才计":"按比例")+'</span>'+
+      (editing?'<span style="font-size:11px;font-weight:700;color:#1d4ed8">✎ 编辑中</span>':'')+
+      '<button class="btn ghost sm" data-act="page-rule-toggle" data-i="'+i+'">'+(r.enabled===false?"已停用":"启用中")+'</button>'+
+      '<button class="btn ghost sm" data-act="page-rule-del" data-i="'+i+'">删除</button>'+
+      '<button class="btn ghost sm" data-act="page-rule-edit" data-i="'+i+'" data-id="'+esc(r.id||"")+'">✎ 修改</button></div>';
+  }).join("");
 }
 function pageRuleFormHtml(){
-  const opts='<option value="">全部学科</option>'+((S&&S.goals)||[]).map(g=>'<option value="'+esc(g.name)+'">'+esc(g.name)+'</option>').join("");
-  return '<div class="field-row" style="margin-top:8px;flex-wrap:wrap;gap:6px"><div style="flex:1;min-width:100px"><label>学科</label><select id="pr-subject" style="width:100%">'+opts+'</select></div><div style="flex:2;min-width:140px"><label>任务关键词</label><input id="pr-keyword" placeholder="如：洋葱数学" maxlength="40" style="width:100%"></div></div>'+
-    '<div class="field-row" style="margin-top:6px;flex-wrap:wrap;gap:6px"><div style="flex:1;min-width:90px"><label>每 N 页</label><input id="pr-pages" type="number" min="1" step="1" value="10" style="width:100%"></div><div style="flex:1;min-width:90px"><label>M 元</label><input id="pr-yuan" type="number" min="0" step="0.5" value="5" style="width:100%"></div><div style="flex:1;min-width:110px"><label>计钱口径</label><select id="pr-mode" style="width:100%"><option value="linear">按比例（推荐）</option><option value="floor">满档才计</option></select></div></div>'+
-    '<button class="btn primary sm" data-act="page-rule-add" style="margin-top:8px">+ 新增规则</button><button class="btn ghost sm" data-act="page-rule-demo" style="margin-top:8px;margin-left:6px">填入示例</button>';
+  const er=pageRuleEditGet();
+  const curSub=er?String(er.subject||"").trim():"";
+  const goals=(S&&S.goals)||[];
+  const hasSub=!curSub||goals.some(g=>g.name===curSub);
+  const opts='<option value=""'+(er&&!curSub?' selected':'')+'>全部学科</option>'+
+    goals.map(g=>'<option value="'+esc(g.name)+'"'+(er&&curSub===g.name?' selected':'')+'>'+esc(g.name)+'</option>').join("")+
+    (hasSub?'':'<option value="'+esc(curSub)+'" selected>'+esc(curSub)+'</option>');
+  const vKw=er?String(er.keyword||""):"",vPages=er?pageRulePages(er):10,vYuan=er?pageRuleYuan(er):5,vMode=(er&&er.mode==="floor")?"floor":"linear";
+  return (er?'<div class="hint" style="margin-top:8px;font-size:12px;color:#1d4ed8;font-weight:600">✎ 正在修改这条规则，改完点「✓ 保存修改」；点「取消修改」放弃改动。</div>':'')+
+    '<div class="field-row" style="margin-top:8px;flex-wrap:wrap;gap:6px"><div style="flex:1;min-width:100px"><label>学科</label><select id="pr-subject" style="width:100%">'+opts+'</select></div><div style="flex:2;min-width:140px"><label>任务关键词</label><input id="pr-keyword" placeholder="如：洋葱数学" maxlength="40" value="'+esc(vKw)+'" style="width:100%"></div></div>'+
+    '<div class="field-row" style="margin-top:6px;flex-wrap:wrap;gap:6px"><div style="flex:1;min-width:90px"><label>每天 N 页</label><input id="pr-pages" type="number" min="1" step="1" value="'+vPages+'" style="width:100%"></div><div style="flex:1;min-width:90px"><label>M 元</label><input id="pr-yuan" type="number" min="0" step="0.5" value="'+vYuan+'" style="width:100%"></div><div style="flex:1;min-width:110px"><label>计钱口径</label><select id="pr-mode" style="width:100%"><option value="linear"'+(vMode==="linear"?' selected':'')+'>按比例（推荐）</option><option value="floor"'+(vMode==="floor"?' selected':'')+'>满档才计</option></select></div></div>'+
+    (er
+      ? '<button class="btn primary sm" data-act="page-rule-add" style="margin-top:8px">✓ 保存修改</button><button class="btn ghost sm" data-act="page-rule-cancel" style="margin-top:8px;margin-left:6px">取消修改</button>'
+      : '<button class="btn primary sm" data-act="page-rule-add" style="margin-top:8px">+ 新增规则</button><button class="btn ghost sm" data-act="page-rule-demo" style="margin-top:8px;margin-left:6px">填入示例</button>');
 }
 function pageBlockHtml(rule,subject,sub,prefix){
   const per=pageRulePages(rule),yuan=pageRuleYuan(rule),defFrom=lastPageEndOf(rule,subject,sub);
   return '<input type="hidden" id="'+prefix+'-rule-id" value="'+esc(rule.id||"")+'">'+
     '<div class="page-pay-box" style="margin:8px 0;padding:10px 12px;background:#f0fdf4;border:1px solid #86efac;border-left:3px solid #16a34a;border-radius:10px">'+
-    '<div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px">📖 按页数计奖励：每 '+per+' 页 '+yuan+' 元'+(rule.mode==="floor"?'（满档才计）':'（按比例）')+'</div>'+
+    '<div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px">📖 按页数计奖励：每天 '+per+' 页 '+yuan+' 元'+(rule.mode==="floor"?'（满档才计）':'（按比例）')+'</div>'+
     '<div class="field-row"><div style="flex:1"><label>开始页数</label><input id="'+prefix+'-page-from" type="number" min="1" step="1" value="'+defFrom+'" placeholder="如 47"></div><div style="flex:1"><label>结束页数</label><input id="'+prefix+'-page-to" type="number" min="1" step="1" value="" placeholder="如 56"></div></div>'+
     '<div id="'+prefix+'-page-preview" class="hint" style="margin-top:6px;font-size:12px;color:#166534">填写起止页数后自动计算</div>'+
     '<div class="hint" style="margin-top:4px;font-size:11px;color:#4b5563">页数含首尾（P47→P56 = 10 页）；本次按页数赚钱，分钟数仍计入时长目标但不重复计钱。'+(defFrom?'已自动带出上次结束页 +1。':'')+'</div>'+
@@ -858,6 +891,7 @@ function load(){try{const raw=localStorage.getItem(curStoreKey());if(!raw){S=bui
 function save(){try{S.updatedAt=Date.now();localStorage.setItem(curStoreKey(),JSON.stringify(S));}catch(e){toast("保存失败："+e.message);}pushCloud();}
 function switchExecutor(i){
   if(i===curExec)return;
+  pageRuleEditClear();   /* PAGERULE-EDIT-VER: 换人不能带着上一个人的编辑态 */
   if(localStorage.getItem(curStoreKey()))save();
   curExec=i;try{localStorage.setItem("gaokao_exec_id",String(curExec));}catch(e){}
   executorName=localStorage.getItem("gaokao_exec_name_"+curCfg().id)||curCfg().name;
@@ -1260,7 +1294,7 @@ function goalCard(g,pin){
   /* PAGERULE-TASK-VER: 20261108b — 虚拟任务行：可打卡/可取消，无删除按钮，带规则小标签 */
   targetRows+=tods.filter(s=>s.virtual).map(s=>{
     const r=recForSub(s.sub);
-    const tag=`<span style="margin-left:6px;font-size:11px;font-weight:600;color:#166534;background:#dcfce7;border:1px solid #86efac;border-radius:5px;padding:1px 5px;white-space:nowrap">📖 每 ${pageRulePages(s.rule)} 页 ${pageRuleYuan(s.rule)} 元</span>`;
+    const tag=`<span style="margin-left:6px;font-size:11px;font-weight:600;color:#166534;background:#dcfce7;border:1px solid #86efac;border-radius:5px;padding:1px 5px;white-space:nowrap">📖 每天 ${pageRulePages(s.rule)} 页 ${pageRuleYuan(s.rule)} 元</span>`;
     return `<div class="target-row ${r?'done':''}" style="--sc:${g.color}"><label class="tr-inner"><input type="checkbox" class="circle-check" data-act="check-sub" data-gid="${g.id}" data-sub="${esc(s.sub)}" ${r?'checked':''}><div class="today-target"><div class="target-name">${esc(s.sub)}${tag}</div>${metaHtml(s,r)}</div></label></div>`;
   }).join("");
   let estHtml="";
@@ -1713,7 +1747,7 @@ function renderMine(){
       </div>
       <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
         <label style="font-size:13px;font-weight:700">📖 按页数计奖励</label>
-        <div class="hint" style="margin:4px 0 6px">设置「学科 + 任务关键词 + 每 N 页 M 元」。打卡时命中规则的任务会多出「开始页数 / 结束页数」，自动算页数和金额；未命中的任务仍按分钟赚钱。页数含首尾、默认按比例计钱、命中时分钟不重复计钱。规则按执行人独立保存并云端同步。<b>配好规则后，今日页对应学科会自动出现同名任务</b>，直接点圆圈即可填页数打卡（规则停用/删除后任务自动消失）；选「全部学科」的规则不自动生成任务，需手动新增同名任务。</div>
+        <div class="hint" style="margin:4px 0 6px">设置「学科 + 任务关键词 + 每天 N 页 M 元」。打卡时命中规则的任务会多出「开始页数 / 结束页数」，自动算页数和金额；未命中的任务仍按分钟赚钱。页数含首尾；<b>按比例</b>＝实际页数 ÷ N × M（看 20 页按 2 倍计），<b>满档才计</b>＝每满 N 页给 M 元。命中时分钟只计入时长目标、不重复计钱。规则按执行人独立保存并云端同步，右侧「✎ 修改」可直接改已配好的规则。<b>配好规则后，今日页对应学科会自动出现同名任务</b>，直接点圆圈即可填页数打卡（规则停用/删除后任务自动消失）；选「全部学科」的规则不自动生成任务，需手动新增同名任务。</div>
         <div id="page-rule-list" style="margin-top:6px">${pageRulesHtml()}</div>
         ${pageRuleFormHtml()}
       </div>
@@ -2433,14 +2467,25 @@ document.addEventListener("click",e=>{
     const v=Math.max(0,Number(document.getElementById("yuan-per-min").value)||0);
     setYuanPerMin(v);render();toast("每分钟奖励已保存为 "+yuanPerMin+" 元（"+executorName+"）");return;
   }
+  if(act==="page-rule-edit"){
+    const i=Number(el.dataset.i),r=pageRules()[i];if(!r)return;
+    pageRuleEditRef={id:r.id||"",i:i};
+    render();
+    const f=document.getElementById("pr-pages");if(f&&f.scrollIntoView)f.scrollIntoView({block:"center"});
+    toast("正在修改「"+(String(r.keyword||"").trim()||String(r.subject||"").trim()||"规则")+"」，改完点「✓ 保存修改」");return;
+  }
+  if(act==="page-rule-cancel"){
+    pageRuleEditClear();render();toast("已取消修改");return;
+  }
   if(act==="page-rule-demo"){
+    if(pageRuleEditRef){pageRuleEditClear();render();}   /* 编辑态点示例＝放弃修改，回到新增模式 */
     const sj=document.getElementById("pr-subject");
     if(sj&&Array.from(sj.options).some(o=>o.value==="数学"))sj.value="数学";
     document.getElementById("pr-keyword").value="洋葱数学";
     document.getElementById("pr-pages").value="10";
     document.getElementById("pr-yuan").value="5";
     document.getElementById("pr-mode").value="linear";
-    toast("已填入示例：数学 · 洋葱数学 · 每 10 页 5 元，点「+ 新增规则」保存");return;
+    toast("已填入示例：数学 · 洋葱数学 · 每天 10 页 5 元，点「+ 新增规则」保存");return;
   }
   if(act==="page-rule-add"){
     const subject=(document.getElementById("pr-subject").value||"").trim();
@@ -2449,11 +2494,20 @@ document.addEventListener("click",e=>{
     const yuan=Math.max(0,Number(document.getElementById("pr-yuan").value)||0);
     const mode=document.getElementById("pr-mode").value==="floor"?"floor":"linear";
     if(!subject&&!keyword){toast("请至少选择学科或填写任务关键词");return;}
+    const er=pageRuleEditGet();
+    if(er){
+      er.subject=subject;er.keyword=keyword;er.pages=pages;er.yuan=yuan;er.mode=mode;
+      if(er.enabled===undefined)er.enabled=true;
+      pageRuleEditClear();
+      save();render();toast("已保存修改：每天 "+pages+" 页 "+yuan+" 元");return;
+    }
     pageRules().push({id:uid(),subject:subject,keyword:keyword,pages:pages,yuan:yuan,mode:mode,enabled:true});
-    save();render();toast("已新增页数规则：每 "+pages+" 页 "+yuan+" 元");return;
+    save();render();toast("已新增页数规则：每天 "+pages+" 页 "+yuan+" 元");return;
   }
   if(act==="page-rule-del"){
-    const i=Number(el.dataset.i);pageRules().splice(i,1);save();render();toast("已删除页数规则");return;
+    const i=Number(el.dataset.i),r=pageRules()[i];
+    if(r&&pageRuleEditGet()===r)pageRuleEditClear();
+    pageRules().splice(i,1);save();render();toast("已删除页数规则");return;
   }
   if(act==="page-rule-toggle"){
     const i=Number(el.dataset.i),r=pageRules()[i];if(!r)return;
