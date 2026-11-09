@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>高考学习目标管理台</title>
+<!-- BUILD-VER: 20261109a -->
+<!-- DAYROLL-VER: 20261109a 跨天自动回今天 + 旧版缓存自检 -->
 <!-- PAGEPAY-VER: 20261108b 按页数计奖励（双轨：分钟收入 + 页数收入） -->
 <!-- PAGERULE-TASK-VER: 20261108b 启用的页数规则在今日页自动生成可打卡任务 -->
 <!-- PAGERULE-EDIT-VER: 20261108c 页数规则支持「✎ 修改」+ 文案统一「每天 N 页」 -->
@@ -1747,7 +1752,7 @@ function renderMine(){
       </div>
       <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
         <label style="font-size:13px;font-weight:700">📖 按页数计奖励</label>
-        <div class="hint" style="margin:4px 0 6px">设置「学科 + 任务关键词 + 每天 N 页 M 元」。打卡时命中规则的任务会多出「开始页数 / 结束页数」，自动算页数和金额；未命中的任务仍按分钟赚钱。页数含首尾；<b>按比例</b>＝实际页数 ÷ N × M（看 20 页按 2 倍计），<b>满档才计</b>＝每满 N 页给 M 元。命中时分钟只计入时长目标、不重复计钱。规则按执行人独立保存并云端同步，右侧「✎ 修改」可直接改已配好的规则。<b>配好规则后，今日页对应学科会自动出现同名任务</b>，直接点圆圈即可填页数打卡（规则停用/删除后任务自动消失）；选「全部学科」的规则不自动生成任务，需手动新增同名任务。</div>
+        <div class="hint" style="margin:4px 0 6px">设置「学科 + 任务关键词 + 每天 N 页 M 元」。打卡时命中规则的任务会多出「开始页数 / 结束页数」，自动算页数和金额；未命中的任务仍按分钟赚钱。页数含首尾；<b>按比例</b>＝实际页数 ÷ N × M（看 20 页按 2 倍计），<b>满档才计</b>＝每满 N 页给 M 元。命中时分钟只计入时长目标、不重复计钱。规则按执行人独立保存并云端同步，右侧「✎ 修改」可直接改已配好的规则。<b>每天打开都会按当天日期自动生成</b>，跨天或手机切回页面时会自动切回今天并重算；页面长期不刷新时留意顶部「不是最新版」提示。<b>配好规则后，今日页对应学科会自动出现同名任务</b>，直接点圆圈即可填页数打卡（规则停用/删除后任务自动消失）；选「全部学科」的规则不自动生成任务，需手动新增同名任务。</div>
         <div id="page-rule-list" style="margin-top:6px">${pageRulesHtml()}</div>
         ${pageRuleFormHtml()}
       </div>
@@ -3077,6 +3082,48 @@ function badgePop(txt){
 /* ===================== 启动 ===================== */
 document.title=executorName+"-高考学习目标管理台";
 load();render();initCloud();startReminder();startAutoRefresh();updateExecNav();
+
+/* DAYROLL-VER: 20261109a —— 每一天都按当天日期重新生成页数规则任务。
+   既有 autoRefreshTick 只在 00:01-00:09 窗口 reload，手机后台定时器被节流就会错过；
+   这里改为任意时刻只要发现日期变了，就重置 viewDate 并重渲染（不强制打断操作）。 */
+let lastSeenDay=todayStr();
+function dayRollCheck(){
+  const t=todayStr();
+  if(t===lastSeenDay)return;
+  lastSeenDay=t;viewDate=t;
+  try{render();}catch(e){}
+  try{toast("已切换到新的一天："+t+"，按页数项目已重新生成");}catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)dayRollCheck();});
+window.addEventListener("focus",dayRollCheck);
+setInterval(dayRollCheck,60000);
+
+/* BUILD-VER 自检：若加载的是旧缓存 HTML（例如没有「自动生成任务」的 R58 版），
+   给一条可点击的刷新提示，让用户一键拿到最新版；不自动跳转，避免打断打卡。 */
+const BUILD_VER="20261109a";
+function showBuildBanner(ver){
+  if(document.getElementById("buildBanner"))return;
+  const d=document.createElement("div");
+  d.id="buildBanner";
+  d.style.cssText="position:sticky;top:0;z-index:9999;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.06)";
+  d.innerHTML='<span>⚠️ 当前页面不是最新版（线上 '+esc(ver)+'），按页数项目可能不会自动出现。</span><button type="button" id="buildRefresh" class="btn primary sm">点此刷新到最新版</button>';
+  document.body.insertBefore(d,document.body.firstChild);
+  const btn=document.getElementById("buildRefresh");
+  if(btn)btn.addEventListener("click",()=>{location.href=location.pathname+"?_v="+Date.now();});
+}
+function checkBuildVer(){
+  if(!/^https?:$/.test(location.protocol))return;
+  try{
+    fetch(location.pathname+"?_v="+Date.now(),{cache:"no-store"})
+      .then(r=>r.ok?r.text():"")
+      .then(txt=>{
+        if(!txt)return;
+        const m=txt.match(/BUILD-VER:\s*([0-9a-zA-Z\-]+)/);
+        if(m&&m[1]!==BUILD_VER)showBuildBanner(m[1]);
+      }).catch(()=>{});
+  }catch(e){}
+}
+setTimeout(checkBuildVer,1500);
 </script>
 </body>
 </html>
