@@ -277,18 +277,34 @@
   .p40-money{font-size:17px;font-weight:900;color:#16a34a;display:block;line-height:1.2}
   .p40-flag{font-size:10.5px;color:#15803d;font-weight:700}
   .p40-cta{font-size:12.5px;font-weight:700;color:var(--primary)}
-  .p40-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px;margin-top:8px}
-  .p40-cell{border:1px solid var(--line);border-radius:8px;padding:5px 7px;text-align:left;background:#fbfbff;cursor:pointer;line-height:1.15}
+  .p40-cal{margin-top:10px}
+  .p40-wk{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+  .p40-wk div{text-align:center;font-size:11px;font-weight:700;color:var(--muted);background:#f1f6fc;border-radius:6px;padding:4px 0}
+  .p40-wk div.we{background:#fff4f2;color:#b45309}
+  .p40-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+  .p40-cell{border:1px solid var(--line);border-radius:8px;padding:6px 7px;text-align:left;background:#fbfbff;cursor:pointer;line-height:1.15;min-height:74px;display:flex;flex-direction:column}
+  .p40-cell.we{background:#f7fbff}
+  .p40-cell.mile{border-color:#f0b45a;background:#fffcf3}
+  .p40-cell.mile .p40-d{color:#b45309}
+  .p40-cell.empty{border:1px dashed #d9e2ee;cursor:default;align-items:center;justify-content:center;font-size:10px;color:#a3b1c4;text-align:center}
   .p40-cell:hover{border-color:var(--primary)}
-  .p40-cell.cur{border:1.5px solid var(--primary);background:#eef2ff;box-shadow:0 0 0 2px rgba(124,92,255,.10)}
   .p40-cell.future{opacity:.42;cursor:default}
-  .p40-d{font-size:10px;font-weight:700;color:var(--text)}
-  .p40-mm{font-size:9.5px;color:var(--muted);margin-bottom:3px}
-  .p40-line{display:flex;align-items:center;gap:4px;margin-top:4px}
-  .p40-sq{display:flex;gap:2.5px;flex:0 0 auto}
-  .p40-sq i{width:7px;height:7px;border-radius:1.5px;border:1.3px solid;display:block;box-sizing:border-box}
-  .p40-sum{margin-left:auto;font-size:9.5px;font-weight:800;color:#16a34a;font-variant-numeric:tabular-nums;line-height:1}
-  @media(max-width:560px){.p40-gk{flex:1 1 100%}.p40-num{font-size:34px}.p40-row{padding:10px 11px;gap:9px}}
+  .p40-cell.cur{border:1.5px solid var(--primary);background:#eef2ff;box-shadow:0 0 0 2px rgba(124,92,255,.10)}
+  .p40-top{display:flex;align-items:baseline;justify-content:space-between;gap:4px}
+  .p40-d{font-size:11px;font-weight:700;color:var(--text);white-space:nowrap}
+  .p40-mm{font-size:10px;color:var(--muted);white-space:nowrap}
+  .p40-body{display:flex;align-items:flex-end;gap:4px;margin-top:5px;flex:1}
+  .p40-sq{display:flex;flex-direction:column;gap:3px;align-items:flex-start;flex:0 0 auto}
+  .p40-sq i{width:10px;height:10px;border-radius:2px;border:1.3px solid;display:block;box-sizing:border-box}
+  .p40-sum{margin-left:auto;font-size:10px;font-weight:800;color:#16a34a;font-variant-numeric:tabular-nums;line-height:1;white-space:nowrap}
+  @media(max-width:560px){.p40-gk{flex:1 1 100%}.p40-num{font-size:34px}.p40-row{padding:10px 11px;gap:9px}
+    .p40-wk div{font-size:9px;padding:3px 0}
+    .p40-cell{padding:4px 5px;min-height:62px}
+    .p40-cell.empty{font-size:8.5px}
+    .p40-top{flex-direction:column;align-items:flex-start;gap:0}
+    .p40-d{font-size:9px}.p40-mm{font-size:8.5px}
+    .p40-sq i{width:7px;height:7px;border-radius:1.5px}
+    .p40-sum{font-size:8px;letter-spacing:-.2px}}
 
 </style>
 </head>
@@ -3204,15 +3220,27 @@ function renderPlan40(){
       <div class="p40-right">${rec?`<b class="p40-money">+¥${money.toFixed(0)}</b><span class="p40-flag">P${esc(String(rec.pageFrom==null?"":rec.pageFrom))}→P${esc(String(rec.pageTo==null?"":rec.pageTo))} · 已打卡</span>`:'<span class="p40-cta">去打卡 →</span>'}</div>
     </div>`;
   }).join("");
+  const MILE40=[10,20,30,40];
   let cells="";
-  for(let i=1;i<=PLAN40.days;i++){
-    const d=addDays(PLAN40.start,i-1),n=doneCount(d),future=d>today;
-    const sqs=PLAN40.subjects.map(x=>{const done=doneOf(d,x),c=PLAN40.colors[x];
-      return `<i style="border-color:${c};background:${done?c:"#fff"}"></i>`;}).join("");
-    const dm=plan40EarnBetween(d,d);
-    cells+=`<div class="p40-cell${d===t?" cur":""}${future?" future":""}" ${future?'':'data-act="p40-date"'} data-date="${d}" title="${d} · ${n}/4 科${dm>0?" · +¥"+Math.round(dm):""}">
-      <div class="p40-d">D${String(i).padStart(2,"0")}</div><div class="p40-mm">${d.slice(5).replace("-","/")}</div>
-      <div class="p40-line"><span class="p40-sq">${sqs}</span><span class="p40-sum">${dm>0?"+¥"+Math.round(dm):""}</span></div></div>`;
+  const off=((new Date(PLAN40.start+"T00:00:00").getDay()+6)%7);
+  const totalCells=Math.ceil((off+PLAN40.days)/7)*7;
+  let rowHtml="";
+  for(let i=0;i<totalCells;i++){
+    const dayNo=i-off+1;
+    if(dayNo<1||dayNo>PLAN40.days){
+      rowHtml+='<div class="p40-cell empty">复盘 / 补漏</div>';
+    }else{
+      const d=addDays(PLAN40.start,dayNo-1),n=doneCount(d),future=d>today;
+      const sqs=PLAN40.subjects.map(x=>{const done=doneOf(d,x),c=PLAN40.colors[x];
+        return `<i style="border-color:${c};background:${done?c:"#fff"}"></i>`;}).join("");
+      const dm=plan40EarnBetween(d,d);
+      const we=(i%7>=5)?" we":"";
+      const mile=MILE40.indexOf(dayNo)>=0?" mile":"";
+      rowHtml+=`<div class="p40-cell${we}${mile}${d===t?" cur":""}${future?" future":""}" ${future?'':'data-act="p40-date"'} data-date="${d}" title="${d} · ${n}/4 科${dm>0?" · +¥"+Math.round(dm):""}">
+        <div class="p40-top"><span class="p40-d">D${String(dayNo).padStart(2,"0")}${mile?" ★":""}</span><span class="p40-mm">${d.slice(5).replace("-","/")}</span></div>
+        <div class="p40-body"><span class="p40-sq">${sqs}</span><span class="p40-sum">${dm>0?"+¥"+Math.round(dm):""}</span></div></div>`;
+    }
+    if((i+1)%7===0){cells+=`<div class="p40-week">${rowHtml}</div>`;rowHtml="";}
   }
   main.innerHTML=`
   <div class="card" style="margin-bottom:12px">
@@ -3245,8 +3273,11 @@ function renderPlan40(){
     <div class="p40-rows">${rows}</div>
   </div>
   <div class="card">
-    <div style="display:flex;align-items:center;gap:8px"><h3 style="margin:0;font-size:16px">40 天进度</h3><span class="hint" style="margin-left:auto">小方块 = 四科完成情况（已勾填色）· 右侧为当天收入 · 点格子切到该天补勾</span></div>
-    <div class="p40-grid">${cells}</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0;font-size:16px">40 天打卡日历</h3><span class="hint" style="margin-left:auto">四科小方块靠左（已勾填色）· 右侧为当天收入 · ★ = 阶段结算点 · 点格子切到该天补勾</span></div>
+    <div class="p40-cal">
+      <div class="p40-wk"><div>周一</div><div>周二</div><div>周三</div><div>周四</div><div>周五</div><div class="we">周六</div><div class="we">周日</div></div>
+      ${cells}
+    </div>
   </div>`;
   requestAnimationFrame(()=>animateNumber("p40-gk",toGk,animDuration));
 }
