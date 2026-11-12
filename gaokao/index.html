@@ -253,6 +253,43 @@
   @keyframes remBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
   @keyframes remBeat{0%{transform:scale(1)}14%{transform:scale(calc(1 + var(--beat-amp,0.06)))}28%{transform:scale(1)}42%{transform:scale(calc(1 + var(--beat-amp,0.06)))}56%{transform:scale(1)}100%{transform:scale(1)}}
   .reminder-big.rem-beat{display:inline-block;animation:remBeat var(--beat-dur,1.2s) ease-in-out 1 both;will-change:transform}
+  /* ===== PLAN40-VER: 20261112a 40 天作战计划 ===== */
+  .p40-head{display:flex;gap:12px;flex-wrap:wrap}
+  .p40-gk{flex:0 0 200px;min-width:190px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#f3f1ff,#fafbff);border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:12px;padding:10px 12px}
+  .p40-num{font-size:40px;font-weight:900;color:var(--primary);line-height:1;letter-spacing:1px}
+  .p40-stats{flex:1;min-width:240px;display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+  .p40-stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 12px;display:flex;flex-direction:column;justify-content:center}
+  .p40-stat b{display:block;font-size:20px;font-weight:900;color:var(--text);margin:1px 0}
+  .p40-stat.money{background:linear-gradient(135deg,#fef9c3,#fefce8);border-color:#fde68a}
+  .p40-stat.money b{color:#16a34a}
+  .p40-rows{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .p40-row{display:flex;align-items:center;gap:12px;padding:11px 13px;background:#fff;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+  .p40-row:hover{border-color:var(--primary);box-shadow:0 2px 10px rgba(124,92,255,.10)}
+  .p40-row.done{background:#f0fdf4;border-color:#86efac;cursor:default}
+  .p40-row.norule{opacity:.72}
+  .p40-box{flex:0 0 24px;width:24px;height:24px;border:2px solid #cbd5e1;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;background:#fff;line-height:1}
+  .p40-row.done .p40-box{background:#16a34a;border-color:#16a34a}
+  .p40-main{flex:1;min-width:0}
+  .p40-name{font-size:15px;font-weight:800;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.3}
+  .p40-book{font-size:12px;font-weight:600;color:var(--muted)}
+  .p40-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .p40-right{flex:0 0 auto;text-align:right}
+  .p40-money{font-size:17px;font-weight:900;color:#16a34a;display:block;line-height:1.2}
+  .p40-flag{font-size:10.5px;color:#15803d;font-weight:700}
+  .p40-cta{font-size:12.5px;font-weight:700;color:var(--primary)}
+  .p40-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px;margin-top:8px}
+  .p40-cell{border:1px solid var(--line);border-radius:8px;padding:5px 7px;text-align:left;background:#fbfbff;cursor:pointer;line-height:1.15}
+  .p40-cell:hover{border-color:var(--primary)}
+  .p40-cell.cur{border:1.5px solid var(--primary);background:#eef2ff;box-shadow:0 0 0 2px rgba(124,92,255,.10)}
+  .p40-cell.future{opacity:.42;cursor:default}
+  .p40-d{font-size:10px;font-weight:700;color:var(--text)}
+  .p40-mm{font-size:9.5px;color:var(--muted);margin-bottom:3px}
+  .p40-line{display:flex;align-items:center;gap:4px;margin-top:4px}
+  .p40-sq{display:flex;gap:2.5px;flex:0 0 auto}
+  .p40-sq i{width:7px;height:7px;border-radius:1.5px;border:1.3px solid;display:block;box-sizing:border-box}
+  .p40-sum{margin-left:auto;font-size:9.5px;font-weight:800;color:#16a34a;font-variant-numeric:tabular-nums;line-height:1}
+  @media(max-width:560px){.p40-gk{flex:1 1 100%}.p40-num{font-size:34px}.p40-row{padding:10px 11px;gap:9px}}
+
 </style>
 </head>
 <body>
@@ -260,6 +297,7 @@
 <nav class="nav" id="nav">
   <div id="nav-exec-display" style="padding:14px 12px 10px;display:flex;align-items:center;gap:6px"></div>
   <button data-act="tab" data-tab="today" class="active"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M9 14l2 2 4-4"/></svg>今日</button>
+  <button data-act="tab" data-tab="plan40"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M8 14l2 2 4-4"/></svg>40天</button>
   <button data-act="tab" data-tab="board"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg>看板</button>
   <button data-act="tab" data-tab="week"><svg class="ico" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 19v-6M12 19v-9M16 19v-4"/></svg>周报</button>
   <button data-act="tab" data-tab="manage"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>任务管理</button>
@@ -648,7 +686,7 @@ function pageBlockHtml(rule,subject,sub,prefix){
     '</div>';
 }
 function refreshPagePreview(){
-  ["qc","ci","at"].forEach(function(pfx){
+  ["qc","ci","at","p40"].forEach(function(pfx){
     const a=document.getElementById(pfx+"-page-from"),b=document.getElementById(pfx+"-page-to"),out=document.getElementById(pfx+"-page-preview");
     if(!a||!b||!out)return;
     const ridEl=document.getElementById(pfx+"-rule-id");
@@ -1260,7 +1298,8 @@ function render(){
   const tb=document.querySelector(".topbar h1");if(tb)tb.textContent=executorName+"-高考学习目标管理台";
   document.getElementById("today-label").textContent="今天 · "+todayStr();
   renderBanner();
-  if(curTab==="today")renderToday();else if(curTab==="board")renderBoard();
+  if(curTab==="today")renderToday();else if(curTab==="plan40")renderPlan40();
+  else if(curTab==="board")renderBoard();
   else if(curTab==="week")renderWeek();else if(curTab==="manage")renderManage();else renderMine();
 }
 function renderBanner(){
@@ -2418,7 +2457,7 @@ function startAutoRefresh(){setInterval(autoRefreshTick,30000);}
 
 /* ===================== 事件 ===================== */
 document.addEventListener("input",e=>{
-  if(e.target.id&&/^(qc|ci|at)-page-(from|to)$/.test(e.target.id))refreshPagePreview();
+  if(e.target.id&&/^(qc|ci|at|p40)-page-(from|to)$/.test(e.target.id))refreshPagePreview();
   if(e.target.id==="manage-search"){
     const pos=e.target.selectionStart;
     manageSearch=e.target.value;
@@ -2429,6 +2468,7 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("change",e=>{
   if(e.target.id==="manage-filter"){manageFilter=e.target.value;renderManage();}
+  if(e.target.id==="p40-date"){plan40Date=plan40Clamp(e.target.value);render();}
 });
 function manageSortToggle(col){
   if(manageSort.col===col){manageSort.dir=manageSort.dir==="asc"?"desc":"asc";}
@@ -2439,6 +2479,13 @@ document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;
   const act=el.dataset.act,id=el.dataset.id;
   if(act==="tab"){curTab=el.dataset.tab;[...document.querySelectorAll(".nav button")].forEach(b=>b.classList.toggle("active",b.dataset.tab===curTab));render();return;}
+  if(act==="p40-open"){openPlanCheckin(el.dataset.gid,el.dataset.date);return;}
+  if(act==="p40-date"){plan40Date=plan40Clamp(el.dataset.date);render();return;}
+  if(act==="p40-today"){plan40Date=todayStr();render();return;}
+  if(act==="p40-info"){toast("该科这一天已打卡，可在「今日」页查看详情");return;}
+  if(act==="p40-norule"){toast("该科还没有页数规则，请到「我的 → 页数规则」添加");return;}
+  if(act==="p40-save"){savePlan40Checkin(el.dataset.gid,"record");return;}
+  if(act==="p40-save-only"){savePlan40Checkin(el.dataset.gid,"saveonly");return;}
   if(act==="switch-exec"){switchExecutor(Number(el.dataset.i));return;}
   if(act==="new"){openGoalModal(null);return;}
   if(act==="edit"){openGoalModal(id);return;}
@@ -3077,6 +3124,184 @@ function badgePop(txt){
   setTimeout(()=>{b.style.transition="transform 150ms ease-out";b.style.transform="translate(-50%,-50%) scale(1)";},350);
   setTimeout(()=>{b.style.transition="transform 520ms ease-in,opacity 520ms ease-in";b.style.transform="translate(-50%,-110%) scale(.92)";b.style.opacity="0";},1450);
   setTimeout(()=>b.remove(),2050);
+}
+
+/* ===================== PLAN40-VER: 20261112a 40 天作战计划 =====================
+ * 数据零新增：4 个勾选项来自「我的 → 页数规则」，勾选写 g.records（pageMode），
+ * 与「今日」页同一份记录、同一份云端数据；金额只统计页数收入（pageEarn）。
+ * 金额口径：本页 = 40 天区间累计；今日页「实时赚到」保持「今日」。
+ */
+const PLAN40={start:"2026-11-09",days:40,subjects:["数学","英语","物理","化学"],
+  colors:{"数学":"#2563eb","英语":"#dc2626","物理":"#7c3aed","化学":"#059669"}};
+let plan40Date=todayStr();
+function plan40End(){return addDays(PLAN40.start,PLAN40.days-1);}
+function plan40Clamp(d){
+  const end=plan40End(),t=todayStr();
+  if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d))d=t;
+  if(d<PLAN40.start)d=PLAN40.start;
+  if(d>end)d=end;
+  if(d>t)d=t;
+  return d;
+}
+function plan40DayNo(d){const n=diffDays(PLAN40.start,d)+1;return (n>=1&&n<=PLAN40.days)?n:0;}
+function plan40Rule(s){return pageRules().find(r=>r&&r.enabled!==false&&String(r.subject||"").trim()===s)||null;}
+function plan40Goal(s){return (S.goals||[]).find(g=>String(g.name||"").trim()===s)||null;}
+function plan40Index(){
+  const m={};
+  ((S.goals)||[]).forEach(g=>{
+    const s=String(g.name||"").trim();
+    (g.records||[]).forEach(r=>{
+      if(!r||!r.pageMode||!r.date)return;
+      const k=r.date+"|"+s;
+      if(!m[k]||(r.createdAt||0)>(m[k].createdAt||0))m[k]=r;
+    });
+  });
+  return m;
+}
+function plan40RecAt(idx,d,s){
+  const rule=plan40Rule(s),r=idx[d+"|"+s];
+  if(!r)return null;
+  if(rule&&rule.id&&r.ruleId&&r.ruleId!==rule.id)return null;
+  return r;
+}
+function plan40EarnBetween(a,b){
+  let x=0;
+  ((S.goals)||[]).forEach(g=>(g.records||[]).forEach(r=>{
+    if(!r||!r.pageMode||!r.date)return;
+    if(r.date<a||r.date>b)return;
+    x+=Number(r.pageEarn)||0;
+  }));
+  return Math.round(x*100)/100;
+}
+function renderPlan40(){
+  const main=document.getElementById("main");
+  const t=plan40Date=plan40Clamp(plan40Date);
+  const end=plan40End(),today=todayStr(),gk=gaokaoDate();
+  const toGk=Math.max(0,diffDays(today,gk));
+  const dayNo=plan40DayNo(t)||1;
+  const leftDays=Math.max(0,diffDays(today,end)+1);
+  const idx=plan40Index();
+  const doneOf=(d,s)=>!!plan40RecAt(idx,d,s);
+  const doneCount=d=>PLAN40.subjects.reduce((a,s)=>a+(doneOf(d,s)?1:0),0);
+  const totalEarn=plan40EarnBetween(PLAN40.start,end);
+  const todayEarn=plan40EarnBetween(today,today);
+  let doneTotal=0;
+  for(let i=0;i<PLAN40.days;i++){const d=addDays(PLAN40.start,i);if(d>today)break;doneTotal+=doneCount(d);}
+  const isTodaySel=t===today;
+  const rows=PLAN40.subjects.map(s=>{
+    const rule=plan40Rule(s),rec=plan40RecAt(idx,t,s),color=PLAN40.colors[s]||"#7c5cff";
+    const book=rule?String(rule.keyword||"").trim():"";
+    const per=rule?pageRulePages(rule):0,yuan=rule?pageRuleYuan(rule):0;
+    const money=rec?(Number(rec.pageEarn)||0):0;
+    const g=plan40Goal(s);
+    const act=rule?(rec?'data-act="p40-info"':`data-act="p40-open" data-gid="${g?g.id:""}" data-date="${t}"`):'data-act="p40-norule"';
+    return `<div class="p40-row${rec?" done":""}${rule?"":" norule"}" ${act}>
+      <div class="p40-box">${rec?"✓":""}</div>
+      <div class="p40-main">
+        <div class="p40-name" style="color:${color}">${esc(s)}<span class="p40-book">${esc(book||"未配置页数规则")}</span></div>
+        <div class="p40-meta">${rule?`每天 ${per} 页 · ${yuan} 元 · 按比例结算`:"到「我的 → 页数规则」添加该科规则"}</div>
+      </div>
+      <div class="p40-right">${rec?`<b class="p40-money">+¥${money.toFixed(0)}</b><span class="p40-flag">P${esc(String(rec.pageFrom==null?"":rec.pageFrom))}→P${esc(String(rec.pageTo==null?"":rec.pageTo))} · 已打卡</span>`:'<span class="p40-cta">去打卡 →</span>'}</div>
+    </div>`;
+  }).join("");
+  let cells="";
+  for(let i=1;i<=PLAN40.days;i++){
+    const d=addDays(PLAN40.start,i-1),n=doneCount(d),future=d>today;
+    const sqs=PLAN40.subjects.map(x=>{const done=doneOf(d,x),c=PLAN40.colors[x];
+      return `<i style="border-color:${c};background:${done?c:"#fff"}"></i>`;}).join("");
+    const dm=plan40EarnBetween(d,d);
+    cells+=`<div class="p40-cell${d===t?" cur":""}${future?" future":""}" ${future?'':'data-act="p40-date"'} data-date="${d}" title="${d} · ${n}/4 科${dm>0?" · +¥"+Math.round(dm):""}">
+      <div class="p40-d">D${String(i).padStart(2,"0")}</div><div class="p40-mm">${d.slice(5).replace("-","/")}</div>
+      <div class="p40-line"><span class="p40-sq">${sqs}</span><span class="p40-sum">${dm>0?"+¥"+Math.round(dm):""}</span></div></div>`;
+  }
+  main.innerHTML=`
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <h3 style="margin:0;font-size:18px">40 天作战计划</h3>
+      <span class="badge" style="background:#eef2ff;color:#4338ca">D${String(dayNo).padStart(2,"0")} / ${PLAN40.days}</span>
+      <span class="hint" style="margin-left:auto">${PLAN40.start} → ${end} · 四科 · 每天按页数结算</span>
+    </div>
+    <div class="p40-head" style="margin-top:10px">
+      <div class="p40-gk">
+        <svg class="ico" viewBox="0 0 24 24" style="color:var(--primary);flex:0 0 22px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <div style="min-width:0"><div style="font-size:11px;color:var(--muted);font-weight:600">${esc(executorName)} · 距高考还有</div>
+        <div style="line-height:1"><span class="p40-num" id="p40-gk" data-target="${toGk}">0</span> <span style="font-size:14px;font-weight:700">天</span></div>
+        <div class="hint" style="font-size:10px">计划剩 ${leftDays} 天 · 高考 ${gk}</div></div>
+      </div>
+      <div class="p40-stats">
+        <div class="p40-stat money"><span class="hint">👜 40 天累计赚到</span><b>¥${totalEarn.toFixed(0)}</b><span class="hint">${PLAN40.start.slice(5)} ~ ${end.slice(5)} 页数收入</span></div>
+        <div class="p40-stat"><span class="hint">💰 今日实时</span><b style="color:#16a34a">+¥${todayEarn.toFixed(0)}</b><span class="hint">今天页数收入</span></div>
+        <div class="p40-stat"><span class="hint">✅ 已勾选</span><b>${doneTotal} <span style="font-size:12px;color:var(--muted)">/ ${PLAN40.days*4}</span></b><span class="hint">每科每天 1 项</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <h3 style="margin:0;font-size:16px">${isTodaySel?"今日四项":"补勾 · "+t}${isTodaySel?"":' <span class="badge" style="background:#fff4e0;color:#b45309">补记</span>'}</h3>
+      <input type="date" id="p40-date" value="${t}" min="${PLAN40.start}" max="${end>today?today:end}" style="margin-left:auto;max-width:158px">
+      ${isTodaySel?"":'<button class="btn ghost sm" data-act="p40-today">回到今天</button>'}
+    </div>
+    <div class="hint" style="margin-top:4px">点一行 → 填起止页数 → 打卡；补勾的历史日期同样计入 40 天累计。</div>
+    <div class="p40-rows">${rows}</div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:8px"><h3 style="margin:0;font-size:16px">40 天进度</h3><span class="hint" style="margin-left:auto">小方块 = 四科完成情况（已勾填色）· 右侧为当天收入 · 点格子切到该天补勾</span></div>
+    <div class="p40-grid">${cells}</div>
+  </div>`;
+  requestAnimationFrame(()=>animateNumber("p40-gk",toGk,animDuration));
+}
+function openPlanCheckin(gid,dateStr){
+  const g=(S.goals||[]).find(x=>x.id===gid);
+  if(!g){toast("找不到该科目的目标，请先到「任务管理」添加");return;}
+  const d=plan40Clamp(dateStr||plan40Date);
+  const rule=plan40Rule(g.name);
+  if(!rule){toast("该科还没有页数规则，请到「我的 → 页数规则」添加");return;}
+  if(plan40RecAt(plan40Index(),d,g.name)){toast("该科这一天已打卡，可在「今日」查看");return;}
+  const wd="日一二三四五六"[new Date(d).getDay()];
+  const per=pageRulePages(rule),yuan=pageRuleYuan(rule);
+  const tds=(g.subgoals||[]).filter(s=>s.date===d&&s.subject===g.name&&s.sub);
+  const kw=String(rule.keyword||"").trim();
+  const defTitle=((tds.find(s=>String(s.sub).indexOf(kw)>=0)||tds[0]||{}).sub)||kw||g.name;
+  const html=`<h3 style="display:flex;align-items:center;gap:8px;margin:0 0 4px"><svg class="ico" viewBox="0 0 24 24" style="flex:0 0 22px"><path d="M5 13l4 4L19 7"/></svg><input id="p40-title" value="${esc(defTitle)}" style="flex:1;border:1.5px solid var(--primary);border-radius:10px;background:#fff;padding:8px 10px;font-size:16px;font-weight:700;color:var(--text);font-family:inherit;box-shadow:inset 0 1px 3px rgba(0,0,0,.08)"></h3>
+    <div class="hint" style="margin:2px 0 6px">${d} 星期${wd} · ${esc(g.name)} · 每天 ${per} 页 ${yuan} 元（按比例）${d!==todayStr()?" · 补勾计入 40 天累计":""}</div>
+    <input type="hidden" id="p40-date-val" value="${d}">
+    ${pageBlockHtml(rule,g.name,"","p40")}
+    <div class="field-row"><div style="flex:0 0 132px"><label style="font-size:11.5px;font-weight:600;color:var(--muted)">分钟（选填，仅记时长）</label><input id="p40-minutes" type="number" min="0" value="" placeholder="—" style="padding:6px 8px;font-size:13px"></div></div>
+    <div class="field-row"><div style="flex:1"><label>错题类型（选填）</label><input id="p40-wrongtype" value="短思维链错题"></div><div style="flex:1"><label>错题题数（选填）</label><input id="p40-wrongcount" type="number" min="0" value=""></div></div>
+    <div class="modal-actions"><button class="btn ghost" data-act="close">取消</button><button class="btn ghost" data-act="p40-save-only" data-gid="${gid}">仅保存（不打卡）</button><button class="btn primary" data-act="p40-save" data-gid="${gid}">打卡并推送</button></div>`;
+  openModal(html);
+  setTimeout(()=>{const b=document.getElementById("p40-page-to");if(b)b.focus();},80);
+}
+function savePlan40Checkin(gid,mode){
+  const g=(S.goals||[]).find(x=>x.id===gid);if(!g)return;
+  const date=plan40Clamp(((document.getElementById("p40-date-val")||{}).value)||plan40Date);
+  const title=(((document.getElementById("p40-title")||{}).value)||"").trim();
+  if(!title){toast("请填写任务名称");return;}
+  const minutes=Math.max(0,Number(((document.getElementById("p40-minutes")||{}).value)||0)||0);
+  const wrongType=(((document.getElementById("p40-wrongtype")||{}).value)||"").trim();
+  const wrongCount=Math.max(0,Number(((document.getElementById("p40-wrongcount")||{}).value)||0)||0);
+  if(mode==="saveonly"){
+    const sg=(g.subgoals||[]).find(s=>s.date===date&&s.subject===g.name&&s.sub===title);
+    if(sg){sg.mins=minutes;}
+    else if(!(g.subgoals||[]).some(s=>s.date===date&&s.subject===g.name&&s.sub===title)){
+      g.subgoals.push({date,subject:g.name,material:"",mins:minutes,sub:title,manual:true});
+    }
+    save();closeModal();render();toast("已仅保存（未打卡、未计钱）");
+    return;
+  }
+  const pg=readPageInputs("p40");
+  if(pg===false)return;
+  if(plan40RecAt(plan40Index(),date,g.name)){toast("该科这一天已有打卡记录，未重复提交");return;}
+  const wasDone=completion(g)>=100;
+  const rec={id:uid(),date,amount:1,minutes,sub:title,wrongType,wrongCount,note:"",isBackfill:date!==todayStr(),createdAt:Date.now()};
+  Object.assign(rec,pg);
+  g.records.push(rec);
+  save();
+  if(date===todayStr()){try{pushCheckinNotify(Object.assign({},rec,{subject:g.name}));}catch(e){}}
+  closeModal();render();
+  onGoalDone(minutes,rec.pageEarn);
+  if(!wasDone&&completion(g)>=100)toast("目标达成！");
+  toast(`已打卡 · ${g.name} P${rec.pageFrom}→P${rec.pageTo} · +¥${(Number(rec.pageEarn)||0).toFixed(2)}${rec.isBackfill?"（补勾，已计入 40 天累计）":""}`);
 }
 
 /* ===================== 启动 ===================== */
