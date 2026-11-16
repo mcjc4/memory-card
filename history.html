@@ -802,10 +802,15 @@ function paintSelBar(list){
 }
 
 /* ===================== 动作（训练一律回跳 app 承接） ===================== */
+/* JUMPNEW-VER: 20261116b 「跳转」改为新标签页打开（历史页保持在原标签，可继续翻记录） */
 function jumpToCard(id){
   var card = fullCard(id);
-  try{ sessionStorage.setItem('lib_jump_payload', JSON.stringify({id: String(id), card: card})); }catch(e){}
-  location.href = 'index.html?card=1';
+  var payload = JSON.stringify({id: String(id), card: card});
+  try{ sessionStorage.setItem('lib_jump_payload', payload); }catch(e){}
+  /* 新标签页的 sessionStorage 不一定会继承（iOS Safari 等），再落一份 localStorage 兜底 */
+  try{ localStorage.setItem('lib_jump_payload', payload); }catch(e){}
+  var w = window.open('index.html?card=1', '_blank');
+  if(!w) toast('浏览器拦截了新标签页，请允许弹出窗口后重试');
 }
 function startPractice(){
   var filtered = getFiltered().filter(function(e){ return !isCourseId(e.id); });   /* 课件不可进记忆卡训练 */
