@@ -55,7 +55,8 @@ a.navItem{text-decoration:none}
 .fcell{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}
 .fcell.wide{flex:1 1 300px;min-width:220px}
 .fcell label{font-size:11.5px;color:#6b7280;font-weight:600}
-.fcell input[type=text],.fcell input[type=date]{font-size:13px;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151;font-family:inherit}
+.fcell input[type=text],.fcell input[type=date],.fcell input[type=datetime-local]{font-size:13px;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151;font-family:inherit}
+.fcell input[type=datetime-local]{width:214px}
 .msBox{position:relative}
 .msBtn{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151;cursor:pointer;min-width:132px;user-select:none}
 .msBtn .caret{font-size:10px;color:#9ca3af}
@@ -85,6 +86,14 @@ table.browseTable tr.cRow:hover td{background:#F5EDFC}
 table.browseTable tr.cRow td:first-child{border-left:3px solid #A855F7}
 table.browseTable tr.cRow td.ts{color:#5B21B6;font-weight:700}
 table.browseTable tr.cRow td.ts small{color:#7C3AED;font-weight:600}
+table.browseTable th.ck,table.browseTable td.ck{width:34px;text-align:center;padding-left:6px;padding-right:4px}
+table.browseTable th.ck input,table.browseTable td.ck input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);vertical-align:middle}
+table.browseTable td.ck input:disabled{cursor:not-allowed;opacity:.35}
+table.browseTable tr.selRow td{background:#F1F8FC}
+table.browseTable tr.selRow:hover td{background:#E7F2F9}
+table.browseTable tr.cRow.selRow td{background:#F5EDFC}
+.selBar{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.selBar b{color:var(--accent)}
 table.browseTable td.sig{max-width:420px}
 table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin-top:2px}
 .modeTag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px}
@@ -154,23 +163,6 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
     <div class="stat"><b id="stCourse" style="color:#6B21A8">–</b><span>课件浏览</span></div>
   </div>
 
-  <section class="card" id="courseCard">
-    <h2>📝 课件浏览时间<span class="cnt" id="cCnt"></span><span class="sp"></span><button class="btn" id="cToggle" style="display:none">展开全部</button></h2>
-    <div class="hint">按最近浏览时间倒序 · 覆盖全部课件浏览记录（不受上方筛选条件影响，方便直接核对课件看没看、什么时候看的）</div>
-    <div class="tblWrap" style="max-height:none">
-      <table class="browseTable">
-        <thead><tr>
-          <th style="width:150px">最近浏览时间</th>
-          <th>课件</th>
-          <th style="width:78px">学科</th>
-          <th style="width:88px">浏览次数</th>
-          <th style="width:96px">操作</th>
-        </tr></thead>
-        <tbody id="cBody"><tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px">读取中…</td></tr></tbody>
-      </table>
-    </div>
-  </section>
-
   <section class="card">
     <h2>🔍 筛选条件<span class="sp"></span><button class="btn" id="btnReset">✕ 清空条件</button></h2>
     <div class="frow">
@@ -208,8 +200,9 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
       </div>
     </div>
     <div class="frow">
-      <div class="fcell"><label>浏览日期 - 开始</label><input id="fDateStart" type="date"></div>
-      <div class="fcell"><label>浏览日期 - 结束</label><input id="fDateEnd" type="date"></div>
+      <div class="fcell"><label>浏览时间 - 开始（可精确到时分）</label><input id="fDateStart" type="datetime-local" step="60"></div>
+      <div class="fcell"><label>浏览时间 - 结束（可精确到时分）</label><input id="fDateEnd" type="datetime-local" step="60"></div>
+      <div class="fcell" style="align-self:center;padding-bottom:6px"><span class="hint" style="margin:0">只填日期 = 按整天算 · 留空 = 不限</span></div>
     </div>
   </section>
 
@@ -218,6 +211,7 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
     <div class="tblWrap">
       <table class="browseTable">
         <thead><tr>
+          <th class="ck"><input type="checkbox" id="cbAll" title="全选当前筛选结果（仅记忆卡，课件不参与训练）"></th>
           <th style="width:140px">浏览时间</th>
           <th style="width:66px">模块</th>
           <th style="width:66px">模式</th>
@@ -228,20 +222,46 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
           <th style="width:110px">章节</th>
           <th style="width:66px">操作</th>
         </tr></thead>
-        <tbody id="tbody"><tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:24px">读取中…</td></tr></tbody>
       </table>
     </div>
     <div class="footBar">
       <span>匹配 <b id="fCount">0</b> / 共 <b id="fTotal">0</b> 条（按浏览时间倒序 · 最新在最上）· <b id="fCards">0</b> 张去重卡片</span>
       <span class="sp"></span>
-      <button class="btn go" id="btnPractice">🎯 开始专题练</button>
+      <span class="selBar">
+        <span>已勾选 <b id="selCount">0</b> 张</span>
+        <button class="btn" id="btnClearSel" disabled>清空勾选</button>
+        <button class="btn" id="btnSaveLib" disabled title="把勾选的卡片存成训练库里一个可反复练的队列（不立刻开练）">💾 存入训练库（0）</button>
+        <button class="btn go" id="btnPracticeSel" disabled title="先存入训练库，再立刻开始训练">🎯 用勾选卡片开始训练</button>
+      </span>
+      <button class="btn" id="btnPractice">📋 用筛选结果开始训练</button>
     </div>
   </section>
+  <section class="card" id="courseCard">
+    <h2>📝 课件浏览时间<span class="cnt" id="cCnt"></span><span class="sp"></span><button class="btn" id="cToggle" style="display:none">展开全部</button></h2>
+    <div class="hint">按最近浏览时间倒序 · 覆盖全部课件浏览记录（不受上方筛选条件影响，方便直接核对课件看没看、什么时候看的）</div>
+    <div class="tblWrap" style="max-height:none">
+      <table class="browseTable">
+        <thead><tr>
+          <th style="width:150px">最近浏览时间</th>
+          <th>课件</th>
+          <th style="width:78px">学科</th>
+          <th style="width:88px">浏览次数</th>
+          <th style="width:96px">操作</th>
+        </tr></thead>
+        <tbody id="cBody"><tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px">读取中…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
 </main>
 
 <div id="toast"></div>
 
 <script>
+/* HIST-VER: v1113his2 (2026-11-13) 记忆卡区块置顶 + 时间筛选精确到分 + 勾选组训练队列
+   + v1113his2：勾选卡片可「💾 存入训练库」并在练习前自动落一个 practice_sessions 队列
+   + v1113his2b：存库前先等云端就绪（waitCloud 最多15s），按钮显示连接进度 */
 /* ===================== WorkBuddy Cloud SDK 加载（本地副本优先，CDN 兜底） ===================== */
 (function(){
   var srcs = ['vendor/wbcloud-sdk.js',
@@ -351,6 +371,12 @@ async function sbSelect(table, query){
   if(r.error) throw new Error('WB.sel ' + table + ': ' + (r.error.message || r.error.code || r.error));
   return r.data || [];
 }
+/* 2026-11-13b：写入教学队列（practice_sessions），供「勾选卡片存入训练库」用 */
+async function sbInsert(table, rows){
+  var r = await getWbCloud().database.from(table).insert(rows);
+  if(r.error) throw new Error('WB.ins ' + table + ': ' + (r.error.message || r.error.code || r.error));
+  return r.data || [];
+}
 /* WB Cloud 有 Origin 白名单，非白名单域（github.io 等）直连会被拒，给出明确提示 */
 function originWhitelisted(){
   try{
@@ -361,13 +387,14 @@ function originWhitelisted(){
     return false;
   }catch(e){ return true; }
 }
+/* ORIGINWARN-VER: 20261116a —— 不再给出无 sharecode 的直链（CloudStudio 网关会 403「链接不完整」） */
 function paintOriginWarn(){
   var el = $('originWarn'); if(!el) return;
   if(originWhitelisted()){ el.style.display = 'none'; return; }
   el.style.display = 'block';
   el.innerHTML = '⚠️ 当前域名 <b>' + esc(location.hostname) + '</b> 不在云端白名单里，'
     + '只有本机 localStorage 里的浏览记录可用（本机记录不受影响）。'
-    + '要读云端卡片详情请改用 <a href="https://jikaka-memory.app.workbuddy.host/history.html" style="color:#B45309">jikaka-memory.app.workbuddy.host/history.html</a>。';
+    + '要读云端卡片详情，请改用应用分享链接里的浏览历史页（CloudStudio 域名、链接须带 sharecode；若显示「链接不完整」，先点一次完整分享链接再访问）。';
 }
 function waitCloud(){
   return new Promise(function(resolve){
@@ -487,6 +514,7 @@ function subjectOfId(id){
 
 /* ===================== 筛选状态 ===================== */
 var selSubj = new Set(), selMode = new Set(), selStat = new Set(), selKind = new Set();
+var selCards = new Set();   /* R50：勾选组成训练队列的卡片 id */
 var MODES = ['训练', '审核', '专题练', '课件'];
 var KINDS = ['记忆卡', '课件'];
 var STAT_OPTS = [['unt','未测'],['lv1','完全不记得'],['lv2','勉强记得一点'],['lv3','记得一半左右'],['lv4','记得大部分'],['lv5','完全记住']];
@@ -573,12 +601,17 @@ function msInit(btnId, popId, opts){
 document.addEventListener('click', function(){ document.querySelectorAll('.msPop.show').forEach(function(p){ p.classList.remove('show'); }); });
 
 /* ===================== 查询 ===================== */
+/* datetime-local 两种取值形态：含 T = 精确到分；纯日期 = 按整天边界（开始 00:00:00 / 结束 23:59:59） */
+function tsBound(v, isEnd){
+  if(!v) return null;
+  var raw = String(v).indexOf('T') > 0 ? String(v) : (String(v) + (isEnd ? 'T23:59:59' : 'T00:00:00'));
+  var t = new Date(raw).getTime();
+  return isNaN(t) ? null : t;
+}
 function getFiltered(){
   var kw = ($('fSearch').value || '').trim().toLowerCase();
   var kws = kw ? kw.split(/[、,，\s]+/).filter(Boolean) : [];
-  var ds = $('fDateStart').value, de = $('fDateEnd').value;
-  var dsT = ds ? new Date(ds + 'T00:00:00').getTime() : null;
-  var deT = de ? new Date(de + 'T23:59:59').getTime() : null;
+  var dsT = tsBound($('fDateStart').value, false), deT = tsBound($('fDateEnd').value, true);
   return HISTORY.filter(function(e){
     if(selKind.size){ if(!selKind.has(isCourseId(e.id) ? '课件' : '记忆卡')) return false; }
     if(selSubj.size && !selSubj.has(isCourseId(e.id) ? (courseSubj(e) || '未分类') : (e.subject || '未分类'))) return false;
@@ -686,7 +719,8 @@ function renderTable(){
   $('fCards').textContent = seen.size;
   $('tblCnt').textContent = filtered.length ? ('（' + filtered.length + ' 条）') : '';
   if(!filtered.length){
-    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的浏览记录</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:24px">没有匹配的浏览记录</td></tr>';
+    paintSelBar(filtered);      /* 空结果也要刷新勾选工具条，否则「清空勾选」点了不变样 */
     return;
   }
   var html = '';
@@ -698,7 +732,12 @@ function renderTable(){
     var v = STATE_FLAT.get(String(e.id));
     var stName = isC ? '—' : (LEVEL_NAME[v] || '未测');
     var stCls = isC ? 'unt' : (v ? ('lv' + v) : 'unt');
-    html += '<tr' + (isC ? ' class="cRow"' : '') + '>'
+    var picked = !isC && selCards.has(String(e.id));
+    var rowCls = (isC ? 'cRow' : '') + (picked ? ' selRow' : '');
+    html += '<tr' + (rowCls ? ' class="' + rowCls + '"' : '') + '>'
+      + (isC
+          ? '<td class="ck"><input type="checkbox" disabled title="课件不参与记忆卡训练"></td>'
+          : '<td class="ck"><input type="checkbox" class="rowCk" data-id="' + esc(e.id) + '"' + (picked ? ' checked' : '') + '></td>')
       + '<td class="ts">' + esc(relTime(e.ts)) + '<small>' + esc(fmtTs(e.ts)) + '</small></td>'
       + '<td><span class="modTag ' + (isC ? 'mc' : 'mk') + '">' + (isC ? '课件' : '记忆卡') + '</span></td>'
       + '<td><span class="modeTag ' + modeClass(e.mode) + '">' + esc(e.mode || '-') + '</span></td>'
@@ -724,6 +763,42 @@ function renderTable(){
       jumpToCard(b.getAttribute('data-jump'));
     });
   });
+  /* ── R50 勾选：逐行勾选 → 组成新的训练队列 ── */
+  tb.querySelectorAll('input.rowCk').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      var id = cb.getAttribute('data-id');
+      if(cb.checked) selCards.add(id); else selCards.delete(id);
+      var tr = cb.closest ? cb.closest('tr') : null;
+      if(tr) tr.classList.toggle('selRow', cb.checked);
+      paintSelBar(filtered);
+    });
+  });
+  paintSelBar(filtered);
+}
+
+/* 当前筛选结果里可训练的卡片 id（课件排除） */
+function visibleCardIds(list){
+  var out = [];
+  (list || []).forEach(function(e){ if(e && !isCourseId(e.id)) out.push(String(e.id)); });
+  return out;
+}
+/* 勾选工具条：计数 / 按钮启用 / 表头全选框三态 */
+function paintSelBar(list){
+  var n = selCards.size;
+  var sc = $('selCount'); if(sc) sc.textContent = n;
+  var b1 = $('btnPracticeSel');
+  if(b1){ b1.disabled = !n; b1.textContent = n ? ('🎯 用勾选卡片开始训练（' + n + '）') : '🎯 用勾选卡片开始训练'; }
+  var b2 = $('btnClearSel'); if(b2) b2.disabled = !n;
+  var b3 = $('btnSaveLib');
+  if(b3){ b3.disabled = !n; b3.textContent = n ? ('💾 存入训练库（' + n + '）') : '💾 存入训练库（0）'; }
+  var all = $('cbAll');
+  if(all){
+    var vis = visibleCardIds(list || getFiltered());
+    var hit = vis.filter(function(id){ return selCards.has(id); }).length;
+    all.disabled = vis.length === 0;
+    all.checked = vis.length > 0 && hit === vis.length;
+    all.indeterminate = hit > 0 && hit < vis.length;
+  }
 }
 
 /* ===================== 动作（训练一律回跳 app 承接） ===================== */
@@ -746,6 +821,95 @@ function startPractice(){
   try{ sessionStorage.setItem('lib_topic_payload', JSON.stringify({ids: ids, cards: cards})); }catch(e){}
   location.href = 'index.html?topic=1';
 }
+/* 勾选集合 → 训练队列顺序：按浏览时间倒序（最近看的先练），勾选但已不在历史里的兜底追加 */
+function orderedSelection(){
+  var order = [], seen = new Set();
+  HISTORY.forEach(function(e){
+    if(!e || e.id == null) return;
+    var k = String(e.id);
+    if(isCourseId(k) || !selCards.has(k) || seen.has(k)) return;
+    seen.add(k); order.push(k);
+  });
+  selCards.forEach(function(k){ if(!seen.has(k)){ seen.add(k); order.push(String(k)); } });
+  return order;
+}
+/* 2026-11-13b：把当前勾选存成训练库队列（practice_sessions）。
+   幂等：同一批卡片（集合完全一致）已存过就直接复用，不重复建队列。
+   返回 {rid, title, dup} 或 null（失败/空勾选）。 */
+async function saveSelToLib(ids){
+  ids = ids || orderedSelection();
+  if(!ids.length){ toast('请先勾选要存的记忆卡（课件不参与训练）'); return null; }
+  if(!wbCloudReady()){
+    var okc = await waitCloud();   /* SDK 还在加载就等它，最多 15s，别一击就失败 */
+    if(!okc){ toast('⚠️ 云端未连上，暂时无法存入训练库（练习仍可直接开始）'); return null; }
+  }
+  var key = ids.slice().sort().join('|');
+  try{
+    var rows = await sbSelect('practice_sessions', 'source=eq.history-sel&order=created_at.desc&limit=30');
+    for(var i = 0; i < (rows || []).length; i++){
+      var a = Array.isArray(rows[i].card_ids) ? rows[i].card_ids.map(String) : [];
+      if(a.slice().sort().join('|') === key) return {rid: rows[i].rid, title: rows[i].title || '', dup: true};
+    }
+    /* 队列学科：单一学科用该科，混科记「跨科」 */
+    var cnt = {};
+    ids.forEach(function(k){ var s = cardSubject(k); if(s) cnt[s] = (cnt[s] || 0) + 1; });
+    var ks = Object.keys(cnt);
+    var subject = ks.length === 1 ? ks[0] : '跨科';
+    var ds = new Date();
+    var ymd = ds.getFullYear() + '-' + pad2(ds.getMonth() + 1) + '-' + pad2(ds.getDate());
+    var rid = 'hs-' + ymd + '-' + Date.now().toString(36).slice(-4);
+    var title = ymd + ' 浏览历史队列 ' + ids.length + '张';
+    await sbInsert('practice_sessions', [{
+      rid: rid, title: title, subject: subject, source: 'history-sel',
+      card_ids: ids, new_card_ids: [], hit_map: {}, browsed_at: new Date().toISOString()
+    }]);
+    return {rid: rid, title: title, dup: false};
+  }catch(e){
+    toast('存入训练库失败：' + (e.message || e));
+    return null;
+  }
+}
+/* 单卡学科（本地索引 → 云端缓存 → id 前缀兜底） */
+function cardSubject(id){
+  var it = CARD_INDEX.get(String(id));
+  if(it && it.subj) return it.subj;
+  var cc = CLOUD_CARDS.get(String(id));
+  if(cc && cc.subject) return cc.subject;
+  var s = String(id || '');
+  var m = s.match(/^cus:([^:]+):/);
+  if(m) return m[1];
+  if(s.indexOf('_') > 0) return s.split('_')[0];
+  return '';
+}
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+
+/* 只存不练 */
+async function saveSelectionToLib(){
+  var b = $('btnSaveLib');
+  if(b){ b.disabled = true; b.textContent = '⏳ 连接云端…'; }
+  var r = await saveSelToLib();
+  paintSelBar(getFiltered());
+  if(!r) return;
+  toast(r.dup ? ('✅ 该批卡片已存过（' + r.title + '），未重复创建') : ('✅ 已存入训练库：' + r.title + '，到训练库即可看到'));
+}
+
+/* 勾选队列训练：先落库成队列（失败不阻断），再跳 app 开练 */
+async function startPracticeFromSelection(){
+  var order = orderedSelection();
+  if(!order.length){ toast('请先勾选要练的记忆卡（课件不参与训练）'); return; }
+  var b = $('btnPracticeSel');
+  if(b){ b.disabled = true; b.textContent = '存库并准备中…'; }
+  /* 云端慢也不能卡住开练：最多等 3.5s，超时就先练，存库请求在后台继续跑 */
+  var saved = await Promise.race([
+    saveSelToLib(order),
+    new Promise(function(res){ setTimeout(function(){ res(null); }, 3500); })
+  ]);
+  if(saved && !saved.dup) toast('✅ 已同时存入训练库：' + saved.title);
+  var cards = [];
+  order.forEach(function(k){ var c = fullCard(k); if(c) cards.push(c); });
+  try{ sessionStorage.setItem('lib_topic_payload', JSON.stringify({ids: order, cards: cards})); }catch(e){}
+  location.href = 'index.html?topic=1';
+}
 function resetFilters(){
   $('fSearch').value = '';
   $('fDateStart').value = '';
@@ -759,12 +923,12 @@ function quick(kind){
   if(kind === 'all'){ resetFilters(); return; }
   resetFilters();
   if(kind === 'today'){
-    $('fDateStart').value = fmtInput(d0);
-    $('fDateEnd').value = fmtInput(d0);
+    $('fDateStart').value = fmtInput(d0) + 'T00:00';
+    $('fDateEnd').value = fmtInput(d0) + 'T23:59';
   } else if(kind === 'week'){
     var d7 = new Date(d0.getTime() - 6*86400000);
-    $('fDateStart').value = fmtInput(d7);
-    $('fDateEnd').value = fmtInput(d0);
+    $('fDateStart').value = fmtInput(d7) + 'T00:00';
+    $('fDateEnd').value = fmtInput(d0) + 'T23:59';
   } else if(kind === 'course'){
     selKind.add('课件'); msKind.repaint();
   } else if(kind === 'cards'){
@@ -896,6 +1060,7 @@ function initPersonSel(){
     personKey = sel.value;
     saveJ(ACTIVE_KEY, personKey);
     STORE = loadJ(PERSON_KEY, {});
+    selCards.clear();
     refreshAll();
   });
 }
@@ -925,6 +1090,18 @@ function init(){
   $('btnRefresh').addEventListener('click', refreshAll);
   $('btnReset').addEventListener('click', resetFilters);
   $('btnPractice').addEventListener('click', startPractice);
+  $('btnPracticeSel').addEventListener('click', startPracticeFromSelection);
+  $('btnSaveLib').addEventListener('click', saveSelectionToLib);
+  $('btnClearSel').addEventListener('click', function(){
+    if(!selCards.size) return;
+    selCards.clear(); renderTable(); toast('已清空勾选');
+  });
+  $('cbAll').addEventListener('change', function(){
+    var vis = visibleCardIds(getFiltered());
+    var on = this.checked;
+    vis.forEach(function(id){ if(on) selCards.add(id); else selCards.delete(id); });
+    renderTable();
+  });
   $('cToggle').addEventListener('click', function(){ _cAll = !_cAll; renderCoursePanel(); });
   document.querySelectorAll('[data-quick]').forEach(function(el){
     el.addEventListener('click', function(){
