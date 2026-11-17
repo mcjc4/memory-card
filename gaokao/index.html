@@ -12,6 +12,7 @@
 <!-- PAGEPAY-VER: 20261108b 按页数计奖励（双轨：分钟收入 + 页数收入） -->
 <!-- PAGERULE-TASK-VER: 20261108b 启用的页数规则在今日页自动生成可打卡任务 -->
 <!-- PAGERULE-EDIT-VER: 20261108c 页数规则支持「✎ 修改」+ 文案统一「每天 N 页」 -->
+<!-- PAYSTRIP-VER: 20261117a 已兑现收成一行（金额筹码 + 明细弹窗），40 天日历回归主视觉 -->
 <style>
   :root{
     --bg:#f5f6fb; --surface:#ffffff; --surface-2:#fafbff;
@@ -304,6 +305,26 @@
   .pay-shot-prev{display:flex;align-items:center;gap:9px;margin-top:6px;min-height:0}
   .pay-shot-prev img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
   .pay-shot-prev span{font-size:11px;color:var(--muted);line-height:1.4}
+  /* PAYSTRIP-VER 20261117a：已兑现收成一行，明细走弹窗 */
+  .pay-strip{display:flex;align-items:center;gap:9px;min-width:0;cursor:pointer}
+  .pay-strip:hover .pay-more{text-decoration:underline}
+  .pay-hd{font-size:13px;font-weight:800;color:#0f766e;white-space:nowrap;flex:0 0 auto}
+  .pay-sum{font-size:17px;font-weight:900;color:#0f766e;line-height:1;white-space:nowrap;flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .pay-sub{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;flex:0 0 auto}
+  .pay-chips{flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;white-space:nowrap}
+  .pay-chips::-webkit-scrollbar{display:none}
+  .pay-chip{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;font-size:10.5px;font-weight:800;
+    padding:3px 7px;border-radius:999px;background:#ecfdf5;border:1px solid #a7f3d0;color:#15803d;
+    white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.35}
+  .pay-chip i{width:5px;height:5px;border-radius:50%;background:#16a34a;display:block;flex:0 0 5px}
+  .pay-chip.none{color:#7a8699;background:#f4f6fa;border-color:var(--line);font-weight:700}
+  .pay-chip.none i{background:#c3cbd8}
+  .pay-more{font-size:11.5px;font-weight:800;color:var(--primary);white-space:nowrap;flex:0 0 auto}
+  .pay-detail-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 4px}
+  .pay-detail-sum>div{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:7px 9px;min-width:0}
+  .pay-detail-sum span{display:block;font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap}
+  .pay-detail-sum b{display:block;font-size:16px;font-weight:900;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .pay-detail-list{max-height:44vh;overflow:auto;padding-right:2px;margin-top:10px}
   .p40-cal{margin-top:10px}
   .p40-wk{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
   .p40-wk div{text-align:center;font-size:11px;font-weight:700;color:var(--muted);background:#f1f6fc;border-radius:6px;padding:4px 0}
@@ -343,7 +364,10 @@
     .p40-sum{font-size:8px;letter-spacing:-.2px}
     .dp-row{padding:8px 9px;gap:7px}.dp-name{font-size:13px}
     .pay-item{gap:8px;padding:7px 8px}.pay-thumb{width:36px;height:36px;flex:0 0 36px}
-    .pay-amt{font-size:13px}}
+    .pay-amt{font-size:13px}
+    .pay-strip{gap:6px}.pay-hd{font-size:12px}.pay-sum{font-size:15px}
+    .pay-sub{display:none}.pay-chip{font-size:9.5px;padding:2px 6px}
+    .pay-detail-sum{grid-template-columns:1fr 1fr}}
 
 </style>
 </head>
@@ -1954,7 +1978,7 @@ function renderMine(){
 /* ===================== 弹窗 ===================== */
 const modalRoot=document.getElementById("modal-root");
 function openModal(html){modalRoot.innerHTML=`<div class="modal-back" data-act="modal-back"><div class="modal">${html}</div></div>`;modalRoot.classList.add("show");}
-function closeModal(){modalRoot.classList.remove("show");modalRoot.innerHTML="";}
+function closeModal(){modalRoot.classList.remove("show");modalRoot.innerHTML="";payDetailOpen=false;payReturnDetail=false;}
 
 function openGoalModal(id){
   const g=id?S.goals.find(x=>x.id===id):{name:"",unit:"个",total:100,deadline:addDays(todayStr(),60),color:"#7c5cff",obstacle:"",countermeasure:"",subgoals:pendingSubs?pendingSubs.slice():[]};
@@ -2539,6 +2563,7 @@ document.addEventListener("click",e=>{
   if(act==="p40-date"){openDayPicker(el.dataset.date);return;}
   if(act==="p40-setdate"){plan40Date=plan40Clamp(el.dataset.date);closeModal();render();return;}
   if(act==="p40-pay-open"){openPlan40Pay();return;}
+  if(act==="p40-pay-detail"){openPlan40PayDetail();return;}
   if(act==="p40-pay-save"){savePlan40Pay();return;}
   if(act==="p40-pay-del"){delPlan40Pay(id);return;}
   if(act==="p40-pay-view"){viewPlan40Pay(id);return;}
@@ -3328,7 +3353,7 @@ function renderPlan40(){
     <div class="hint" style="margin-top:4px">点一行 → 填起止页数 → 打卡；补勾的历史日期同样计入 40 天累计。</div>
     <div class="p40-strip">${rows}</div>
   </div>
-  <div class="card" style="margin-bottom:12px">${plan40PayCardHtml(totalEarn)}</div>
+  <div class="card" style="margin-bottom:12px;padding:9px 12px">${plan40PayStripHtml(totalEarn)}</div>
   <div class="card">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0;font-size:16px">40 天打卡日历</h3><span class="hint" style="margin-left:auto">每科显示当天页数（如 数 33-40）· 右下为当天收入 · ★ = 阶段结算点 · 点格子弹出当天四项</span></div>
     <div class="p40-cal">
@@ -3341,22 +3366,51 @@ function renderPlan40(){
 /* ---------- 兑现记录（S.plan40Pay） ---------- */
 function plan40Pays(){if(!Array.isArray(S.plan40Pay))S.plan40Pay=[];return S.plan40Pay;}
 function plan40Paid(){return plan40Pays().reduce((a,x)=>a+(Number(x.amount)||0),0);}
-function plan40PayCardHtml(totalEarn){
-  const paid=plan40Paid(),left=Math.max(0,Math.round((totalEarn-paid)*100)/100);
-  const pct=totalEarn>0?Math.min(100,Math.max(0,Math.round(paid/totalEarn*100))):0;
-  const list=plan40Pays().slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(p=>{
+function plan40PayStripHtml(totalEarn){
+  const pays=plan40Pays(),paid=plan40Paid(),left=Math.max(0,Math.round((totalEarn-paid)*100)/100);
+  const pct=totalEarn>0?Math.min(100,Math.max(0,Math.round(paid/totalEarn*100))):(paid>0?100:0);
+  const sorted=pays.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const chips=sorted.length
+    ? sorted.slice(0,6).map(p=>`<span class="pay-chip" title="${esc(String(p.date||""))}${p.note?" · "+esc(String(p.note)):""}${p.shot?" · 有凭证":""}"><i></i>¥${Math.round(Number(p.amount)||0)}<span style="font-weight:700;opacity:.72">·${esc(String(p.date||"").slice(5))}</span></span>`).join("")
+      + (sorted.length>6?`<span class="pay-chip none"><i></i>+${sorted.length-6} 笔</span>`:"")
+    : '<span class="pay-chip none"><i></i>还没有兑现记录</span>';
+  return `<div class="pay-strip" data-act="p40-pay-detail" title="点开查看兑现明细与转账凭证">
+    <span class="pay-hd">💸 已兑现</span>
+    <b class="pay-sum">¥${Math.round(paid)}</b>
+    <span class="pay-sub">${pays.length} 笔 · 进度 ${pct}% · 待兑 ¥${Math.round(left)}</span>
+    <div class="pay-chips">${chips}</div>
+    <span class="pay-more">明细 ›</span>
+    <button class="btn ghost sm" data-act="p40-pay-open">+ 记录兑现</button>
+  </div>`;
+}
+/* 明细弹窗：完整对账列表 + 凭证 */
+var payDetailOpen=false,payReturnDetail=false;
+function plan40PayListHtml(){
+  const list=plan40Pays().slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(!list.length)return '<div class="hint" style="margin-top:10px">还没有兑现记录：孩子已赚到的钱还没转账，点下方「记录兑现」上传凭证留底。</div>';
+  return `<div class="pay-list pay-detail-list">${list.map(p=>{
     const amt=Math.round(Number(p.amount)||0);
     return `<div class="pay-item">${p.shot?`<img class="pay-thumb" src="${p.shot}" data-act="p40-pay-view" data-id="${esc(p.id)}" alt="转账截图" title="点击查看大图">`:'<div class="pay-thumb none">无截图</div>'}
       <div class="pay-info"><div class="pay-amt">¥${amt}</div><div class="pay-meta">${esc(String(p.date||""))}${p.note?" · "+esc(String(p.note)):""}${p.shot?" · 有凭证":""}</div></div>
       <button class="btn ghost sm" data-act="p40-pay-del" data-id="${esc(p.id)}">删除</button></div>`;
-  }).join("");
-  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <h3 style="margin:0;font-size:16px">已兑现 · 转账对账</h3>
-      <span class="hint" style="margin-left:auto">累计 ¥${Math.round(totalEarn)} · 已兑现 ¥${Math.round(paid)} · 待兑现 ¥${Math.round(left)} · 进度 ${pct}%（${plan40Pays().length} 笔）</span>
-      <button class="btn primary sm" data-act="p40-pay-open">+ 记录兑现</button>
+  }).join("")}</div>`;
+}
+function openPlan40PayDetail(){
+  const totalEarn=plan40EarnBetween(PLAN40.start,plan40End());
+  const pays=plan40Pays(),paid=plan40Paid(),left=Math.max(0,Math.round((totalEarn-paid)*100)/100);
+  const pct=totalEarn>0?Math.min(100,Math.max(0,Math.round(paid/totalEarn*100))):(paid>0?100:0);
+  payDetailOpen=true;payReturnDetail=false;
+  openModal(`<h3 style="margin:0 0 2px;font-size:16px">💸 已兑现 · 转账对账</h3>
+    <div class="hint">累计赚到 ¥${Math.round(totalEarn)} · 已兑现 ${pays.length} 笔 · 进度 ${pct}%</div>
+    <div class="pay-bar" style="margin-top:9px"><div class="pay-track"><div class="pay-fill" style="width:${pct}%"></div></div></div>
+    <div class="pay-detail-sum">
+      <div><span>40 天累计赚到</span><b style="color:#16a34a">¥${Math.round(totalEarn)}</b></div>
+      <div><span>已兑现</span><b style="color:#0f766e">¥${Math.round(paid)}</b></div>
+      <div><span>待兑现</span><b style="color:#b45309">¥${Math.round(left)}</b></div>
+      <div><span>笔数</span><b>${pays.length}</b></div>
     </div>
-    <div class="pay-bar"><div class="pay-track"><div class="pay-fill" style="width:${pct}%"></div></div></div>
-    ${list?`<div class="pay-list">${list}</div>`:`<div class="hint" style="margin-top:8px">还没有兑现记录：孩子已赚 ¥${Math.round(totalEarn)}，点「记录兑现」上传转账截图留凭证。</div>`}`;
+    ${plan40PayListHtml()}
+    <div class="modal-actions"><button class="btn ghost" data-act="close">关闭</button><button class="btn primary" data-act="p40-pay-open">+ 记录兑现</button></div>`);
 }
 /* 图片压缩：最长边 <= maxW，转 webp（浏览器不支持时回落 png/jpeg） */
 function compressShot(file,maxW,quality){
@@ -3386,6 +3440,8 @@ function compressShot(file,maxW,quality){
 let payShotTmp="";
 function openPlan40Pay(){
   payShotTmp="";
+  payReturnDetail=!!payDetailOpen;   /* 从明细弹窗进来 → 保存后回到明细 */
+  payDetailOpen=false;
   const totalEarn=plan40EarnBetween(PLAN40.start,plan40End());
   const paid=plan40Paid(),left=Math.max(0,Math.round((totalEarn-paid)*100)/100);
   openModal(`<h3 style="margin:0 0 4px;font-size:16px">登记兑现</h3>
@@ -3418,15 +3474,19 @@ function savePlan40Pay(){
   const note=(((document.getElementById("pay-note")||{}).value)||"").trim().slice(0,60);
   const arr=plan40Pays();
   arr.push({id:uid(),date,amount,note,shot:payShotTmp||"",createdAt:Date.now()});
+  const back=!!payReturnDetail;
   save();closeModal();render();
   toast(`已登记兑现 ¥${amount}${payShotTmp?"（含截图凭证）":""}`);
+  if(back)openPlan40PayDetail();
 }
 function delPlan40Pay(id){
   const arr=plan40Pays(),i=arr.findIndex(x=>x.id===id);
   if(i<0)return;
   const amt=Math.round(Number(arr[i].amount)||0);
   if(!confirm(`删除这笔兑现记录 ¥${amt}？删除后「待兑现」会相应增加。`))return;
-  arr.splice(i,1);save();render();toast("已删除该兑现记录");
+  arr.splice(i,1);save();render();
+  if(payDetailOpen)openPlan40PayDetail();   /* 明细弹窗里删 → 原地刷新列表 */
+  toast("已删除该兑现记录");
 }
 function viewPlan40Pay(id){
   const p=plan40Pays().find(x=>x.id===id);
