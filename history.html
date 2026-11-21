@@ -24,6 +24,16 @@ body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;backgroun
 a.navItem{text-decoration:none}
 .navFoot{position:absolute;left:12px;right:12px;bottom:14px}
 .navFoot a{display:block;text-align:center;font-size:12.5px;color:var(--accent);text-decoration:none;border:1px solid #cfe0ea;background:var(--accent-soft);border-radius:9px;padding:8px 6px}
+/* NAVFOLD-VER: 20261121a —— 窄屏下侧栏导航默认折叠成「标题 + ☰ 菜单」一条细条 */
+.sbTop{display:flex;align-items:center;gap:10px}
+.sbTop .logo{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navToggle{display:none;flex:0 0 auto;align-items:center;gap:6px;font-family:inherit;font-size:12.5px;font-weight:600;line-height:1;color:var(--accent);background:var(--accent-soft);border:1px solid #cfe0ea;border-radius:8px;padding:7px 11px;cursor:pointer}
+.navToggle:active{transform:scale(.97)}
+.navToggle .ntIco{font-size:13px;line-height:1}
+.navToggle .ntArw{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;transition:transform .18s}
+#sidebar.navOpen .navToggle .ntArw{transform:rotate(180deg)}
+.navBody{min-width:0}
+
 /* ── 主区 ── */
 #main{margin-left:220px;padding:20px 24px 70px;max-width:1440px}
 #head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
@@ -120,7 +130,15 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
 #toast{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(17,24,39,.93);color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:82vw;text-align:center}
 #toast.show{opacity:1}
 @media(max-width:860px){
-  #sidebar{position:static;width:auto;border-right:none;border-bottom:1px solid #e5e7eb}
+  /* 窄屏：侧栏收成顶部一条 46px 的折叠条，菜单点开浮层展开（默认折叠） */
+  #sidebar{position:sticky;top:0;z-index:30;width:auto;padding:0;border-right:none;border-bottom:1px solid #e5e7eb;background:#fff;overflow:visible;box-shadow:0 1px 4px rgba(15,23,42,.06)}
+  .sbTop{height:46px;padding:0 12px;gap:8px}
+  #sidebar .logo{padding:0;font-size:15px}
+  .navToggle{display:inline-flex}
+  .navBody{display:none;position:absolute;left:0;right:0;top:47px;padding:8px 12px 12px;background:#fff;border-top:1px solid #f1f3f5;border-bottom:1px solid #e5e7eb;border-radius:0 0 14px 14px;box-shadow:0 14px 28px rgba(15,23,42,.16);max-height:calc(100vh - 60px);overflow:auto}
+  #sidebar.navOpen .navBody{display:block}
+  .navGroup{margin-bottom:10px}
+  .navItem{padding:11px 10px}
   #main{margin-left:0;padding:14px 14px 60px}
   .navFoot{display:none}
 }
@@ -128,7 +146,8 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
 </head>
 <body>
 <aside id="sidebar">
-  <div class="logo">📋 浏览历史</div>
+  <div class="sbTop"><div class="logo">📋 浏览历史</div><button class="navToggle" id="navToggle" type="button" aria-controls="navBody" aria-expanded="false" title="展开 / 收起菜单"><span class="ntIco">☰</span><span class="ntTxt">菜单</span><span class="ntArw"></span></button></div>
+  <div class="navBody" id="navBody">
   <div class="navGroup">
     <div class="navGroupTitle">相关页面</div>
     <a class="navItem" href="index.html">📚 记忆卡</a>
@@ -144,6 +163,7 @@ table.browseTable td.sig small{display:block;color:#9ca3af;font-size:11px;margin
     <div class="navItem" data-quick="all">🗂 全部（清空条件）</div>
   </div>
   <div class="navFoot"><a href="index.html">← 返回记忆卡</a></div>
+  </div><!--/.navBody-->
 </aside>
 
 <main id="main">
@@ -1118,6 +1138,40 @@ function init(){
   refreshAll();
 }
 init();
+</script>
+<script>
+/* NAVFOLD-VER: 20261121a —— 窄屏（≤860px）侧栏导航默认折叠，点「☰ 菜单」展开浮层 */
+(function(){
+  var sb = document.getElementById('sidebar');
+  var tg = document.getElementById('navToggle');
+  if(!sb || !tg) return;
+  var mq = window.matchMedia('(max-width:860px)');
+  function setOpen(open){
+    sb.classList.toggle('navOpen', !!open);
+    tg.setAttribute('aria-expanded', open ? 'true' : 'false');
+    var t = tg.querySelector('.ntTxt'); if(t) t.textContent = open ? '收起' : '菜单';
+  }
+  tg.addEventListener('click', function(e){
+    e.stopPropagation();
+    setOpen(!sb.classList.contains('navOpen'));
+  });
+  /* 窄屏下点了导航项 / 相关页面链接，自动收起 */
+  sb.addEventListener('click', function(e){
+    if(!mq.matches || !e.target.closest) return;
+    if(e.target.closest('.navItem')) setOpen(false);
+  });
+  document.addEventListener('click', function(e){
+    if(!mq.matches || !sb.classList.contains('navOpen') || !e.target.closest) return;
+    if(e.target.closest('#sidebar')) return;
+    setOpen(false);
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && sb.classList.contains('navOpen')) setOpen(false);
+  });
+  function sync(){ if(!mq.matches) setOpen(false); }
+  if(mq.addEventListener) mq.addEventListener('change', sync);
+  else if(mq.addListener) mq.addListener(sync);
+})();
 </script>
 </body>
 </html>
