@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>📚 训练库 · 记忆卡 v1125navfold</title>
+<title>📚 训练库 · 记忆卡 v1126nostats</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -47,11 +47,6 @@ a.navItem{text-decoration:none}
 .btn.danger{color:#b91c1c;border-color:#fecaca}
 .btn.danger:hover{background:#fef2f2}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-/* 统计卡 */
-.statsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.stat{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.stat b{display:block;font-size:27px;line-height:1.25;font-weight:700}
-.stat span{font-size:12px;color:#6b7280}
 /* 区块 */
 .card{background:#fff;border-radius:14px;padding:15px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px}
 .card > h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:9px;margin-bottom:4px}
@@ -186,13 +181,6 @@ a.navItem{text-decoration:none}
     <div class="sp"></div>
     <select id="personSel" class="sel" title="切换执行人"></select>
     <button class="btn" id="btnRefresh">⟳ 刷新</button>
-  </div>
-
-  <div class="statsGrid">
-    <div class="stat"><b id="stQueue">–</b><span>专题队列总数</span></div>
-    <div class="stat"><b id="stQueued" style="color:#0C447C">–</b><span>🏷 待训练卡</span></div>
-    <div class="stat"><b id="stCross" style="color:#B4232A">–</b><span>🔁 跨科待重练</span></div>
-    <div class="stat"><b id="stCards">–</b><span>队列卡片总张数</span></div>
   </div>
 
   <section class="card" id="secCross">
@@ -962,10 +950,6 @@ function renderStats(){
   SESSIONS.forEach(function(s){ cardTotal += queueIds(s).length; });
   var cr = crossRetryCount();
   var qn = QUEUED_ROWS.length;
-  $('stQueue').textContent = SESSIONS.length;
-  $('stQueued').textContent = qn;
-  $('stCross').textContent = cr;
-  $('stCards').textContent = cardTotal;
   $('nvCross').textContent = cr;
   $('nvQueued').textContent = qn;
   $('nvCw').textContent = cw.length;
