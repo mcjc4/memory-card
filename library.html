@@ -40,7 +40,7 @@ a.navItem{text-decoration:none}
 #head h1{font-size:20px;font-weight:700}
 #head .sp{flex:1}
 .sel{font-size:13px;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#374151}
-.btn{font-size:12.5px;padding:7px 13px;border-radius:9px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;font-weight:600;font-family:inherit}
+.btn{font-size:12.5px;padding:7px 13px;border-radius:9px;border:1px solid #d1d5db;background:#fff;color:#374151;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap}/* NOSTATS 20261121a：按钮/标签不折字，窄屏靠容器换行 */
 .btn:hover{background:#f9fafb}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn.primary:hover{background:#174a63}
@@ -49,7 +49,7 @@ a.navItem{text-decoration:none}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 /* 区块 */
 .card{background:#fff;border-radius:14px;padding:15px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px}
-.card > h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.card > h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:4px}
 .card > h2 .cnt{font-size:12px;font-weight:600;color:#6b7280}
 .card > h2 .sp{flex:1}
 .hint{font-size:12px;color:#9ca3af;line-height:1.7;margin:2px 0 10px}
@@ -86,8 +86,8 @@ a.navItem{text-decoration:none}
 .qdist .dot{width:8px;height:8px;border-radius:3px;display:inline-block;margin-right:3px;vertical-align:middle}
 .qacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
 /* 队列 tab 切换（2026-10-03：课件队列并入「记忆卡队列」区块做 tab，不再独占一块） */
-.libTabs{display:inline-flex;gap:4px;background:#eef2f6;border-radius:10px;padding:3px}
-.libTab{font-size:13px;font-weight:600;color:#6b7280;padding:5px 12px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;user-select:none}
+.libTabs{display:inline-flex;gap:4px;background:#eef2f6;border-radius:10px;padding:3px;flex-wrap:wrap}
+.libTab{font-size:13px;font-weight:600;color:#6b7280;padding:5px 12px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;user-select:none;white-space:nowrap;flex:0 0 auto}
 .libTab:hover{color:var(--accent)}
 .libTab.active{background:#fff;color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .libTab .cnt{font-size:11px;font-weight:600;color:#9ca3af}
