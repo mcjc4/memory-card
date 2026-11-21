@@ -2925,6 +2925,15 @@ function resumePtGet(){
     return (o && typeof o === 'object' && o.subj && o.id) ? o : null;
   }catch(e){ return null; }
 }
+/* 同标签页再次加载 = 刷新（sessionStorage 只在本标签页存活，新开标签页没有） */
+var _TAB_ALIVE_KEY = 'wulun_tab_alive_v1';
+function tabIsReload(){
+  try{
+    if(sessionStorage.getItem(_TAB_ALIVE_KEY) === '1') return true;
+    sessionStorage.setItem(_TAB_ALIVE_KEY, '1');
+    return false;
+  }catch(e){ return false; }
+}
 function urlHasEntryParam(){
   try{
     const sp = new URLSearchParams(location.search);
@@ -3703,9 +3712,10 @@ window.addEventListener('popstate', e => {
   else if(isTrainView()) showView('dash');
 });
 function showView(v){
+  const _wasTrain = isTrainView();   /* RESUME-VER: 只有「从训练视图退回总览」才清落点，新开标签页/首次加载不清 */
   $('viewDash').style.display = v === 'dash' ? '' : 'none';
   $('viewTrain').style.display = v === 'train' ? '' : 'none';
-  if(v === 'dash'){ if(isCrossRetry){ isCrossRetry = false; restoreTrainUI(); } viewingCard = false; flushTime(); lastView = {view:'dash'}; savePerson(); renderDash(); histTagDash(); if(!_resumeBooting) resumePtClear(); }   /* HIST-VER: 20261010a 非按钮路径进总览（如跨科重练完成）也要重标 dash 基准 */
+  if(v === 'dash'){ if(isCrossRetry){ isCrossRetry = false; restoreTrainUI(); } viewingCard = false; flushTime(); lastView = {view:'dash'}; savePerson(); renderDash(); histTagDash(); if(!_resumeBooting && _wasTrain) resumePtClear(); }   /* HIST-VER: 20261010a 非按钮路径进总览（如跨科重练完成）也要重标 dash 基准 */
   if(v === 'train') histEnterTrain();   /* HIST-VER: 20261010a 入历史栈，浏览器返回 ≡ 返回六科总览 */
 }
 function openManage(){ $('viewManage').style.display = 'block'; renderManage(); }
@@ -9369,7 +9379,7 @@ window.addEventListener('beforeunload', () => { flushTime(); saveJ(PERSON_KEY, P
          带 URL 指令（?train= / ?card=1 / ?topic=1 …）时交给那套逻辑，这里不抢。 */
       _resumeBooting = true;
       let _resumed = false;
-      try{ if(!urlHasEntryParam()) _resumed = resumePtRestore(); }catch(e){ console.warn('[resume] restore failed:', e); }
+      try{ if(!urlHasEntryParam() && tabIsReload()) _resumed = resumePtRestore(); }catch(e){ console.warn('[resume] restore failed:', e); }
       _resumeBooting = false;
       if(_resumed){
         /* 已停在刷新前那张卡 */
