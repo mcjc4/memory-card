@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>📚 训练库 · 记忆卡 v1021reset</title>
+<title>📚 训练库 · 记忆卡 v1125navfold</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -24,6 +24,16 @@ a.navItem{text-decoration:none}
 .navItem.active .n{background:var(--accent);color:#fff}
 .navFoot{position:absolute;left:12px;right:12px;bottom:14px}
 .navFoot a{display:block;text-align:center;font-size:12.5px;color:var(--accent);text-decoration:none;border:1px solid #cfe0ea;background:var(--accent-soft);border-radius:9px;padding:8px 6px}
+/* NAVFOLD-VER: 20261121a —— 窄屏下侧栏导航默认折叠成「标题 + ☰ 菜单」一条细条 */
+.sbTop{display:flex;align-items:center;gap:10px}
+.sbTop .logo{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navToggle{display:none;flex:0 0 auto;align-items:center;gap:6px;font-family:inherit;font-size:12.5px;font-weight:600;line-height:1;color:var(--accent);background:var(--accent-soft);border:1px solid #cfe0ea;border-radius:8px;padding:7px 11px;cursor:pointer}
+.navToggle:active{transform:scale(.97)}
+.navToggle .ntIco{font-size:13px;line-height:1}
+.navToggle .ntArw{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;transition:transform .18s}
+#sidebar.navOpen .navToggle .ntArw{transform:rotate(180deg)}
+.navBody{min-width:0}
+
 /* ── 主区 ── */
 #main{margin-left:220px;padding:20px 24px 70px;max-width:1200px}
 #head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
@@ -73,6 +83,7 @@ a.navItem{text-decoration:none}
 .qtitle{font-size:14.5px;font-weight:600;color:#1f2329;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .badge{font-size:11px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:8px;padding:2px 8px}
 .badge.gray{background:#eef0f2;color:#6b7280}
+.badge.blue{background:#E0F2FE;color:#0369A1}   /* LIBHINT-VER 20261113b：浏览历史来源徽章 */
 .qmeta{font-size:12px;color:#6b7280;margin-top:5px;display:flex;gap:12px;flex-wrap:wrap}
 .qbar{display:flex;height:8px;border-radius:5px;overflow:hidden;background:#eef0f2;margin-top:9px;max-width:460px}
 .qbar i{display:block;height:100%}
@@ -132,7 +143,15 @@ a.navItem{text-decoration:none}
 #toast{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);background:rgba(17,24,39,.93);color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:82vw;text-align:center}
 #toast.show{opacity:1}
 @media(max-width:860px){
-  #sidebar{position:static;width:auto;border-right:none;border-bottom:1px solid #e5e7eb}
+  /* 窄屏：侧栏收成顶部一条 46px 的折叠条，菜单点开浮层展开（默认折叠） */
+  #sidebar{position:sticky;top:0;z-index:30;width:auto;padding:0;border-right:none;border-bottom:1px solid #e5e7eb;background:#fff;overflow:visible;box-shadow:0 1px 4px rgba(15,23,42,.06)}
+  .sbTop{height:46px;padding:0 12px;gap:8px}
+  #sidebar .logo{padding:0;font-size:15px}
+  .navToggle{display:inline-flex}
+  .navBody{display:none;position:absolute;left:0;right:0;top:47px;padding:8px 12px 12px;background:#fff;border-top:1px solid #f1f3f5;border-bottom:1px solid #e5e7eb;border-radius:0 0 14px 14px;box-shadow:0 14px 28px rgba(15,23,42,.16);max-height:calc(100vh - 60px);overflow:auto}
+  #sidebar.navOpen .navBody{display:block}
+  .navGroup{margin-bottom:10px}
+  .navItem{padding:11px 10px}
   #main{margin-left:0;padding:14px 14px 60px}
   .navFoot{display:none}
 }
@@ -140,7 +159,8 @@ a.navItem{text-decoration:none}
 </head>
 <body>
 <aside id="sidebar">
-  <div class="logo">📚 训练库</div>
+  <div class="sbTop"><div class="logo">📚 训练库</div><button class="navToggle" id="navToggle" type="button" aria-controls="navBody" aria-expanded="false" title="展开 / 收起菜单"><span class="ntIco">☰</span><span class="ntTxt">菜单</span><span class="ntArw"></span></button></div>
+  <div class="navBody" id="navBody">
   <div class="navGroup">
     <div class="navGroupTitle">训练库</div>
     <div class="navItem active" data-sec="secCross">🔁 跨科重练<span class="n" id="nvCross">–</span></div>
@@ -156,6 +176,7 @@ a.navItem{text-decoration:none}
     <a class="navItem" href="topic.html">🎯 跨科专题练</a>
   </div>
   <div class="navFoot"><a href="index.html">← 返回记忆卡</a></div>
+  </div><!--/.navBody-->
 </aside>
 
 <main id="main">
@@ -204,7 +225,9 @@ a.navItem{text-decoration:none}
       <button class="btn" id="btnMergeCw" style="display:none">🔗 融合选中</button>
     </h2>
     <div class="libPane active" id="paneLib">
-      <div class="hint">记忆卡自身产生的队列（专题练 / 作业批改 / 跨科融合）。勾选多个后「🔗 融合选中」会把其中<strong>未完全掌握</strong>的卡去重合成一个新队列。</div>
+      <!-- LIBHINT-VER 20261113b：补「浏览历史勾选」来源 + 操作指引 -->
+      <div class="hint">记忆卡自身产生的队列（专题练 / 作业批改 / 跨科融合 / <strong>浏览历史勾选</strong>）。勾选多个后「🔗 融合选中」会把其中<strong>未完全掌握</strong>的卡去重合成一个新队列。</div>
+      <div class="hint" style="margin-top:-4px">💡 在 <a href="history.html" style="color:#0369A1;text-decoration:none;font-weight:600">📄 浏览历史</a> 里勾选卡片，点「💾 存入训练库」即可在这里生成对应队列（也会自动打上 <span class="badge blue">🗂 浏览历史</span> 徽章）。</div>
       <div id="libList"><div class="empty">读取中…</div></div>
     </div>
     <div class="libPane" id="paneCw">
@@ -344,7 +367,10 @@ function _wbParseSelect(table, query){
     if(f.t === 'order') qb = qb.order(f.col, {ascending: f.asc});
     else if(f.t === 'limit') qb = qb.limit(f.n);
     else if(f.op === 'in'){ var vi = f.val.replace(/^\(|\)$/g,'').split(',').map(function(x){ return decodeURIComponent(x); }); qb = qb.in(f.col, vi); }
-    else if(f.op === 'cs' || f.op === 'cd' || f.op === 'ov'){ var vc = f.val; try{ vc = JSON.parse(vc); }catch(e){} qb = qb.contains(f.col, vc); }
+    /* CSJSON-VER 20261021a：tags 是 jsonb 列，PostgREST 的 contains 必须写 cs.["x"]；
+       原来这里 JSON.parse 成数组再交给 SDK，SDK 对数组走 pg-array 语法 cs.{x} ⇒ 云端 400 (22P02)。
+       所以：解析成「对象」才交对象（SDK 会 JSON.stringify），解析成「数组」就把原文交回去。 */
+    else if(f.op === 'cs' || f.op === 'cd' || f.op === 'ov'){ var vc = f.val, vj = null; try{ vj = JSON.parse(vc); }catch(e){} if(vj && !Array.isArray(vj)) vc = vj; qb = qb.contains(f.col, vc); }
     else if(f.op === 'eq') qb = qb.eq(f.col, f.val);
     else if(f.op === 'ne') qb = qb.neq(f.col, f.val);
     else if(f.op === 'gt') qb = qb.gt(f.col, f.val);
@@ -867,6 +893,7 @@ function renderQueueRows(list, box, emptyMsg){
         + '<div class="qtitle">' + esc(s.title || '(未命名)')
           + '<span class="badge">' + ids.length + ' 张</span>'
           + '<span class="badge gray">' + esc(s.subject || '跨科') + '</span>'
+          + (s.source === 'history-sel' ? '<span class="badge blue" title="由浏览历史页勾选卡片生成">🗂 浏览历史</span>' : '')
           + tpBadge
         + '</div>'
         + '<div class="qmeta">'
@@ -1398,6 +1425,40 @@ function init(){
   refreshAll();
 }
 init();
+</script>
+<script>
+/* NAVFOLD-VER: 20261121a —— 窄屏（≤860px）侧栏导航默认折叠，点「☰ 菜单」展开浮层 */
+(function(){
+  var sb = document.getElementById('sidebar');
+  var tg = document.getElementById('navToggle');
+  if(!sb || !tg) return;
+  var mq = window.matchMedia('(max-width:860px)');
+  function setOpen(open){
+    sb.classList.toggle('navOpen', !!open);
+    tg.setAttribute('aria-expanded', open ? 'true' : 'false');
+    var t = tg.querySelector('.ntTxt'); if(t) t.textContent = open ? '收起' : '菜单';
+  }
+  tg.addEventListener('click', function(e){
+    e.stopPropagation();
+    setOpen(!sb.classList.contains('navOpen'));
+  });
+  /* 窄屏下点了导航项 / 相关页面链接，自动收起 */
+  sb.addEventListener('click', function(e){
+    if(!mq.matches || !e.target.closest) return;
+    if(e.target.closest('.navItem')) setOpen(false);
+  });
+  document.addEventListener('click', function(e){
+    if(!mq.matches || !sb.classList.contains('navOpen') || !e.target.closest) return;
+    if(e.target.closest('#sidebar')) return;
+    setOpen(false);
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && sb.classList.contains('navOpen')) setOpen(false);
+  });
+  function sync(){ if(!mq.matches) setOpen(false); }
+  if(mq.addEventListener) mq.addEventListener('change', sync);
+  else if(mq.addListener) mq.addListener(sync);
+})();
 </script>
 </body>
 </html>
